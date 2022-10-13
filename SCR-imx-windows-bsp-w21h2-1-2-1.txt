@@ -1,7 +1,7 @@
 NXP Software Content Register
 
-Release - Windows 10 IoT 1.2.0
-September 2022
+Release - Windows 10 IoT 1.2.1
+October 2022
 
 License file: EULA.txt  NXP Proprietary LA_OPT_NXP_Software_License v39 August 2022 - Additional distribution license granted, Section 2.3 applies
 
@@ -224,5 +224,15 @@ Release Location:            ./imx-windows-iot/driver/display/dispdll
 Downloaded from:             https://source.codeaurora.org/external/imx/linux-imx/
 Origin:                      NXP (GPL-2.0)
                              Microsoft Corporation (MIT)  
+
+-------------------------------------------- 
+
+Packages:                    ./imx-windows-iot/driver/Wifi_mrvlpcie8897
+Outgoing License:            LA_OPT_NXP_Software_License v39 August 2022 - Additional distribution Use
+License File:                License
+Type of content:             Binary
+Description and comments:    Wi-Fi Windows driver (WiFi-BT firmware included) for W8897
+Origin:                      NXP (proprietary)
+                             ThreadX licensed from Express Logic (Express Logic) - https://rtos.com/solutions/threadx/
 
 -------------------------------------------- 
