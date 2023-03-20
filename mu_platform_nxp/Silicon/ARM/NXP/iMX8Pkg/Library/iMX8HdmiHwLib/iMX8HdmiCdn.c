@@ -31,7 +31,7 @@
 #include <Library/DebugLib.h>
 #include <Library/IoLib.h>
 #include <Library/TimerLib.h>
-#if (!defined(CPU_IMX8MP) && !defined(CPU_IMX8QXP))
+#if (!defined(CPU_IMX8MP) && !defined(CPU_IMX8QXP) && !defined(CPU_IMX93))
 #include "iMX8HdmiCdn.h"
 
 VOID HdmiCdnGeneralReadRegister(UINT32 address, UINT32 *value)
@@ -91,7 +91,7 @@ VOID HdmiCdnGeneralWriteRegister(UINT32 address, UINT32 value)
 
 VOID HdmiCdnOn(VOID)
 {
-#if (!defined(CPU_IMX8MP) && !defined(CPU_IMX8QXP))
+#if (!defined(CPU_IMX8MP) && !defined(CPU_IMX8QXP) && !defined(CPU_IMX93))
     UINT32 value32;
 
     DEBUG((DEBUG_INFO, "Turning On HDMI cadence \n"));
@@ -105,7 +105,7 @@ VOID HdmiCdnOn(VOID)
 
 VOID HdmiCdnOff(VOID)
 {
-#if (!defined(CPU_IMX8MP) && !defined(CPU_IMX8QXP))
+#if (!defined(CPU_IMX8MP) && !defined(CPU_IMX8QXP) && !defined(CPU_IMX93))
     UINT32 value32;
 
     DEBUG((DEBUG_INFO, "Turning Off HDMI cadence \n"));

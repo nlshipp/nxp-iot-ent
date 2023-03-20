@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -164,7 +164,7 @@ static int set_parent_scu(const struct clk *clk, const struct clk *parent)
         }
     }
 
-    if (i == parent->clk_scu.num_parents) {
+    if (i == clk->clk_scu.num_parents) {
         return -EINVAL;
     }
 
@@ -378,6 +378,7 @@ static void imx_clk_func_init(struct clk *clk)
     clk->clk_get_parent = &imx8q_clk_get_parent;
     clk->clk_set_parent = &imx8q_clk_set_parent;
     clk->clk_get_reference_rate = &imx8q_clk_get_reference_rate;
+    clk->flags |= CLK_SCFW_PRESENT;
 }
 
 struct clk *imx8q_clk_fixed(const char *name,

@@ -39,7 +39,9 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 5, "MSFT", "EDK2", 1) {
     include("Dsdt-Usb.asl")
     include("Dsdt-Rhp.asl")
     include("Dsdt-Enet.asl")
+#if FixedPcdGetBool(PcdSecureBootEnable)
     include("Dsdt-TrEE.asl")
+#endif
     include("Dsdt-Audio.asl")
     include("Dsdt-Pwm.asl")
     include("Dsdt-Gfx.asl")

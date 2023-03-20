@@ -1020,14 +1020,33 @@ VOID USB2Init (VOID)
         /* Power up USB_OTG1 */
         sc_status = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_USB_0, SC_PM_PW_MODE_ON);
         if (sc_status != SC_ERR_NONE) {
-            DEBUG ((DEBUG_ERROR, "USB3 Init: sc_pm_set_resource_power_mode(SC_R_USB_0, SC_PM_PW_MODE_ON)) falied, sc_status = %d\n", sc_status));
+            DEBUG ((DEBUG_ERROR, "USB2 Init: sc_pm_set_resource_power_mode(SC_R_USB_0, SC_PM_PW_MODE_ON)) falied, sc_status = %d\n", sc_status));
             break;
         }
         sc_status = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_USB_0_PHY, SC_PM_PW_MODE_ON);
         if (sc_status != SC_ERR_NONE) {
-            DEBUG ((DEBUG_ERROR, "USB3 Init: sc_pm_set_resource_power_mode(SC_R_USB_0_PHY, SC_PM_PW_MODE_ON)) falied, sc_status = %d\n", sc_status));
+            DEBUG ((DEBUG_ERROR, "USB2 Init: sc_pm_set_resource_power_mode(SC_R_USB_0_PHY, SC_PM_PW_MODE_ON)) falied, sc_status = %d\n", sc_status));
             break;
         }
+        /* Enable USB_OTG2 peripheral clock */
+        sc_status = sc_pm_clock_enable(SC_IPC_HDL, SC_R_USB_2, SC_PM_CLK_MISC, true, false);
+        if (sc_status != SC_ERR_NONE) {
+            DEBUG ((DEBUG_ERROR, "USB2 Init: sc_pm_clock_enable(SC_R_USB_2, SC_PM_CLK_MISC, true, false) falied, sc_status = %d\n", sc_status));
+            break;
+        }
+        /* Enable USB_OTG2 peripheral clock */
+        sc_status = sc_pm_clock_enable(SC_IPC_HDL, SC_R_USB_2, SC_PM_CLK_MST_BUS , true, false);
+        if (sc_status != SC_ERR_NONE) {
+            DEBUG ((DEBUG_ERROR, "USB2 Init: sc_pm_clock_enable(SC_R_USB_2, SC_PM_CLK_MST_BUS , true, false) falied, sc_status = %d\n", sc_status));
+            break;
+        }
+        /* Enable USB_OTG2 peripheral clock */
+        sc_status = sc_pm_clock_enable(SC_IPC_HDL, SC_R_USB_2, SC_PM_CLK_PER , true, false);
+        if (sc_status != SC_ERR_NONE) {
+            DEBUG ((DEBUG_ERROR, "USB2 Init: sc_pm_clock_enable(SC_PM_CLK_PER , true, false) falied, sc_status = %d\n", sc_status));
+            break;
+        }
+        WrReg32(CONNECTIVITY__LPCG_USB2_BASE_PTR, 0x22220000);
         /* USB2.0 OTG1 INIT NON-CORE REGISTERS */
         /* Set the USB 5V control switch power polarity high-active */
         WrReg32(IMX_USB2OTG1_BASE + IMX_USBNC_OTG_CTRL1, (RdReg32(IMX_USB2OTG1_BASE + IMX_USBNC_OTG_CTRL1) | IMX_USBNC_OTG_CTRL1_PWR_POL_MASK));
@@ -1664,7 +1683,6 @@ VOID LpuartInit()
    {SC_R_UART_1, 80000000},
 #endif
    {SC_R_UART_2, 80000000},
-   // {SC_R_UART_3, 80000000}
   };
   const uint8_t instances_num = (uint8_t)(sizeof(instances) / sizeof(instances[0]));
 
@@ -2014,8 +2032,8 @@ RETURN_STATUS ArmPlatformInitialize(IN UINTN MpId)
   UngateClocks();
   GpioInit();
   I2cInit();
-  FlexCanInit();
-  I2CSwitchIOExpandersInit();
+  FlexCanInit(); // First set up FlexCanInit then I2CSwitchIOExpandersInit
+  I2CSwitchIOExpandersInit(); 
   PsInit();
   LpuartInit();
 #if FixedPcdGet32(PcdPcie1Enable)

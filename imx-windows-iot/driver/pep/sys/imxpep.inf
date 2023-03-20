@@ -1,6 +1,8 @@
 ;
 ; imxpep.inf
 ;
+; Copyright 2023 NXP
+; Licensed under the MIT License.
 
 ; ================= Class section =====================
 
@@ -29,7 +31,7 @@ imxpep.sys = 3426
 %MSFT%=Microsoft,NT$ARCH$
 
 [Microsoft.NT$ARCH$]
-%imxpep.DeviceDesc%=imxpep_Device, ACPI\NXP0111
+%imxpep.DeviceDesc%=imxpep_Device, ACPI\NXP0122
 
 [imxpep_Device.NT]
 CopyFiles=imxpep_Device.CopyFiles

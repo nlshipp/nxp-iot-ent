@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -39,7 +39,7 @@
 /* Main object of the clock tree - single instance for all monitors */
 static struct imx8qxp_clk_device clktree;
 
-static struct clk *dc0_sels[5];
+static struct clk* dc0_sels[5] = {0};
 
 static void fill_dc0_sels(struct clk **sels, struct clk **clks)
 {
@@ -48,6 +48,19 @@ static void fill_dc0_sels(struct clk **sels, struct clk **clks)
     sels[2] = clks[IMX8QXP_DC0_PLL0_CLK];
     sels[3] = clks[IMX8QXP_DC0_PLL1_CLK];
     sels[4] = clks[IMX8QXP_DC0_BYPASS0_CLK];
+}
+
+static struct clk* lvds0_sels[1] = {0};
+static struct clk* lvds1_sels[1] = {0};
+
+static void fill_lvds0_sels(struct clk** sels, struct clk** clks)
+{
+    sels[0] = clks[IMX8QXP_LVDS0_BYPASS_CLK];
+}
+
+static void fill_lvds1_sels(struct clk** sels, struct clk** clks)
+{
+    sels[0] = clks[IMX8QXP_LVDS1_BYPASS_CLK];
 }
 
 struct clk *clk_get_item_imx8qxp(int index)
@@ -120,13 +133,17 @@ struct imx8qxp_clk_device *clk_init_imx8qxp()
     dev->clks[IMX8QXP_DC0_DISP1_CLK] = imx_clk_scu2("dc0_disp1_clk", dc0_sels, ARRAY_SIZE(dc0_sels), IMX_SC_R_DC_0, IMX_SC_PM_CLK_MISC1);
 
     /* MIPI-LVDS SS */
-    dev->clks[IMX8QXP_LVDS0_PIX_CLK] = imx_clk_scu("lvds0_pixel_clk", IMX_SC_R_LVDS_0, IMX_SC_PM_CLK_MISC2);
     dev->clks[IMX8QXP_LVDS0_BYPASS_CLK] = imx_clk_scu("lvds0_bypass_clk", IMX_SC_R_LVDS_0, IMX_SC_PM_CLK_BYPASS);
-    dev->clks[IMX8QXP_LVDS0_PHY_CLK] = imx_clk_scu("lvds0_phy_clk", IMX_SC_R_LVDS_0, IMX_SC_PM_CLK_MISC3);
+    fill_lvds0_sels(lvds0_sels, dev->clks);
 
-    dev->clks[IMX8QXP_LVDS1_PIX_CLK] = imx_clk_scu("lvds1_pixel_clk", IMX_SC_R_LVDS_1, IMX_SC_PM_CLK_MISC2);
+    dev->clks[IMX8QXP_LVDS0_PIX_CLK] = imx_clk_scu2("lvds0_pixel_clk", lvds0_sels, ARRAY_SIZE(lvds0_sels), IMX_SC_R_LVDS_0, IMX_SC_PM_CLK_MISC2);
+    dev->clks[IMX8QXP_LVDS0_PHY_CLK] = imx_clk_scu2("lvds0_phy_clk", lvds0_sels, ARRAY_SIZE(lvds0_sels), IMX_SC_R_LVDS_0, IMX_SC_PM_CLK_MISC3);
+
     dev->clks[IMX8QXP_LVDS1_BYPASS_CLK] = imx_clk_scu("lvds1_bypass_clk", IMX_SC_R_LVDS_1, IMX_SC_PM_CLK_BYPASS);
-    dev->clks[IMX8QXP_LVDS1_PHY_CLK] = imx_clk_scu("lvds1_phy_clk", IMX_SC_R_LVDS_1, IMX_SC_PM_CLK_MISC3);
+    fill_lvds1_sels(lvds1_sels, dev->clks);
+
+    dev->clks[IMX8QXP_LVDS1_PIX_CLK] = imx_clk_scu2("lvds1_pixel_clk", lvds1_sels, ARRAY_SIZE(lvds1_sels), IMX_SC_R_LVDS_1, IMX_SC_PM_CLK_MISC2);
+    dev->clks[IMX8QXP_LVDS1_PHY_CLK] = imx_clk_scu2("lvds1_phy_clk", lvds1_sels, ARRAY_SIZE(lvds1_sels), IMX_SC_R_LVDS_1, IMX_SC_PM_CLK_MISC3);
 
     return dev;
 }

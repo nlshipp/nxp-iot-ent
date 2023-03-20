@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -52,7 +52,7 @@ static resource ldb1_phy_res_list[] = {
 };
 
 static struct clk_init_data_desc ldb1_phy_clock_desc[] = {
-    { "phy", IMX8QXP_LVDS0_PHY_CLK, 0, 0, 0 },
+    { "phy", IMX8QXP_LVDS0_PHY_CLK, IMX8QXP_LVDS0_BYPASS_CLK, 0, 0 },
     {""},
 };
 
@@ -119,9 +119,9 @@ static void fill_ldb_child(int ldb)
 }
 
 static struct clk_init_data_desc ldb1_clock_desc[] = {
-    { "pixel", IMX8QXP_LVDS0_PIX_CLK, 0, 0, 0 },
+    { "pixel", IMX8QXP_LVDS0_PIX_CLK, IMX8QXP_LVDS0_BYPASS_CLK, 0, 0 },
     { "bypass", IMX8QXP_LVDS0_BYPASS_CLK, 0, 0, 0 },
-    { "aux_pixel", IMX8QXP_LVDS1_PIX_CLK, 0, 0, 0 },
+    { "aux_pixel", IMX8QXP_LVDS1_PIX_CLK, IMX8QXP_LVDS1_BYPASS_CLK, 0, 0 },
     { "aux_bypass", IMX8QXP_LVDS1_BYPASS_CLK, 0, 0, 0 },
     {""},
 };
@@ -424,8 +424,11 @@ static void dpu_irq_init(void)
         irq_desc[i].irq_data.hwirq = dpu_interrupts[i];
         irq_desc[i].handler = nullptr;
         irq_desc[i].irq_data.chip.type = IRQCHIP_TYPE_IRQ_STEER;
-        irq_state_set_disabled(&irq_desc[i]);
-        irq_state_set_masked(&irq_desc[i]);
+        if (i > 2)  /* Skip interrupts from DPU Blit engine */
+        {
+            irq_state_set_disabled(&irq_desc[i]);
+            irq_state_set_masked(&irq_desc[i]);
+        }
     }
 }
 

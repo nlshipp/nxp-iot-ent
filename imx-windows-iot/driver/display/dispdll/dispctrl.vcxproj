@@ -212,6 +212,7 @@
     <ClCompile Include="mipi_dsi\adv7511_drv.c" />
     <ClCompile Include="mipi_dsi\adv7533.c" />
     <ClCompile Include="mipi_dsi\drm_mipi_dsi.c" />
+    <ClCompile Include="mipi_dsi\panel-raydium-rm67191.c" />
     <ClCompile Include="mipi_dsi\sec-dsim.c" />
     <ClCompile Include="mipi_dsi\sec_mipi_dsim-imx.c" />
     <ClCompile Include="os\windows\src\board-imx8mn.cpp" />
@@ -221,6 +222,7 @@
     <ClCompile Include="os\windows\src\board-imx8mq.cpp" />
     <ClCompile Include="os\windows\src\board-imx8qxp.cpp" />
     <ClCompile Include="os\windows\src\board.cpp" />
+    <ClCompile Include="os\windows\src\comm.cpp" />
     <ClCompile Include="os\windows\src\drivers\drm\drm_connector.c" />
     <ClCompile Include="os\windows\src\drivers\drm\drm_displayid.c" />
     <ClCompile Include="os\windows\src\drivers\base\platform.c" />
@@ -234,7 +236,6 @@
     <ClCompile Include="os\windows\src\drivers\firmware\imx\imx-scu.c" />
     <ClCompile Include="os\windows\src\drivers\irqchip\irq-imx-irqsteer.c" />
     <ClCompile Include="os\windows\src\drivers\phy\phy-mixel-lvds-combo.c" />
-    <ClCompile Include="os\windows\src\i2c_comm.cpp" />
     <ClCompile Include="os\windows\src\kernel\irq\chip.c" />
     <ClCompile Include="os\windows\src\kernel\irq\manage.c" />
     <ClCompile Include="os\windows\src\lib\find_bit.c" />
@@ -306,6 +307,7 @@
     <ClInclude Include="mipi_dsi\adv7511.h" />
     <ClInclude Include="mipi_dsi\drm_mipi_dsi.h" />
     <ClInclude Include="mipi_dsi\mipi_display.h" />
+    <ClInclude Include="mipi_dsi\panel-raydium-rm67191.h" />
     <ClInclude Include="mipi_dsi\sec_mipi_dphy_ln14lpp.h" />
     <ClInclude Include="mipi_dsi\sec_mipi_dsim.h" />
     <ClInclude Include="mipi_dsi\sec_mipi_pll_1432x.h" />
@@ -354,6 +356,7 @@
     <ClInclude Include="os\windows\include\linux\include\linux\dma-mapping.h" />
     <ClInclude Include="os\windows\include\linux\include\linux\err.h" />
     <ClInclude Include="os\windows\include\linux\include\linux\gfp.h" />
+    <ClInclude Include="os\windows\include\linux\include\linux\gpio\consumer.h" />
     <ClInclude Include="os\windows\include\linux\include\linux\i2c.h" />
     <ClInclude Include="os\windows\include\linux\include\linux\hdmi.h" />
     <ClInclude Include="os\windows\include\linux\include\linux\interrupt.h" />
@@ -392,7 +395,7 @@
     <ClInclude Include="os\windows\include\linux\include\video\display_timing.h" />
     <ClInclude Include="os\windows\include\linux\include\video\dpu.h" />
     <ClInclude Include="os\windows\include\linux\include\video\videomode.h" />
-    <ClInclude Include="os\windows\src\i2c_comm.h" />
+    <ClInclude Include="os\windows\src\comm.h" />
     <ClInclude Include="os\windows\src\kernel\irq\internals.h" />
     <ClInclude Include="precomp.h" />
     <ClInclude Include="resource.h" />

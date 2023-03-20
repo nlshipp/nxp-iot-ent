@@ -39,10 +39,14 @@ Device (GPU0)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 35 }
     // LCDIF interrupt
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 37 }
+    // MIPI-DSI interrupt
+    Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 50 }
     // MIPI-DSI I2C interface for the IMX-MIPI-HDMI converter (ADV7535).
     // First must be main MIPI I2C connection, Second cec MIPI I2C connection, third edid MIPI I2C connection.
     I2CSerialBus(0x3d, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C2")
     I2CSerialBus(0x3b, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C2")
     I2CSerialBus(0x41, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C2")
+    //DSI_EN pin GPIO1_IO8 for IMX-DSI-OLED display reset
+    GpioIO(Exclusive, PullNone, 0, 1, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 8 } // 0 * 32 + 8 DSI_EN
   })
 }

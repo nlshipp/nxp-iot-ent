@@ -50,6 +50,7 @@
   Microsoft/OpteeClientPkg/OpteeClientPkg.dec
   iMXPlatformPkg/iMXPlatformPkg.dec
   iMX8Pkg/iMX8Pkg.dec
+  Microsoft/MsPkg.dec
 
 [FixedPcd]
   gArmPlatformTokenSpaceGuid.PcdCoreCount
@@ -94,3 +95,6 @@
   # ISI DMA 0 FB reserved memory
   giMX8TokenSpaceGuid.PcdIsiDma0ReservedMemoryBase
   giMX8TokenSpaceGuid.PcdIsiDmaReservedMemorySize
+
+  # Secure Boot
+  gMsPkgTokenSpaceGuid.PcdSecureBootEnable

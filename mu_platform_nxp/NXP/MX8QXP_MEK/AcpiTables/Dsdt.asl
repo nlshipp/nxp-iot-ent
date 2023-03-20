@@ -50,7 +50,7 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 5, "MSFT", "EDK2", 1) {
     /* Others */
     include("Dsdt-Sdhc.asl")
     include("Dsdt-Usb.asl")
-/*    include("Dsdt-MaloneVpu.asl") */
+    include("Dsdt-MaloneVpu.asl")
     include("Dsdt-Enet.asl")
     include("Dsdt-PCIe.asl")
     include("Dsdt-Audio.asl")
@@ -59,11 +59,13 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 5, "MSFT", "EDK2", 1) {
     include("Dsdt-Fxas21002Gyro.asl")
     include("Dsdt-Pwm.asl")
     include("Dsdt-Rhp.asl")
+#if FixedPcdGetBool(PcdSecureBootEnable)
     include("Dsdt-TrEE.asl")
+#endif
     include("Dsdt-TCPC.asl")
     include("Dsdt-Als.asl")
-	include("Dsdt-Can.asl")
-	include("Dsdt-eCompass.asl")
+    include("Dsdt-Can.asl")
+    include("Dsdt-eCompass.asl")
 #if FixedPcdGet32(PcdCsi1CameraOv5640)
     include("Dsdt-Camera_Ov5640_mipi_csi1.asl")
 #elif FixedPcdGet32(PcdCsi1CameraOv10635)

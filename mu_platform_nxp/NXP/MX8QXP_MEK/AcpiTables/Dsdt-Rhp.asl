@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -48,13 +48,11 @@ Device(RHPX)
     // Index 3
     I2CSerialBus(0xFFFF,, 0,, "\\_SB.I2CF",,,,)
 
-// imxlpspi driver not supported yet
-#if 0
     // Index 4
     SPISerialBus (          // SCLK (SPI0_SCK) - GPIO1_IO04 (36) - J43E E25, BaseBoard J20 A29
                             // MOSI (SPI0_SDO) - GPIO1_IO06 (38) - J43E E26, BaseBoard J20 A33
                             // MISO (SPI0_SDI) - GPIO1_IO05 (37) - J43E E28, BaseBoard J20 A32
-                            // SS0 (SPI0_CS0) - GPIO1_IO08 (40) - J43E E29, BaseBoard J20 A30
+                            // SS0 (SPI0_CS0)  - GPIO1_IO08 (40) - J43E E29, BaseBoard J20 A30
       0,                    // Device selection (CE0)
       PolarityLow,          // Device selection polarity
       FourWireMode,         // wiremode
@@ -68,6 +66,7 @@ Device(RHPX)
                             // Resource usage
                             // DescriptorName: creates name for offset of resource descriptor
     )                       // Vendor Data
+
     // Index 5
     SPISerialBus (          // SCLK (SPI3_SCK) - GPIO0_IO13 (13) - J13A A11, J13C C16, BaseBoard J8 SH9 , BaseBoard J20 A21
                             // MOSI (SPI3_SDO) - GPIO0_IO14 (14) - J13A A13, J13C C17, BaseBoard J8 SH7 , BaseBoard J20 A25
@@ -87,7 +86,6 @@ Device(RHPX)
                             // DescriptorName: creates name for offset of resource descriptor
     )                       // Vendor Data
 
-#endif
   })
 
   Name(_DSD, Package()
@@ -101,14 +99,19 @@ Device(RHPX)
       Package(2) { "bus-I2C-I2C8", Package() { 2 }},
       Package(2) { "bus-I2C-I2CF", Package() { 3 }},
 
-      // SPI bus 2
-      // Reference clock is 24 MHz
-#if 0
-      Package(2) { "bus-SPI-SPI2", Package() { 3 }},
-      Package(2) { "SPI2-MinClockInHz", 46 },                              // 46 Hz
-      Package(2) { "SPI2-MaxClockInHz", 12000000 },                        // 12 MHz
-      Package(2) { "SPI2-SupportedDataBitLengths", Package() { 8,16,32 }}, // Data bit length
-#endif
+      // SPI bus 0
+      // Reference clock is 160 MHz
+      Package(2) { "bus-SPI-SPI0", Package() { 4 }},
+      Package(2) { "SPI0-MinClockInHz", 10000 },                           // 10 kHz
+      Package(2) { "SPI0-MaxClockInHz", 16000000 },                        // 16 MHz
+      Package(2) { "SPI0-SupportedDataBitLengths", Package() { 8,16,32 }}, // Data bit length
+
+      // SPI bus 3
+      // Reference clock is 160 MHz
+      Package(2) { "bus-SPI-SPI3", Package() { 5 }},
+      Package(2) { "SPI3-MinClockInHz", 10000 },                           // 10 kHz
+      Package(2) { "SPI3-MaxClockInHz", 16000000 },                        // 16 MHz
+      Package(2) { "SPI3-SupportedDataBitLengths", Package() { 8,16,32 }}, // Data bit length
 
       // GPIO Pin Count and supported drive modes
       Package (2) { "GPIO-PinCount", 157 },

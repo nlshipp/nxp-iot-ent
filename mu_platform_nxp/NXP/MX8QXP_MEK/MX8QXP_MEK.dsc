@@ -3,7 +3,7 @@
 #
 #  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
 #  Copyright (c) 2013-2018, ARM Limited. All rights reserved.
-#  Copyright 2019-2020, 2022 NXP
+#  Copyright 2019-2020, 2022-2023 NXP
 #
 #  This program and the accompanying materials
 #  are licensed and made available under the terms and conditions of the BSD License
@@ -71,7 +71,9 @@
   MdeModulePkg/Universal/Acpi/AcpiPlatformDxe/AcpiPlatformDxe.inf
   $(BOARD_DIR)/AcpiTables/AcpiTables.inf
 
-# TODO : add Ehci packages
+!if $(CONFIG_USB) == TRUE
+  MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf
+!endif
 
   #
   # SMBIOS/DMI
@@ -149,20 +151,20 @@
   # |                   |  v
   # +-------------------+===> (0xFE000000) PcdTrustZonePrivateMemoryBase (OPTEE image base address)
   # | TZ Private Memory |  ^
-  # | (OPTEE)           |  |  (0x01C00000) PcdTrustZonePrivateMemorySize 28MB
+  # | (OPTEE)           |  |  (0x01E00000) PcdTrustZonePrivateMemorySize 30MB
   # |                   |  v
-  # +-------------------+===> (0xFFC00000) PcdTrustZoneSharedMemoryBase (includes mobj bookkeeping page)
+  # +-------------------+===> (0xFFE00000) PcdTrustZoneSharedMemoryBase (includes mobj bookkeeping page)
   # | TZ Shared Memory  |  ^
-  # |                   |  |  (0x00400000) PcdTrustZoneSharedMemorySize 4MB
+  # |                   |  |  (0x00200000) PcdTrustZoneSharedMemorySize 2MB
   # |                   |  v
   # +-------------------|===>
 
 !if $(CONFIG_OPTEE) == TRUE
   gOpteeClientPkgTokenSpaceGuid.PcdTrustZonePrivateMemoryBase|0xFE000000
-  gOpteeClientPkgTokenSpaceGuid.PcdTrustZonePrivateMemorySize|0x01C00000
+  gOpteeClientPkgTokenSpaceGuid.PcdTrustZonePrivateMemorySize|0x01E00000
 
   #
-  # TrustZone shared memory (4Mb)
+  # TrustZone shared memory (2MB)
   # This memory is managed by the normal world but shared with the OpTEE OS.
   # It must match OpTEE optee_os/core/arch/arm/plat-imx/platform_config.h:
   #    CFG_SHMEM_START & CFG_SHMEM_SIZE
@@ -170,8 +172,8 @@
   # and we should not touch it. We will skip the first 4K of SHMEM and take that
   # into account for SHMEM size in PcdTrustZoneSharedMemorySize.
   #
-  gOpteeClientPkgTokenSpaceGuid.PcdTrustZoneSharedMemoryBase|0xFFC00000
-  gOpteeClientPkgTokenSpaceGuid.PcdTrustZoneSharedMemorySize|0x00400000
+  gOpteeClientPkgTokenSpaceGuid.PcdTrustZoneSharedMemoryBase|0xFFE00000
+  gOpteeClientPkgTokenSpaceGuid.PcdTrustZoneSharedMemorySize|0x00200000
 !endif
 
   # FirmwareRevision 0.1
@@ -377,6 +379,17 @@
   # Configuration of camera type connected to CSI1 port
   giMX8TokenSpaceGuid.PcdCsi1CameraOv5640|0x1
   giMX8TokenSpaceGuid.PcdCsi1CameraOv10635|0x0
+  
+  #
+  # Lpuart
+  #
+  # Uncomment to enable LPUART 1
+  # giMX8TokenSpaceGuid.PcdLpuart1Enable|0x1
+
+  #
+  # USB
+  #
+  giMX8TokenSpaceGuid.PcdUsb1XhciBaseAddress|0x5B130000
 
 [PcdsPatchableInModule]
   # Use system default resolution

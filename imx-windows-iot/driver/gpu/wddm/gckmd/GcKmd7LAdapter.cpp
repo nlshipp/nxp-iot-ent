@@ -282,6 +282,63 @@ GcKm7LAdapter::Start(
     return status;
 }
 
+HANDLE GcKm7LAdapter::GetGdiUniformBufferHeap(
+    DXGK_CREATECONTEXTFLAGS ContextFlags,
+    HANDLE                  hRtDevice,
+    HANDLE                  hRtContext,
+    GpuMemoryHeap*          pHeap,
+    UINT*                   pMaxPendingDmaBuffers)
+{
+    DXGKARGCB_CREATECONTEXTALLOCATION   ArgCbCreateCtxAllocation = {};
+
+    if (ContextFlags.GdiContext)
+    {
+        *pHeap = m_GdiUboHeap;
+    }
+    else if (ContextFlags.SystemContext)
+    {
+        *pHeap = m_SysUboHeap;
+    }
+    else
+    {
+        DXGK_ALLOCATIONINFO RtAllocInfo = {};
+        GcKmGdiAllocation   GdiAllocation = {};
+
+        ArgCbCreateCtxAllocation.hAdapter = m_DxgkInterface.DeviceHandle;
+        ArgCbCreateCtxAllocation.hDevice = hRtDevice;
+        ArgCbCreateCtxAllocation.hContext = hRtContext;
+
+        ArgCbCreateCtxAllocation.hDriverAllocation = &GdiAllocation;
+
+        ArgCbCreateCtxAllocation.Size = GcKm7LContext::s_GdiUboHeapSize;
+
+        GdiAllocation.m_memorySegmentId = APERTURE_SEGMENT_ID;
+
+        m_pMmu->SetAllocationSegmentInfo(&GdiAllocation, &RtAllocInfo);
+
+        ArgCbCreateCtxAllocation.Alignment = RtAllocInfo.Alignment;
+        ArgCbCreateCtxAllocation.SupportedSegmentSet = RtAllocInfo.SupportedWriteSegmentSet;
+        ArgCbCreateCtxAllocation.EvictionSegmentSet = RtAllocInfo.EvictionSegmentSet;
+        ArgCbCreateCtxAllocation.PreferredSegment = RtAllocInfo.PreferredSegment;
+
+        ArgCbCreateCtxAllocation.Flags.CpuVisible = 1;
+
+        ArgCbCreateCtxAllocation.ContextAllocationFlags.MapGpuVirtualAddress = 1;
+
+        auto Status = m_DxgkInterface.DxgkCbCreateContextAllocation(&ArgCbCreateCtxAllocation);
+        if (NT_SUCCESS(Status))
+        {
+            pHeap->m_Size  = GcKm7LContext::s_GdiUboHeapSize;
+            pHeap->m_pMem  = GdiAllocation.m_pCpuAddress;
+            pHeap->m_GpuVa = (UINT)GdiAllocation.m_GpuVa;
+        }
+    }
+
+    *pMaxPendingDmaBuffers = m_DxgkStartInfo.RequiredDmaQueueEntry;
+
+    return ArgCbCreateCtxAllocation.hAllocation;
+}
+
 NTSTATUS GcKm7LAdapter::Stop()
 {
     if (g_pfnDisplayStopController)
@@ -354,6 +411,8 @@ BOOLEAN GcKm7LAdapter::InterruptRoutine(
     return bRet;
 }
 
+extern BOOLEAN  g_bAllowForcedContextSwitch;
+
 NTSTATUS
 GcKm7LAdapter::QueryAdapterInfo(
     IN_CONST_PDXGKARG_QUERYADAPTERINFO  pQueryAdapterInfo)
@@ -373,15 +432,33 @@ GcKm7LAdapter::QueryAdapterInfo(
         {
             DXGK_DRIVERCAPS*    pDriverCaps = (DXGK_DRIVERCAPS*)pQueryAdapterInfo->pOutputData;
 
-            if (GcKmdGlobal::s_bGdiHwAcceleration)
+            //
+            // GDI acceleration level of 2 : HW command buffer, 1 : SW redirection surface, 0 : Off
+            //
+
+            DWORD   GdiAccLevel = 2;
+
+            ReadDwordRegistryValue(&m_DeviceInfo.DeviceRegistryPath, L"GdiAccLevel", &GdiAccLevel);
+
+            if (GcKmdGlobal::s_bGdiHwAcceleration && (GdiAccLevel > 1))
             {
                 pDriverCaps->PresentationCaps.SupportKernelModeCommandBuffer = TRUE;
+                pDriverCaps->PresentationCaps.NoCacheCoherentApertureMemory = TRUE;
                 pDriverCaps->PresentationCaps.SupportSoftwareDeviceBitmaps = FALSE;
 
                 pDriverCaps->PresentationCaps.NoSameBitmapOverlappedAlphaBlend = TRUE;
                 pDriverCaps->PresentationCaps.NoSameBitmapOverlappedStretchBlt = TRUE;
 
                 pDriverCaps->PresentationCaps.NoSameBitmapOverlappedBitBlt = TRUE;
+            }
+
+            if (0 == GdiAccLevel)
+            {
+                pDriverCaps->PresentationCaps.SupportKernelModeCommandBuffer = FALSE;
+                pDriverCaps->PresentationCaps.NoCacheCoherentApertureMemory = FALSE;
+                pDriverCaps->PresentationCaps.SupportSoftwareDeviceBitmaps = FALSE;
+
+                g_bAllowForcedContextSwitch = TRUE;
             }
         }
 
@@ -594,6 +671,21 @@ GcKm7LAdapter::Escape(
             else
             {
                 pD3dKmEscape->GetTileModeCap.TileModeCap = 0;
+            }
+        }
+        break;
+
+        case D3D_KM_ESCAPE_GET_ADAPTER_CAPS:
+        {
+            if (0 == wcscmp(m_DeviceId, GC_7000_LITE_MP) ||
+                0 == wcscmp(m_DeviceId, GC_7000_LITE_MN))
+            {
+                pD3dKmEscape->GetAdapterCaps.AdapterCaps = 0;
+                pD3dKmEscape->GetAdapterCaps.UseNV12AliasCopy = 1;
+            }
+            else
+            {
+                pD3dKmEscape->GetAdapterCaps.AdapterCaps = 0;
             }
         }
         break;

@@ -93,6 +93,7 @@
       <WppEnabled Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">true</WppEnabled>
       <WppEnabled Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">true</WppEnabled>
     </ClCompile>
+    <ClCompile Include="..\..\shared\acpi\imx_acpi_utils.c" />
     <ClCompile Include="imxuart.cpp">
       <WppEnabled>true</WppEnabled>
       <WppKernelMode>true</WppKernelMode>

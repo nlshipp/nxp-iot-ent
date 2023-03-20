@@ -65,6 +65,8 @@ GcKm7LContext::Initialize(
     {
         ((GcKm7LAdapter*)m_pDevice->m_pGcKmAdapter)->GetGdiUniformBufferHeap(
                                                         pCreateContext->Flags,
+                                                        NULL,
+                                                        NULL,
                                                         &m_GdiUboHeap,
                                                         &m_MaxPendingDmaBuffers);
     }
@@ -1656,6 +1658,18 @@ namespace MP
 extern GC_7L_GDI_OP GC_7L_GDI_OP_TABLE[];
 };
 
+GcKm7LMPContext::~GcKm7LMPContext()
+{
+    if (m_hGdiAllocation)
+    {
+        auto pDxgkInterface = m_pDevice->m_pGcKmAdapter->GetDxgkInterface();
+
+        pDxgkInterface->DxgkCbDestroyContextAllocation(
+                            pDxgkInterface->DeviceHandle,
+                            m_hGdiAllocation);
+    }
+}
+
 GC_7L_GDI_OP*
 GcKm7LMPContext::GetGdiOp(
     DXGK_RENDERKM_OPERATION GdiOp,
@@ -1683,7 +1697,23 @@ GcKm7LMPContext::CopyImage(
 {
     if (0 == m_Flags.GdiContext)
     {
-        return STATUS_SUCCESS;
+        if (NULL == m_hGdiAllocation)
+        {
+            m_hGdiAllocation = ((GcKm7LAdapter*)m_pDevice->m_pGcKmAdapter)->GetGdiUniformBufferHeap(
+                                                                                m_Flags,
+                                                                                m_pDevice->GetRtDevice(),
+                                                                                m_hRTContext,
+                                                                                &m_GdiUboHeap,
+                                                                                &m_MaxPendingDmaBuffers);
+            if (NULL == m_hGdiAllocation)
+            {
+                return STATUS_NO_MEMORY;
+            }
+        }
+
+        GcDmaBufInfo* pDmaBufInfo = (GcDmaBufInfo*)pDmaBufferPrivateData;
+
+        pDmaBufInfo->m_DmaBufState.m_bGdiSamplerUsed = 1;
     }
 
     return GdiOpBuildCommandBuffer(

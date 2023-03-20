@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -130,36 +130,6 @@ Device (LPU2)
     ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
         Package () {
             Package (2) {"SerCx-FriendlyName", "LPUART2"}
-        }
-    })
-}
-
-Device (LPU3)
-{
-    Name (_HID, "NXP0116")
-    Name (_UID, 0x3)
-    Name (_DDN, "LPUART3")
-    Method (_STA)
-    {
-        Return(0) // Enable
-    }
-    Method (_CRS, 0x0, NotSerialized) {
-        Name (RBUF, ResourceTemplate () {
-            Memory32Fixed (ReadWrite, 0x5A090000, 0x30, )
-            Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 260 }
-
-            // DMA channel 14, SDMA_REQ_UART4_RX for LPUART3 RX DMA
-            FixedDMA (SDMA_REQ_UART4_RX, 14, Width8Bit, )
-            // DMA channel 15, SDMA_REQ_UART4_TX for LPUART3 TX DMA
-            FixedDMA (SDMA_REQ_UART4_TX, 15, Width8Bit, )
-        })
-        Return(RBUF)
-    }
-
-    Name (_DSD, Package () {
-    ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
-        Package () {
-            Package (2) {"SerCx-FriendlyName", "LPUART3"}
         }
     })
 }

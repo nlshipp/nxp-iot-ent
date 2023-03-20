@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -32,11 +32,17 @@
 
 #include <ntddk.h>
 
+enum ResType {
+    ResourceType_I2C,
+    ResourceType_GPIO,
+    ResourceType_Memory,
+};
+
 NTSTATUS GetReslist(DXGKRNL_INTERFACE* pDxgkInterface, PWCHAR pReslist,
     ULONG ResListLen);
 
 NTSTATUS ParseReslist(PCM_RESOURCE_LIST Reslist, UCHAR ResType,
-    LARGE_INTEGER *pConnMem, ULONG *pSize, ULONG Index);
+    LARGE_INTEGER *pConnMem, ULONG *pSize, ULONG Index, enum ResType ResTypeExt);
 
 NTSTATUS GetDwordRegistryParam(DXGKRNL_INTERFACE* pDxgkInterface, PWSTR Name,
     ULONG* Value);

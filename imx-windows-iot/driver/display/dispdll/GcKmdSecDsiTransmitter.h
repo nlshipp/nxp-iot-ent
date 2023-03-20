@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Cadence Design Systems, Inc.
  * All rights reserved worldwide.
  *
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -51,8 +51,6 @@ extern "C" {
 #include "linux/platform_device.h"
 #include "mipi_dsi/sec_mipi_dsim.h"
 #include "linux/i2c.h"
-    //TODO: remove - just for debug purpose
-#include "clk/clk_imx8mn.h"
 }
 
 class SecDsiTransmitter : public BaseTransmitter
@@ -76,11 +74,11 @@ public:
     struct i2c_client m_i2c_edid;
     struct i2c_client m_i2c_cec;
 
-    struct platform_device test_pdev;
+    struct platform_device panel_pdev;
 
 private:
 
-    NTSTATUS GetI2CresourceNum(DXGKRNL_INTERFACE* pDxgkInterface, ULONG i2c_index, LARGE_INTEGER *i2c_connection_id);
+    NTSTATUS GetResourceNum(DXGKRNL_INTERFACE* pDxgkInterface, ULONG index, LARGE_INTEGER *connection_id, enum ResType restype);
 
     NTSTATUS GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface);
     CHAR* GetPrintableDispInterface();

@@ -27,6 +27,7 @@ typedef enum _IMX_SOC {
     IMX_SOC_MX7 = 0x70,
     IMX_SOC_MX8M = 0x80,
     IMX_SOC_MX8X = 0x90,
+    IMX_SOC_MX9 = 0xA0,
 } IMX_SOC;
 
 typedef enum _IMX_CPU {
@@ -48,6 +49,7 @@ typedef enum _IMX_CPU {
     IMX_CPU_MX8MN = 0x86,
     IMX_CPU_MX8MP = 0x87,
     IMX_CPU_MX8QXP = 0x91, // FIXME
+    IMX_CPU_MX93 = 0xA1, // FIXME
     IMX_CPU_MX7ULP = 0xE1, // dummy value
 } IMX_CPU;
 
@@ -440,6 +442,7 @@ static inline IMX_SOC ImxGetSocType (void)
 
     case 0xC0F:     // Cortex-A15
     case 0xD05:     // Cortex-A55
+        return IMX_SOC_MX9;
     case 0xD09:     // Cortex-A73
     case 0xD0A:     // Cortex-A75
     default:
@@ -464,6 +467,10 @@ static inline NTSTATUS ImxGetCpuRev (_Out_ UINT32 *Rev)
 
     case IMX_SOC_MX8X:
         *Rev = (((UINT32)IMX_CPU_MX8QXP) << 12);
+        return STATUS_SUCCESS;
+
+    case IMX_SOC_MX9:
+        *Rev = (((UINT32)IMX_CPU_MX93) << 12);
         return STATUS_SUCCESS;
 
     default:

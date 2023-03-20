@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -57,6 +57,7 @@ Device (CPU0)
 //
 // Description: This is a Processor #1 Device
 //
+#if FixedPcdGet32(PcdCoreCount) > 1
 Device (CPU1)
 {
     Name (_HID, "ACPI0007")
@@ -66,10 +67,12 @@ Device (CPU1)
         Return(0xf)
     }
 }
+#endif
 
 //
 // Description: This is a Processor #2 Device
 //
+#if FixedPcdGet32(PcdCoreCount) > 2
 Device (CPU2)
 {
     Name (_HID, "ACPI0007")
@@ -79,10 +82,12 @@ Device (CPU2)
         Return(0xf)
     }
 }
+#endif
 
 //
 // Description: This is a Processor #3 Device
 //
+#if FixedPcdGet32(PcdCoreCount) > 3
 Device (CPU3)
 {
     Name (_HID, "ACPI0007")
@@ -92,11 +97,12 @@ Device (CPU3)
         Return(0xf)
     }
 }
+#endif
 
 // Power Engine Plugin
 Device (PEP0)
 {
-  Name (_HID, "NXP0111")
+  Name (_HID, "NXP0122")
   Name (_UID, 0x0)
 
   Method (_STA) {

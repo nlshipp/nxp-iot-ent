@@ -1,7 +1,8 @@
 /** @file
-*  Description: i.MX8M VPU Encoder/Decoder
+*  Description: i.MX8QXP VPU Encoder/Decoder
 *
 *  Copyright (c) 2019 Microsoft Corporation. All rights reserved.
+*  Copyright 2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -15,7 +16,7 @@
 
 Device (VPU0)
 {
-  Name (_HID, "NXP010A")
+  Name (_HID, "NXP0224")
   Name (_UID, 0x0)
 
   Method (_STA) {
@@ -37,5 +38,15 @@ Device (VPU0)
     // VPU MU encoder interrupt
     // Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 502 }
     I2CSerialBus(0x40, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.SCFW")
+    
+    // Blitter
+    Memory32Fixed (ReadWrite, 0x56180000, 0x40000, ) // DC (SEERIS)
+    Memory32Fixed (ReadWrite, 0x56040000, 0x1000, ) // PRG0
+    Memory32Fixed (ReadWrite, 0x56050000, 0x1000, ) // PRG1
+    Memory32Fixed (ReadWrite, 0x560D0000, 0x1000, ) // DPR0 (CH0)
+    Memory32Fixed (ReadWrite, 0x560E0000, 0x1000, ) // DPR0 (CH1)
+    Memory32Fixed (ReadWrite, 0x56030000, 0x1000, ) // LTS
+    Memory32Fixed (ReadWrite, 0x56000000, 0x10000, ) // IRQ STEER
+    Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 79 }
   })
 }

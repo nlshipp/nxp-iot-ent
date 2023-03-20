@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012-2013, Samsung Electronics, Co., Ltd.
  * Andrzej Hajda <a.hajda@samsung.com>
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -219,6 +219,45 @@ void mipi_dsi_host_unregister(struct mipi_dsi_host *host)
 	DRM_ERROR("drm_mipi_dsi: host being removed not found.\n");
 }
 
+int mipi_dsi_device_attach(struct platform_device* pdev, u8 channel_id)
+{
+	struct mipi_dsi_host* host;
+	struct mipi_dsi_device* dsi;
+	int ret = 0;
+	struct mipi_dsi_device_info info;
+
+	strcpy(info.type, "MipiDev");
+	info.channel = channel_id;
+	info.node = NULL;
+
+	host = of_find_mipi_dsi_host_by_node(&pdev->dev.parent->of_node);
+	if (!host) {
+		dev_err(&pdev->dev, "failed to find dsi host\n");
+		return -EINVAL;
+	}
+
+	dsi = mipi_dsi_device_register_full(host, &info);
+	if (IS_ERR(dsi)) {
+		dev_err(&pdev->dev, "failed to create dsi device\n");
+		ret = PTR_ERR(dsi);
+	}
+
+	dsi->dev = pdev->dev;
+	pdev->data = dsi;
+
+	return ret;
+}
+
+void mipi_dsi_device_detach(struct platform_device* pdev)
+{
+	struct mipi_dsi_device* dsi;
+
+	if (pdev && pdev->data) {
+		dsi = (struct mipi_dsi_device*)pdev->data;
+		mipi_dsi_device_unregister(dsi);
+	}
+}
+
 /**
  * mipi_dsi_attach - attach a DSI device to its DSI host
  * @dsi: DSI peripheral
@@ -390,7 +429,7 @@ int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
  */
 int mipi_dsi_shutdown_peripheral(struct mipi_dsi_device *dsi)
 {
-	struct mipi_dsi_msg msg;
+	struct mipi_dsi_msg msg = { 0 };
 	int ret;
 
 	msg.channel = (u8)dsi->channel;
@@ -411,7 +450,7 @@ int mipi_dsi_shutdown_peripheral(struct mipi_dsi_device *dsi)
  */
 int mipi_dsi_turn_on_peripheral(struct mipi_dsi_device *dsi)
 {
-	struct mipi_dsi_msg msg;
+	struct mipi_dsi_msg msg = { 0 };
 	int ret;
 
 	msg.channel = (u8)dsi->channel;
@@ -437,7 +476,7 @@ int mipi_dsi_set_maximum_return_packet_size(struct mipi_dsi_device *dsi,
 					    u16 value)
 {
 	u8 tx[2];
-	struct mipi_dsi_msg msg;
+	struct mipi_dsi_msg msg = { 0 };
 	int ret;
 
 	tx[0] = value & 0xff;
@@ -466,7 +505,7 @@ ssize_t mipi_dsi_compression_mode(struct mipi_dsi_device *dsi, bool enable)
 {
 	/* Note: Needs updating for non-default PPS or algorithm */
 	u8 tx[2];
-	struct mipi_dsi_msg msg;
+	struct mipi_dsi_msg msg = { 0 };
 	ssize_t ret;
 
 	tx[0] = enable << 0;
@@ -496,7 +535,7 @@ ssize_t mipi_dsi_compression_mode(struct mipi_dsi_device *dsi, bool enable)
 ssize_t mipi_dsi_generic_write(struct mipi_dsi_device *dsi, const void *payload,
 			       size_t size)
 {
-	struct mipi_dsi_msg msg;
+	struct mipi_dsi_msg msg = { 0 };
 
 	msg.channel = (u8)dsi->channel;
 	msg.tx_buf = payload;
@@ -540,7 +579,7 @@ ssize_t mipi_dsi_generic_write(struct mipi_dsi_device *dsi, const void *payload,
 ssize_t mipi_dsi_generic_read(struct mipi_dsi_device *dsi, const void *params,
 			      size_t num_params, void *data, size_t size)
 {
-	struct mipi_dsi_msg msg;
+	struct mipi_dsi_msg msg = { 0 };
 
 	msg.channel = (u8)dsi->channel;
 	msg.tx_len = num_params;
@@ -583,7 +622,7 @@ ssize_t mipi_dsi_generic_read(struct mipi_dsi_device *dsi, const void *params,
 ssize_t mipi_dsi_dcs_write_buffer(struct mipi_dsi_device *dsi,
 				  const void *data, size_t len)
 {
-	struct mipi_dsi_msg msg;
+	struct mipi_dsi_msg msg = { 0 };
 
 	msg.channel = (u8)dsi->channel;
 	msg.tx_buf = data;

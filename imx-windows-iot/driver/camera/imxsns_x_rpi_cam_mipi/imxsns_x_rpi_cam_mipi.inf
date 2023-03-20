@@ -1,0 +1,96 @@
+; Copyright (c) Microsoft Corporation. All rights reserved.
+; Copyright 2023 NXP
+; Licensed under the MIT License.
+
+[Version]
+Signature	= "$WINDOWS NT$"
+Class		= Camera
+ClassGuid	= {ca3e7ab9-b4c3-4ae6-8251-579ef933890f}
+Provider	= %ProviderName%
+PnpLockdown = 1
+CatalogFile	= imxsns_x_rpi_cam_mipi.cat ; VS requirement to have catalog file entry
+
+[DestinationDirs]
+DefaultDestDir = 12
+imxsns_x_rpi_cam_mipi_Device_CoInstaller_CopyFiles = 11
+InstallFilesSection = 11
+
+; ================= Class section =====================
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll = 1 ; make sure the number matches with SourceDisksNames
+
+[SourceDisksFiles]
+imxsns_x_rpi_cam_mipi.sys = 1,,
+ap1302.fw = 1
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName% = Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%imxsns_x_rpi_cam_mipi.DeviceDesc% = imxsns_x_rpi_cam_mipi_Device, ACPI\NXP0C19
+
+[imxsns_x_rpi_cam_mipi_Device.NT]
+CopyFiles = Drivers_Dir,InstallFilesSection
+
+[InstallFilesSection]
+ap1302.fw,,,0x4000
+
+[Drivers_Dir]
+imxsns_x_rpi_cam_mipi.sys
+
+;-------------- Service installation
+[imxsns_x_rpi_cam_mipi_Device.NT.Services]
+AddService = imxsns_x_rpi_cam_mipi,%SPSVCINST_ASSOCSERVICE%, imxsns_x_rpi_cam_mipi_Service_Inst
+
+; -------------- imxsns_x_rpi_cam_mipi driver install sections
+[imxsns_x_rpi_cam_mipi_Service_Inst]
+DisplayName   = %imxsns_x_rpi_cam_mipi.SVCDESC%
+ServiceType   = %SERVICE_KERNEL_DRIVER%
+StartType     = %SERVICE_DEMAND_START%
+ErrorControl  = %SERVICE_ERROR_NORMAL%
+ServiceBinary = %12%\imxsns_x_rpi_cam_mipi.sys
+
+;
+;--- imxsns_x_rpi_cam_mipi_Device Coinstaller installation ------
+;
+
+[imxsns_x_rpi_cam_mipi_Device.NT.CoInstallers]
+AddReg	  = imxsns_x_rpi_cam_mipi_Device_CoInstaller_AddReg
+CopyFiles = imxsns_x_rpi_cam_mipi_Device_CoInstaller_CopyFiles
+
+[imxsns_x_rpi_cam_mipi_Device_CoInstaller_AddReg]
+HKR,,CoInstallers32,0x00010000, "WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll,WdfCoInstaller"
+
+[imxsns_x_rpi_cam_mipi_Device_CoInstaller_CopyFiles]
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll
+
+[imxsns_x_rpi_cam_mipi_Device.NT.Wdf]
+KmdfService = imxsns_x_rpi_cam_mipi, imxsns_x_rpi_cam_mipi_wdfsect
+
+[imxsns_x_rpi_cam_mipi_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+ProviderName               = "NXP"
+ManufacturerName           = "NXP Semiconductors"
+DiskName				   = "X-RPI-CAM-MIPI Sensor Installation Disk"
+imxsns_x_rpi_cam_mipi.DeviceDesc   = "X-RPI-CAM-MIPI Sensor Device"
+imxsns_x_rpi_cam_mipi.SVCDESC	   = "X-RPI-CAM-MIPI Sensor Service"
+
+; non-localizable strings
+SPSVCINST_ASSOCSERVICE = 0x00000002
+SERVICE_KERNEL_DRIVER  = 1
+
+SERVICE_BOOT_START     = 0
+SERVICE_SYSTEM_START   = 1
+SERVICE_DEMAND_START   = 3
+
+SERVICE_ERROR_IGNORE   = 0
+SERVICE_ERROR_NORMAL   = 1
+SERVICE_ERROR_CRITICAL = 3

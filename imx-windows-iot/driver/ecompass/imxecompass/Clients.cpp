@@ -1,5 +1,5 @@
 // Copyright (C) Microsoft Corporation, All Rights Reserved.
-// Copyright 2022 NXP
+// Copyright 2022-2023 NXP
 // Abstract:
 //
 //  This module contains the implementation of driver callback function
@@ -25,18 +25,18 @@ WDFINTERRUPT         eCompassDevice::m_Interrupt        = nullptr;
 // Sensor Operation
 //
 BOOLEAN              eCompassDevice::m_PoweredOn        = false;
-DATA_RATE            eCompassDevice::m_DataRate         = GetDataRateFromReportInterval(DEFAULT_SENSOR_REPORT_INTERVAL);
+DATA_RATE            eCompassDevice::m_DataRate         = GetDataRateFromReportInterval(DEFAULT_SENSOR_REPORT_INTERVAL, STANDBY_MODE);
 ULONG                eCompassDevice::m_MinimumInterval  = SENSOR_MIN_REPORT_INTERVAL;
 BOOLEAN              eCompassDevice::m_WakeEnabled      = false;
 SensorMode           eCompassDevice::m_SensorMode       = STANDBY_MODE;
 
 // Return the rate that is just less than the desired report interval
-DATA_RATE eCompassDevice::GetDataRateFromReportInterval(_In_ ULONG ReportInterval)
+DATA_RATE eCompassDevice::GetDataRateFromReportInterval(_In_ ULONG ReportInterval, _In_ ULONG SensorMode)
 {
     DATA_RATE dataRate = SENSOR_SUPPORTED_DATA_RATES_SINGLE[0];
     const DATA_RATE* dataRates = SENSOR_SUPPORTED_DATA_RATES_SINGLE;
 
-    if (m_SensorMode == HYBRID_MODE)
+    if (SensorMode == HYBRID_MODE)
     {
         dataRates = SENSOR_SUPPORTED_DATA_RATES_HYBRID;
     }
@@ -665,7 +665,7 @@ eCompassDevice::OnSetDataInterval(
         pDevice->m_Started = true;
         pDevice->m_FirstSample = true;
         // Set data rate in HW and set ACTIVE MODE
-        m_DataRate = GetDataRateFromReportInterval(DataRateMs);
+        m_DataRate = GetDataRateFromReportInterval(DataRateMs, m_SensorMode);
         RegisterSetting = { FXOS8700_CTRL_REG1, m_DataRate.RateCode };
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         WdfWaitLockRelease(m_I2CWaitLock);

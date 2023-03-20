@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -95,8 +95,17 @@ GcKmImx8mpDisplay::HwStop(
     NTSTATUS ret = STATUS_SUCCESS;
 
     /* page-flip back to firmware framebuffer */
+    if (m_CurSourceModes[0].Format.Graphics.Stride != m_Pitch) {
+        plane_state.format = D3DDDIFMT_A8R8G8B8;
+        plane_state.pitch = m_CurSourceModes[0].Format.Graphics.Stride;
+        plane_state.src_w = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cx;
+        plane_state.src_h = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cy;
+        plane_state.mode_change = true;
+    }
+    else {
+        plane_state.mode_change = false;
+    }
     plane_state.fb_addr = m_FbPhysicalAddr.LowPart;
-    plane_state.mode_change = false;
     lcdifv3_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
     lcdifv3_crtc_atomic_flush(&lcdif_crtc_pdev);
 
@@ -120,15 +129,19 @@ GcKmImx8mpDisplay::HwStop(
 
 void
 GcKmImx8mpDisplay::HwSetPowerState(
-    UINT SourcePhysicalAddress,
-    UINT TileMode)
+    IN_ULONG                DeviceUid,
+    IN_DEVICE_POWER_STATE   DevicePowerState,
+    IN_POWER_ACTION         ActionType)
 {
-    struct lcdifv3_plane_state plane_state;
+    /* A placeholder for the board specific activity during changing of the display power mode */
+}
 
-    plane_state.fb_addr = SourcePhysicalAddress;
-    plane_state.mode_change = false;
-    lcdifv3_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
-    lcdifv3_crtc_atomic_flush(&lcdif_crtc_pdev);
+void
+GcKmImx8mpDisplay::HwStopScanning(
+    IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
+{
+    imx8mp_ldb_encoder_disable(&m_LvdsTransmitter.lvds_pdev);
+    lcdifv3_crtc_atomic_disable(&lcdif_crtc_pdev);
 }
 
 GC_PAGED_SEGMENT_END; //========================================================
@@ -186,8 +199,9 @@ GcKmImx8mpDisplay::HwCommitVidPn(
 
         ColorFormat = pPrimaryAllocation->m_format;
         plane_state.pitch = pPrimaryAllocation->m_hwPitch;
-        plane_state.src_w = pPrimaryAllocation->m_hwWidthPixels;
-        plane_state.src_h = pPrimaryAllocation->m_hwHeightPixels;
+        /* After Wakeup from sleep, pPrimaryAllocation->m_hwWidthPixelsand and pPrimaryAllocation->m_hwHeightPixels are zero. */
+        plane_state.src_w = pPrimaryAllocation->m_mip0Info.PhysicalWidth;
+        plane_state.src_h = pPrimaryAllocation->m_mip0Info.PhysicalHeight;
     }
     else {
         FrameBufferPhysicalAddress = m_FbPhysicalAddr.LowPart;
@@ -209,6 +223,7 @@ GcKmImx8mpDisplay::HwCommitVidPn(
     plane_state.format = TranslateDxgiToDrmFormat(ColorFormat);
     plane_state.fb_addr = FrameBufferPhysicalAddress;
     plane_state.mode_change = true;
+    m_Pitch = plane_state.pitch;
 
     printk_debug("HwCommitVidPn: plane_state w=%d h=%d pitch=%d wincolorfmt=%d drmcolorfmt=%d addr=0x%x\n", plane_state.src_w, plane_state.src_h, plane_state.pitch, (UINT)ColorFormat, plane_state.format, plane_state.fb_addr);
     printk_debug("HwCommitVidPn: target_mode totw=%d toth=%d actw=%d acth=%d pclk=%d\n", pTargetMode->VideoSignalInfo.TotalSize.cx, pTargetMode->VideoSignalInfo.TotalSize.cy,

@@ -10,12 +10,14 @@
 // https://en.wikipedia.org/wiki/Extended_Display_Identification_Data
 // https://web.archive.org/web/20170821002634/https://www.vesa.org/vesa-standards/free-standards/
 // https://glenwing.github.io/docs/
+// 
+// Display Monitor Timing: https://glenwing.github.io/docs/VESA-DMT-1.13.pdf
 //
 
 
-static videomode s_StandardModeTimings[] = 
+videomode g_StandardModeTimings[] = 
 {
-        {   // 800 x 600 x 60.004Hz
+    {   // 800 x 600 x 60.004Hz
         40000000,
 
         800,
@@ -30,6 +32,7 @@ static videomode s_StandardModeTimings[] =
 
         (display_flags)(DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_PIXDATA_NEGEDGE)
     },
+
     {   // 1024 x 768 x 60.004Hz
         65000000,
 
@@ -44,6 +47,22 @@ static videomode s_StandardModeTimings[] =
         6,
 
         (display_flags)(DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+    },
+
+    {   // 1152 x 864 x 75Hz
+        108000000,
+
+        1152,
+        64,
+        256,
+        128,
+
+        864,
+        1,
+        32,
+        3,
+
+        (display_flags)(DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH | DISPLAY_FLAGS_PIXDATA_NEGEDGE)
     },
 
     {   // 1280 x 720 x 60Hz : Used by u-boots\u-boot-imx_arm64\arch\arm\dts\imx8mq-evk.dts
@@ -93,6 +112,7 @@ static videomode s_StandardModeTimings[] =
 
         (display_flags)(DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH)
     },
+
     {   // 1920 x 1080 x 60Hz
         148500000,
 
@@ -113,6 +133,8 @@ static videomode s_StandardModeTimings[] =
     // TODO: Add more VESA Standard Mode Timing
     //
 };
+
+unsigned int g_NumStandardModeTimings = sizeof(g_StandardModeTimings) / sizeof(videomode);
 
 bool GetModeSize(
     void* pEdid,
@@ -292,26 +314,26 @@ bool GetDisplayModeTiming(
     // Return VESA standard timing for the input mode
     //
 
-    for (unsigned int i = 0; i < sizeof(s_StandardModeTimings)/sizeof(videomode); i++)
+    for (unsigned int i = 0; i < sizeof(g_StandardModeTimings)/sizeof(videomode); i++)
     {
-        if ((pModeIn->VideoSignalInfo.ActiveSize.cx == s_StandardModeTimings[i].hactive) &&
-            (pModeIn->VideoSignalInfo.ActiveSize.cy == s_StandardModeTimings[i].vactive))
+        if ((pModeIn->VideoSignalInfo.ActiveSize.cx == g_StandardModeTimings[i].hactive) &&
+            (pModeIn->VideoSignalInfo.ActiveSize.cy == g_StandardModeTimings[i].vactive))
         {
             bool bModeMatched = false;
 
             if (D3DKMDT_FREQUENCY_NOTSPECIFIED != pModeIn->VideoSignalInfo.VSyncFreq.Denominator)
             {
-                unsigned int HTotal = s_StandardModeTimings[i].hactive +
-                    s_StandardModeTimings[i].hfront_porch +
-                    s_StandardModeTimings[i].hsync_len +
-                    s_StandardModeTimings[i].hback_porch;
+                unsigned int HTotal = g_StandardModeTimings[i].hactive +
+                    g_StandardModeTimings[i].hfront_porch +
+                    g_StandardModeTimings[i].hsync_len +
+                    g_StandardModeTimings[i].hback_porch;
 
-                unsigned int VTotal = s_StandardModeTimings[i].vactive +
-                    s_StandardModeTimings[i].vfront_porch +
-                    s_StandardModeTimings[i].vsync_len +
-                    s_StandardModeTimings[i].vback_porch;
+                unsigned int VTotal = g_StandardModeTimings[i].vactive +
+                    g_StandardModeTimings[i].vfront_porch +
+                    g_StandardModeTimings[i].vsync_len +
+                    g_StandardModeTimings[i].vback_porch;
 
-                unsigned int FreshRate = s_StandardModeTimings[i].pixelclock/(HTotal*VTotal);
+                unsigned int FreshRate = g_StandardModeTimings[i].pixelclock/(HTotal*VTotal);
                 unsigned int FreshRateIn = pModeIn->VideoSignalInfo.VSyncFreq.Numerator/pModeIn->VideoSignalInfo.VSyncFreq.Denominator;
 
                 if (((FreshRate - 2) < FreshRateIn) &&
@@ -331,7 +353,7 @@ bool GetDisplayModeTiming(
 
             if (bModeMatched)
             {
-                *vm = s_StandardModeTimings[i];
+                *vm = g_StandardModeTimings[i];
 
                 return true;
             }

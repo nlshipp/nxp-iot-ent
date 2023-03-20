@@ -23,6 +23,9 @@
     <ProjectReference Include="..\imxmipi\imxmipi.vcxproj">
       <Project>{8ec89fe7-9e34-4a72-89bd-27e24eb8c546}</Project>
     </ProjectReference>
+    <ProjectReference Include="..\imxmipi_csi2_dwc\imxmipi_csi2_dwc.vcxproj">
+      <Project>{3c5bc73e-6dc4-4386-a2c9-735db5fddeb1}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\imxmipi_csis\imxmipi_csis.vcxproj">
       <Project>{d31d854d-8126-4ce7-8fa1-9181d6daa9a8}</Project>
     </ProjectReference>
@@ -31,6 +34,9 @@
     </ProjectReference>
     <ProjectReference Include="..\imxsns_ov5640\imxsns_ov5640.vcxproj">
       <Project>{9e1b1bba-0034-476d-9952-668d06ecbb02}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\imxsns_x_rpi_cam_mipi\imxsns_x_rpi_cam_mipi.vcxproj">
+      <Project>{bdc3a5f6-47d5-4a87-bb16-bd539fff0023}</Project>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

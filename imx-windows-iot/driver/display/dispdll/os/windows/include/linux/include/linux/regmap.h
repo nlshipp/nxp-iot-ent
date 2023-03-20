@@ -13,7 +13,7 @@
 
 #include <linux/delay.h>
 #include <linux/err.h>
-#include "os/windows/src/i2c_comm.h"
+#include "os/windows/src/comm.h"
 
 struct i2c_client;
 

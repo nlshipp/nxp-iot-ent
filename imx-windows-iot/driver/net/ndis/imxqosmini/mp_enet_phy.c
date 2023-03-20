@@ -1,5 +1,5 @@
 /*
-* Copyright 2019,2022 NXP
+* Copyright 2019,2022-2023 NXP
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -520,6 +520,7 @@ NTSTATUS MII_PhySpecificInit(PMP_ADAPTER pAdapter)
         case REALTEK:
             switch (pAdapter->ENETDev_PHYDevice.PhyModel) {
                 case RTL8211F:
+                case RTL8211F_VD_CG:
                     DBG_PHY_DEV_PRINT_INFO("Detected Realtek RTL8211F");
                     MII_Rtl8211fInit(pAdapter);
                 break;

@@ -50,7 +50,9 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 5, "MSFT", "EDK2", 1) {
     include("Dsdt-Sdhc.asl")
     include("Dsdt-TCPC.asl")
     include("Dsdt-Tmu.asl")
+#if FixedPcdGetBool(PcdSecureBootEnable)
     include("Dsdt-TrEE.asl")
+#endif
     include("Dsdt-Usb.asl")
     include("Dsdt-HantroVpuFF.asl") /* Full Feature */
   }

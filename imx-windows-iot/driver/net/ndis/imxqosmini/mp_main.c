@@ -1,5 +1,5 @@
 /*
-* Copyright 2019-2020,2022 NXP
+* Copyright 2019-2020,2022-2023 NXP
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,8 @@
 */
 
 #include "precomp.h"
+
+#define MULTICAST_BIT_MASK 0x01
 
 extern NDIS_OID ENETSupportedOids[];
 extern ULONG    ENETSupportedOidsSize;
@@ -191,14 +193,22 @@ NDIS_STATUS MpInitializeEx(NDIS_HANDLE MiniportAdapterHandle, NDIS_HANDLE Minipo
             DBG_ENET_DEV_PRINT_INFO("Acpi_GetValue(GET_MAC_ADDRESS) failed.");
         }  else {
             Status = STATUS_ACPI_INVALID_DATA;
-            DBG_ENET_DEV_PRINT_INFO("ENET MAC address: %02X-%02X-%02X-%02X-%02X-%02X (from ACPI)", pAdapter->FecMacAddress[0], pAdapter->FecMacAddress[1], pAdapter->FecMacAddress[2], pAdapter->FecMacAddress[3], pAdapter->FecMacAddress[4], pAdapter->FecMacAddress[5]);
+            DBG_ENET_DEV_PRINT_INFO("ENET MAC address from fuses: %02X-%02X-%02X-%02X-%02X-%02X (from ACPI)", pAdapter->FecMacAddress[0], pAdapter->FecMacAddress[1], pAdapter->FecMacAddress[2], pAdapter->FecMacAddress[3], pAdapter->FecMacAddress[4], pAdapter->FecMacAddress[5]);
         }
+
+        // Clear multicast bit for sure if it set unintentionally
+        if (pAdapter->FecMacAddress[0] & MULTICAST_BIT_MASK) {
+            DBG_ENET_DEV_PRINT_INFO("Multicast bit set in unicast MAC, clearing it..");
+            pAdapter->FecMacAddress[0] &= ~MULTICAST_BIT_MASK;
+        }
+
         // Read the registry parameters
         if ((Status = NICReadRegParameters(pAdapter)) != NDIS_STATUS_SUCCESS) {
             DBG_ENET_DEV_PRINT_ERROR_WITH_STATUS("NICReadRegParameters() failed.");
             pAdapter->NdisInterruptHandle = NULL;  // SDV bug fix
             break;
         }
+
         #ifdef DBG
         if (!(pAdapter->FecMacAddress[0] || pAdapter->FecMacAddress[1] || pAdapter->FecMacAddress[2] || pAdapter->FecMacAddress[3] || pAdapter->FecMacAddress[4] || pAdapter->FecMacAddress[5])) {
             Status = NDIS_STATUS_FAILURE;

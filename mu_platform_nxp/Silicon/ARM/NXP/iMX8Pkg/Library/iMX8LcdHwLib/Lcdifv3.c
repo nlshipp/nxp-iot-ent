@@ -1,5 +1,5 @@
 /*
-* Copyright 2022 NXP
+* Copyright 2022-2023 NXP
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -33,6 +33,7 @@
 #include <Library/IoLib.h>
 #include <Library/TimerLib.h>
 #include "Lcdifv3.h"
+#include "Lcdifv3Registers.h"
 #include "iMX8LcdHwLib.h"
 
 /* layer encoding formats (input) */
@@ -44,8 +45,58 @@
 #define BPP32_ARGB8888  0x9
 #define BPP32_ABGR8888  0xa
 
+#define LCDIFV3_DBG_LVL DEBUG_INFO
+
 /* Base addresses of LCDIF peripherals */
 LCDIF_MemMapPtr DP[LCDIFMAX_DEV] = LCDIF_BASE_PTRS;
+
+/**
+  Return LCDIF enable status.
+**/
+BOOLEAN EFIAPI
+Is_Lcdifv3_Enabled(Lcdifv3_Device Dev)
+{
+    if (Dev >= LCDIFMAX_DEV) {
+        return FALSE;
+    }
+    uint32_t reg = MmioRead32((uint64_t)DP[Dev] + LCDIFV3_DISP_PARA);
+    return (BOOLEAN)((reg & DISP_PARA_DISP_ON) != 0);
+}
+
+/**
+  Power down LCDIF block.
+**/
+EFI_STATUS
+Lcdifv3_Power_Down(Lcdifv3_Device Dev)
+{
+    if (Dev >= LCDIFMAX_DEV) {
+        return EFI_DEVICE_ERROR;
+    }
+
+    uint64_t base = (uint64_t)DP[Dev];
+    int timeout = 1000000;
+
+    /* Disable LCDIF during VBLANK */
+    MmioWrite32(base + LCDIFV3_INT_STATUS_D0, INT_STATUS_D0_VS_BLANK);
+    while (--timeout) {
+        if (MmioRead32(base + LCDIFV3_INT_STATUS_D0) & INT_STATUS_D0_VS_BLANK) {
+            break;
+        }
+        MicroSecondDelay(1);
+    }
+
+    /* dma off */
+    uint32_t ctrldescl0_5 = MmioRead32(base + LCDIFV3_CTRLDESCL0_5);
+    ctrldescl0_5 &= ~CTRLDESCL0_5_EN;
+    MmioWrite32(base + LCDIFV3_CTRLDESCL0_5, ctrldescl0_5);
+
+    /* disp off */
+    uint32_t disp_para = MmioRead32(base + LCDIFV3_DISP_PARA);
+    disp_para &= ~DISP_PARA_DISP_ON;
+    MmioWrite32(base + LCDIFV3_DISP_PARA, disp_para);
+
+    return EFI_SUCCESS;
+}
 
 /**
   Reset LCDIF block.
@@ -59,15 +110,17 @@ Lcdifv3_Reset (
         return EFI_DEVICE_ERROR;
     }
 
+    uint64_t base = (uint64_t)DP[Dev];
+
     /* LCDIF reset */
-    LCDIF_CTRL_CLR_REG(DP[Dev]) = LCDIF_CTRL_SW_RESET_MASK;
-    while (LCDIF_CTRL_REG(DP[Dev]) & LCDIF_CTRL_SW_RESET_MASK);
+    MmioWrite32(base + LCDIFV3_CTRL_CLR, CTRL_SW_RESET);
+    while (MmioRead32(base + LCDIFV3_CTRL) & CTRL_SW_RESET);
 
-    LCDIF_CTRL_SET_REG(DP[Dev]) = LCDIF_CTRL_SW_RESET_MASK;
-    while (!(LCDIF_CTRL_REG(DP[Dev]) & LCDIF_CTRL_SW_RESET_MASK));
+    MmioWrite32(base + LCDIFV3_CTRL_SET, CTRL_SW_RESET);
+    while (!(MmioRead32(base + LCDIFV3_CTRL) & CTRL_SW_RESET));
 
-    LCDIF_CTRL_CLR_REG(DP[Dev]) = LCDIF_CTRL_SW_RESET_MASK;
-    while (LCDIF_CTRL_REG(DP[Dev]) & LCDIF_CTRL_SW_RESET_MASK);
+    MmioWrite32(base + LCDIFV3_CTRL_CLR, CTRL_SW_RESET);
+    while (MmioRead32(base + LCDIFV3_CTRL) & CTRL_SW_RESET);
 
     return EFI_SUCCESS;
 }
@@ -89,36 +142,38 @@ Lcdifv3_Enable (
     if (Dev >= LCDIFMAX_DEV) {
         return EFI_DEVICE_ERROR;
     }
+    uint64_t base = (uint64_t)DP[Dev];
 
-    disp = LCDIF_DISP_PARA_REG(DP[Dev]);
-    ctrl = LCDIF_CTRLDESCL0_5_REG(DP[Dev]);
+    disp = MmioRead32(base + LCDIFV3_DISP_PARA);
+    ctrl = MmioRead32(base + LCDIFV3_CTRLDESCL0_5);
 
     if (Enable) {
         /* disp on */
-        disp |= LCDIF_DISP_PARA_DISP_ON_MASK;
-        LCDIF_DISP_PARA_REG(DP[Dev]) = disp;
+        disp |= DISP_PARA_DISP_ON;
+        MmioWrite32(base + LCDIFV3_DISP_PARA, disp);
         /* enable shadow load */
-        ctrl |= LCDIF_CTRLDESCL0_5_SHADOW_LOAD_EN_MASK;
-        LCDIF_CTRLDESCL0_5_REG(DP[Dev]) = ctrl;
+        ctrl |= CTRLDESCL0_5_SHADOW_LOAD_EN;
+        MmioWrite32(base + LCDIFV3_CTRLDESCL0_5, ctrl);
         /* enable layer dma */
-        ctrl |= LCDIF_CTRLDESCL0_5_EN_MASK;
-        LCDIF_CTRLDESCL0_5_REG(DP[Dev]) = ctrl;
+        ctrl |= CTRLDESCL0_5_EN;
+        MmioWrite32(base + LCDIFV3_CTRLDESCL0_5, ctrl);
     } else {
         /* disable layer dma */
-        ctrl &= ~LCDIF_CTRLDESCL0_5_EN_MASK;
-        ctrl |= LCDIF_CTRLDESCL0_5_SHADOW_LOAD_EN_MASK;
-        LCDIF_CTRLDESCL0_5_REG(DP[Dev]) = ctrl;
+        ctrl &= ~CTRLDESCL0_5_EN;
+        ctrl |= CTRLDESCL0_5_SHADOW_LOAD_EN;
+        MmioWrite32(base + LCDIFV3_CTRLDESCL0_5, ctrl);
         /* dma config takes effect at the end of frame,
         so add delay to wait dma disable done before turn off disp. */
         while (--loop) {
-            if (LCDIF_INT_STATUS_D0_REG(DP[Dev]) & LCDIF_INT_STATUS_D0_VS_BLANK_MASK) {
+            if (MmioRead32(base + LCDIFV3_INT_STATUS_D0) & INT_STATUS_D0_VS_BLANK) {
                 break;
             }
             MicroSecondDelay(10);
         }
-        disp &= ~LCDIF_DISP_PARA_DISP_ON_MASK;
-        LCDIF_DISP_PARA_REG(DP[Dev]) = disp;
+        disp &= ~DISP_PARA_DISP_ON;
+        MmioWrite32(base + LCDIFV3_DISP_PARA, disp);
     }
+
     return EFI_SUCCESS;
 }
 
@@ -137,17 +192,20 @@ Lcdifv3_Init (
     if ((Dev >= LCDIFMAX_DEV) || (FrameBuffer == 0)) {
         return EFI_DEVICE_ERROR;
     }
+    uint64_t base = (uint64_t)DP[Dev];
 
     /* the thres_low should be 1/3 FIFO, that is 511/3 = 171
      * and thres_high should be 2/3 FIFO, that is 511*2/3 = 340
      */
-    panic = LCDIF_PANIC0_THRES_PANIC_THRES_LOW(171) | LCDIF_PANIC0_THRES_PANIC_THRES_HIGH(341);
-    LCDIF_PANIC0_THRES_REG(DP[Dev]) = panic;
+    panic = PANIC0_THRES_PANIC_THRES_LOW(171) | PANIC0_THRES_PANIC_THRES_HIGH(341);
+    MmioWrite32(base + LCDIFV3_PANIC0_THRES, panic);
     /* Enable Panic */
-    LCDIF_INT_ENABLE_D1_REG(DP[Dev]) = LCDIF_INT_ENABLE_D1_PLANE_PANIC_EN_MASK;
+    MmioWrite32(base + LCDIFV3_INT_ENABLE_D1, INT_ENABLE_D1_PLANE_PANIC_EN);
+    /* Disable other interrupts */
+    MmioWrite32(base + LCDIFV3_INT_ENABLE_D0, 0);
 
     /* Set address of the frame buffer */
-    LCDIF_CTRLDESCL_LOW0_4_REG(DP[Dev]) = FrameBuffer;
+    MmioWrite32(base + LCDIFV3_CTRLDESCL_LOW0_4, FrameBuffer);
 
     return EFI_SUCCESS;
 }
@@ -165,64 +223,84 @@ Lcdifv3_SetTimingMode (
 {
     uint32_t disp_size, hsyn_para, vsyn_para, vsyn_hsyn_width, ctrldescl0_1, polarities;
     uint32_t disp_para = 0;
+    uint32_t ctrldescl0_3 = 0;
     uint32_t ctrldescl0_5 = 0;
 
     if ((Dev >= LCDIFMAX_DEV) || (Timing == NULL)) {
         return EFI_DEVICE_ERROR;
     }
+    uint64_t base = (uint64_t)DP[Dev];
 
     /* config display timings */
-    disp_size = LCDIF_DISP_SIZE_DELTA_Y(Timing->VActive) | LCDIF_DISP_SIZE_DELTA_X(Timing->HActive);
-    LCDIF_DISP_SIZE_REG(DP[Dev]) = disp_size;
+    disp_size = DISP_SIZE_DELTA_Y(Timing->VActive) | DISP_SIZE_DELTA_X(Timing->HActive);
+    MmioWrite32(base + LCDIFV3_DISP_SIZE, disp_size);
 
-    hsyn_para = LCDIF_HSYN_PARA_BP_H(Timing->HBlank - Timing->HSyncOffset - Timing->HSync) | 
-                LCDIF_HSYN_PARA_FP_H(Timing->HSyncOffset);
-    LCDIF_HSYN_PARA_REG(DP[Dev]) = hsyn_para;
+    hsyn_para = HSYN_PARA_BP_H(Timing->HBlank - Timing->HSyncOffset - Timing->HSync) |
+                HSYN_PARA_FP_H(Timing->HSyncOffset);
+    MmioWrite32(base + LCDIFV3_HSYN_PARA, hsyn_para);
 
-    vsyn_para = LCDIF_VSYN_PARA_BP_V(Timing->VBlank - Timing->VSyncOffset - Timing->VSync) | 
-                LCDIF_VSYN_PARA_FP_V(Timing->VSyncOffset);
-    LCDIF_VSYN_PARA_REG(DP[Dev]) = vsyn_para;
+    vsyn_para = VSYN_PARA_BP_V(Timing->VBlank - Timing->VSyncOffset - Timing->VSync) |
+                VSYN_PARA_FP_V(Timing->VSyncOffset);
+    MmioWrite32(base + LCDIFV3_VSYN_PARA, vsyn_para);
 
-    vsyn_hsyn_width = LCDIF_VSYN_HSYN_WIDTH_PW_V(Timing->VSync) 
-                      | LCDIF_VSYN_HSYN_WIDTH_PW_H(Timing->HSync);
-    LCDIF_VSYN_HSYN_WIDTH_REG(DP[Dev]) = vsyn_hsyn_width;
+    vsyn_hsyn_width = VSYN_HSYN_WIDTH_PW_V(Timing->VSync)
+                      | VSYN_HSYN_WIDTH_PW_H(Timing->HSync);
+    MmioWrite32(base + LCDIFV3_VSYN_HSYN_WIDTH, vsyn_hsyn_width);
 
     /* config layer size */
-    ctrldescl0_1 = LCDIF_CTRLDESCL0_1_HEIGHT(Timing->VActive) | LCDIF_CTRLDESCL0_1_WIDTH(Timing->HActive);
-    LCDIF_CTRLDESCL0_1_REG(DP[Dev]) = ctrldescl0_1;
+    ctrldescl0_1 = CTRLDESCL0_1_HEIGHT(Timing->VActive) | CTRLDESCL0_1_WIDTH(Timing->HActive);
+    MmioWrite32(base + LCDIFV3_CTRLDESCL0_1, ctrldescl0_1);
 
     /* Polarities */
-    polarities = (LCDIF_CTRL_CLR_INV_HS_MASK | LCDIF_CTRL_CLR_INV_VS_MASK |
+    polarities = (CTRL_INV_HS | CTRL_INV_VS |
                   /* SEC MIPI DSI specific */
-                  LCDIF_CTRL_CLR_INV_PXCK_MASK | LCDIF_CTRL_CLR_INV_DE_MASK);
-    LCDIF_CTRL_CLR_REG(DP[Dev]) = polarities;
+                  CTRL_INV_PXCK | CTRL_INV_DE);
+    MmioWrite32(base + LCDIFV3_CTRL_CLR, polarities);
 
     /* Set output bus format */
-    disp_para = LCDIF_DISP_PARA_REG(DP[Dev]);
-    disp_para &= LCDIF_DISP_PARA_LINE_PATTERN(0xf);
+    disp_para = MmioRead32(base + LCDIFV3_DISP_PARA);
+    disp_para &= DISP_PARA_LINE_PATTERN(0xf);
     /* 24 bits output (LP_RGB888_OR_YUV444) */
-    disp_para |= LCDIF_DISP_PARA_LINE_PATTERN(0);
+    disp_para |= DISP_PARA_LINE_PATTERN(0);
     /* config display mode: default is normal mode */
-    disp_para &= LCDIF_DISP_PARA_DISP_MODE(3);
-    disp_para |= LCDIF_DISP_PARA_DISP_MODE(0);
-    LCDIF_DISP_PARA_REG(DP[Dev]) = disp_para;
+    disp_para &= DISP_PARA_DISP_MODE(3);
+    disp_para |= DISP_PARA_DISP_MODE(0);
+    MmioWrite32(base + LCDIFV3_DISP_PARA, disp_para);
 
     /* Set input bus format */
-    ctrldescl0_5 = LCDIF_CTRLDESCL0_5_REG(DP[Dev]);
-    ctrldescl0_5 &= ~(LCDIF_CTRLDESCL0_5_BPP(0xf) | LCDIF_CTRLDESCL0_5_YUV_FORMAT(0x3));
+    ctrldescl0_5 = MmioRead32(base + LCDIFV3_CTRLDESCL0_5);
+    ctrldescl0_5 &= ~(CTRLDESCL0_5_BPP(0xf) | CTRLDESCL0_5_YUV_FORMAT(0x3));
     switch (Timing->PixelFormat) {
         case PIXEL_FORMAT_ARGB32:
-            ctrldescl0_5 |= LCDIF_CTRLDESCL0_5_BPP(BPP32_ARGB8888);
+            ctrldescl0_5 |= CTRLDESCL0_5_BPP(BPP32_ARGB8888);
             break;
         default:
             DEBUG ((DEBUG_ERROR, "Unsupported pixel format: %u\n", Timing->PixelFormat));
             return EFI_DEVICE_ERROR;
     }
-    LCDIF_CTRLDESCL0_5_REG(DP[Dev]) = ctrldescl0_5;
+    MmioWrite32(base + LCDIFV3_CTRLDESCL0_5, ctrldescl0_5);
 
-    /* Set stride */
-    LCDIF_CTRLDESCL0_3_REG(DP[Dev]) = (LCDIF_CTRLDESCL0_3_PITCH(Timing->HActive * 
-                                       LcdGetBytesPerPixel(Timing->PixelFormat)) | 0x110000);
+    /* Config P_SIZE and T_SIZE:
+     * 1. P_SIZE and T_SIZE should never
+     *    be less than AXI bus width.
+     * 2. P_SIZE should never be less than T_SIZE.
+     */
+    ctrldescl0_3 |= CTRLDESCL0_3_P_SIZE(2);
+    ctrldescl0_3 |= CTRLDESCL0_3_T_SIZE(2);
+
+    /* Config pitch */
+    ctrldescl0_3 |= CTRLDESCL0_3_PITCH(Timing->HActive *
+            LcdGetBytesPerPixel(Timing->PixelFormat));
+
+    /* Enable frame clear to clear FIFO data on
+     * every vsync blank period to make sure no
+     * dirty data exits to affect next frame
+     * display, otherwise some flicker issue may
+     * be observed in some cases.
+     */
+    ctrldescl0_3 |= CTRLDESCL0_3_STATE_CLEAR_VSYNC;
+
+    MmioWrite32(base + LCDIFV3_CTRLDESCL0_3, ctrldescl0_3);
 
     return EFI_SUCCESS;
 }
@@ -231,37 +309,40 @@ Lcdifv3_SetTimingMode (
   Dump LCDIF registers.
 **/
 EFI_STATUS
-Lcdifv3_Dump (
+Lcdifv3_Dump(
     Lcdifv3_Device Dev
     )
 {
     if (Dev >= LCDIFMAX_DEV) {
         return EFI_DEVICE_ERROR;
     }
-    DEBUG ((DEBUG_INFO, "------------------------LCDIFv3------------------------\n"));
-    DEBUG ((DEBUG_INFO, "LCDIF_CTRL              = 0x%08X\n", LCDIF_CTRL_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_DISP_PARA         = 0x%08X\n", LCDIF_DISP_PARA_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_DISP_SIZE         = 0x%08X\n", LCDIF_DISP_SIZE_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_HSYN_PARA         = 0x%08X\n", LCDIF_HSYN_PARA_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_VSYN_PARA         = 0x%08X\n", LCDIF_VSYN_PARA_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_VSYN_HSYN_WIDTH   = 0x%08X\n", LCDIF_VSYN_HSYN_WIDTH_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_INT_STATUS_D0     = 0x%08X\n", LCDIF_INT_STATUS_D0_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_INT_ENABLE_D0     = 0x%08X\n", LCDIF_INT_ENABLE_D0_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_INT_STATUS_D1     = 0x%08X\n", LCDIF_INT_STATUS_D1_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_INT_ENABLE_D1     = 0x%08X\n", LCDIF_INT_ENABLE_D1_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CTRLDESCL0_1      = 0x%08X\n", LCDIF_CTRLDESCL0_1_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CTRLDESCL0_3      = 0x%08X\n", LCDIF_CTRLDESCL0_3_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_TRLDESCL_LOW0_4   = 0x%08X\n", LCDIF_CTRLDESCL_LOW0_4_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CTRLDESCL_HIGH0_4 = 0x%08X\n", LCDIF_CTRLDESCL_HIGH0_4_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_TRLDESCL0_5       = 0x%08X\n", LCDIF_CTRLDESCL0_5_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CSC0_CTRL         = 0x%08X\n", LCDIF_CSC0_CTRL_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CSC0_COEF0        = 0x%08X\n", LCDIF_CSC0_COEF0_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CSC0_COEF1        = 0x%08X\n", LCDIF_CSC0_COEF1_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CSC0_COEF2        = 0x%08X\n", LCDIF_CSC0_COEF2_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CSC0_COEF3        = 0x%08X\n", LCDIF_CSC0_COEF3_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CSC0_COEF4        = 0x%08X\n", LCDIF_CSC0_COEF4_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_CSC0_COEF5        = 0x%08X\n", LCDIF_CSC0_COEF5_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "LCDIF_PANIC0_THRES      = 0x%08X\n", LCDIF_PANIC0_THRES_REG(DP[Dev])));
-    DEBUG ((DEBUG_INFO, "-----------------------------------------------------\n"));
+    uint64_t base = (uint64_t)DP[Dev];
+
+    DebugPrint(LCDIFV3_DBG_LVL, "------------------------LCDIFv3------------------------\n");
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CTRL              = 0x%08X\n", MmioRead32(base + LCDIFV3_CTRL));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_DISP_PARA         = 0x%08X\n", MmioRead32(base + LCDIFV3_DISP_PARA));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_DISP_SIZE         = 0x%08X\n", MmioRead32(base + LCDIFV3_DISP_SIZE));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_HSYN_PARA         = 0x%08X\n", MmioRead32(base + LCDIFV3_HSYN_PARA));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_VSYN_PARA         = 0x%08X\n", MmioRead32(base + LCDIFV3_VSYN_PARA));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_VSYN_HSYN_WIDTH   = 0x%08X\n", MmioRead32(base + LCDIFV3_VSYN_HSYN_WIDTH));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_INT_STATUS_D0     = 0x%08X\n", MmioRead32(base + LCDIFV3_INT_STATUS_D0));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_INT_ENABLE_D0     = 0x%08X\n", MmioRead32(base + LCDIFV3_INT_ENABLE_D0));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_INT_STATUS_D1     = 0x%08X\n", MmioRead32(base + LCDIFV3_INT_STATUS_D1));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_INT_ENABLE_D1     = 0x%08X\n", MmioRead32(base + LCDIFV3_INT_ENABLE_D1));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CTRLDESCL0_1      = 0x%08X\n", MmioRead32(base + LCDIFV3_CTRLDESCL0_1));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CTRLDESCL0_3      = 0x%08X\n", MmioRead32(base + LCDIFV3_CTRLDESCL0_3));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CTRLDESCL_LOW0_4   = 0x%08X\n", MmioRead32(base + LCDIFV3_CTRLDESCL_LOW0_4));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CTRLDESCL_HIGH0_4 = 0x%08X\n", MmioRead32(base + LCDIFV3_CTRLDESCL_HIGH0_4));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CTRLDESCL0_5       = 0x%08X\n", MmioRead32(base + LCDIFV3_CTRLDESCL0_5));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CSC0_CTRL         = 0x%08X\n", MmioRead32(base + LCDIFV3_CSC0_CTRL));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CSC0_COEF0        = 0x%08X\n", MmioRead32(base + LCDIFV3_CSC0_COEF0));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CSC0_COEF1        = 0x%08X\n", MmioRead32(base + LCDIFV3_CSC0_COEF1));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CSC0_COEF2        = 0x%08X\n", MmioRead32(base + LCDIFV3_CSC0_COEF2));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CSC0_COEF3        = 0x%08X\n", MmioRead32(base + LCDIFV3_CSC0_COEF3));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CSC0_COEF4        = 0x%08X\n", MmioRead32(base + LCDIFV3_CSC0_COEF4));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_CSC0_COEF5        = 0x%08X\n", MmioRead32(base + LCDIFV3_CSC0_COEF5));
+    DebugPrint(LCDIFV3_DBG_LVL, "LCDIF_PANIC0_THRES      = 0x%08X\n", MmioRead32(base + LCDIFV3_PANIC0_THRES));
+    DebugPrint(LCDIFV3_DBG_LVL, "-----------------------------------------------------\n");
+
     return EFI_SUCCESS;
 }

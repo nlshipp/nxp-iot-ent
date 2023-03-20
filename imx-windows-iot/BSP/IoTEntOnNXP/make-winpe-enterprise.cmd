@@ -1,6 +1,5 @@
 @echo off
-:: Copyright 2020, 2022 NXP 
-:: All rights reserved. 
+:: Copyright 2020, 2022-2023 NXP
 ::  
 :: Redistribution and use in source and binary forms, with or without modification, 
 :: are permitted provided that the following conditions are met: 
@@ -35,6 +34,10 @@
 setlocal enableextensions
 setlocal enabledelayedexpansion
 
+for /F "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1) do rem"') do ( @REM Loop conencted to single-line coloring of text
+  set "DEL=%%a"
+)
+
 set CREATE_WIN_ENTERPRISE_IMAGE=1
 set CREATE_WIN_PE_LAYOUT=1
 set OUT_DIR_REL=out
@@ -42,13 +45,14 @@ set IMX_WIN_ENTERPRISE_IMAGE_FILE_NAME=imx_win_iot_install.wim
 set IMX_WIN_ENTERPRISE_IMAGE=%OUT_DIR_REL%\%IMX_WIN_ENTERPRISE_IMAGE_FILE_NAME%
 set IMX_WIN_ENTRPRISE_MOUNT_DIR=%OUT_DIR_REL%\mount_enterprise
 set MSFT_WIN_ENTERPRISE_IMAGE=
-set PATCH_SDPORT=no
-set CUMULATIVE_UPDATE=no
-set CUMULATIVE_UPDATE_PATH=
 set UNATTEND=no
 
+set NO_PATCH=no
+
+set CUMULATIVE_UPDATE=no
+set CUMULATIVE_UPDATE_PATH=
+
 set WIN_PE_SRC_DIR_ABS=%ProgramFiles(x86)%\Windows Kits\10\Assessment and Deployment Kit\Windows Preinstallation Environment\arm64
-set WDK_SRC_DIR_ABS=%ProgramFiles(x86)%\Windows Kits\10\tools\arm64
 set WINPE_DRIVE_LETTER=O
 set WIN_PE_MOUNT_DIR=%OUT_DIR_REL%\mount_winpe
 set DISABLE_UPDATES=no
@@ -57,6 +61,7 @@ set SCRIPT_DIR=%~dp0
 set WIN_PE_DST_DIR=%OUT_DIR_REL%\winpe-imx-sdcard-layout
 set SWM_IMG=%WIN_PE_DST_DIR%\install.swm
 set SPLIT_WIM_SIZE=4000
+set SPLIT_WIM_SIZE_KBYTES=%SPLIT_WIM_SIZE%000
 set TEST_SIGNING=no
 set CLEAN=
 set SPLIT_WIM=no
@@ -70,6 +75,15 @@ set NET_DEBUG=
 set KD_NET=no
 set NO_UNATTEND=
 set APPLY=0
+
+set BINPATCH_DIR=%SCRIPT_DIR%binpatch
+set KB_PATCH_DIR=kbpatch
+
+set WIN_PE_STARTNET_CMD=%WIN_PE_DST_DIR%\startnet.cmd.txt
+set WIN_ENTERPRISE_INSTALL_CMD=%WIN_PE_DST_DIR%\install.cmd.txt
+set DRIVER_DIR=%SCRIPT_DIR%drivers
+
+
 :: Parse options
 :GETOPTS
 if /I "%~1" == "/?" ( goto USAGE
@@ -94,13 +108,13 @@ if /I "%~1" == "/?" ( goto USAGE
 ) else (if /I "%~1" == "/no_unattend" ( set NO_UNATTEND=1
 ) else (if /I "%~1" == "/disable_updates" ( set DISABLE_UPDATES=yes
 ) else (if /I "%~1" == "/disable_transparency" ( set DISABLE_TRANSPARENCY=yes
-) else (if /I "%~1" == "/patch_sdport" ( set PATCH_SDPORT=yes
 ) else (if /I "%~1" == "/split_wim" ( set SPLIT_WIM=yes
+) else ( if /I "%~1" == "/no_patch" ( set NO_PATCH=yes
 ) else (if /I "%~1" == "/?" ( goto USAGE
 ) else ( if /I "%~1" == "" ( break
 ) else (
    set ERR_MSG=Unsupported option: "%~1".
-   goto PrintErrorMsg
+   goto PrErr
 )
 ))))))))))))))))))))
 shift
@@ -108,16 +122,13 @@ if not (%1)==() goto GETOPTS
 :: Print newline
 echo:
 
-set WIN_PE_STARTNET_CMD=%WIN_PE_DST_DIR%\startnet.cmd.txt
-set WIN_ENTERPRISE_INSTALL_CMD=%WIN_PE_DST_DIR%\install.cmd.txt
-
+if not "%SCRIPT_DIR%" == "%CD%\" (
+    echo Script needs to be run from directory it's located in^^!
+    echo Please change your working directory to "%SCRIPT_DIR%" and run the script again.
+    goto ErrExit
+)
 
 if not "%CLEAN%" == "" goto CLEAN
-
-
-set DRIVER_DIR=%SCRIPT_DIR%drivers
-set BINPATCH_DIR="%SCRIPT_DIR%\binpatch\"
-set PATCH_SDPORT_DIR=%BINPATCH_DIR%\Sdport
 
 if not "%DISK_NUM%" == "" goto APPLY
 if not "%APPLY%" == "0" (
@@ -141,15 +152,6 @@ if %CUMULATIVE_UPDATE% == yes (
         ) 
     )
 ) 
-
-if "%PATCH_SDPORT%" == "yes" (
-    if not "%TEST_SIGNING%" == "yes" (
-        echo Option /patch_sdport has to be used with test signing.
-        echo Use /test_signing to enable test signing.
-        goto ErrExit
-    )
-)
-
 
 if not "%NET_DEBUG%" == "" (
     if "%DEBUG_IP%" == "" (
@@ -288,9 +290,9 @@ if "%NO_UNATTEND%" == "" (
 )
 
 echo:
+echo OPTIONS SUMMARY:
 echo Source image:                          !MSFT_WIN_ENTERPRISE_IMAGE!
 echo Test signing:                          %TEST_SIGNING%
-echo Patch Sdport:                          %PATCH_SDPORT%
 echo Windows debug over ethernet:           %WIN_DEBUG_NET%, IP: %DEBUG_IP%
 echo Windows PE debug over ethernet:        %WINPE_DEBUG_NET%, IP: %DEBUG_IP%
 echo KD_NET file ^(for debug over net^):      !KD_NET!
@@ -300,7 +302,8 @@ echo Unattended install answer file:        !UNATTEND!
 echo Disable updates:                       %DISABLE_UPDATES%
 echo Disable transparency:                  %DISABLE_TRANSPARENCY%
 echo Split wim:                             %SPLIT_WIM%
-echo Cummulative update:                    %CUMULATIVE_UPDATE%, path: !CUMULATIVE_UPDATE_PATH!
+echo Cumulative update:                     %CUMULATIVE_UPDATE%, path: !CUMULATIVE_UPDATE_PATH!
+echo Skip updates from %KB_PATCH_DIR%\:            %NO_PATCH%
 echo:
 
 
@@ -366,18 +369,26 @@ if not "!CUMULATIVE_UPDATE_PATH!" == "" (
 	dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Package /PackagePath="!CUMULATIVE_UPDATE_PATH!" || goto ErrExit
 )
 
+    echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
+    echo *** Applying cumulative updates from %KB_PATCH_DIR%\ directory to i.MX Windows IoT Enterprise image
+    echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
+if %NO_PATCH% == no (
+    set KB_COUNT=0
+    for /f "tokens=*" %%i in ('dir /b %KB_PATCH_DIR%\*.msu') do (
+        set /a KB_COUNT+=1
+        echo Applying cumulative update %%i from %KB_PATCH_DIR%...
+        call :clrEcho 02 "WARNING Depending on size of the update, this processs may take up to 30 minutes, do not stop the process even if it may appear to be frozen"
+        echo:
+        echo dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\%%i"
+        dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\%%i" || goto ErrExit
+    )
+)
+
 echo:
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
-echo *** Step 1.4 Applying SdPort test binary into the i.MX Windows IoT Enterprise image
+echo *** Step 1.4 Copying debug libraries into the i.MX Windows IoT Enterprise image
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
-if "%PATCH_SDPORT%" == "yes" (
-	takeown /f "%IMX_WIN_ENTRPRISE_MOUNT_DIR%\windows\system32\drivers\sdport.sys" || goto ErrExit
-	icacls "%IMX_WIN_ENTRPRISE_MOUNT_DIR%\windows\system32\drivers\sdport.sys" /grant administrators:f || goto ErrExit
-    echo xcopy /Y /R /F "%PATCH_SDPORT_DIR%\sdport.sys" "%IMX_WIN_ENTRPRISE_MOUNT_DIR%\windows\system32\drivers"
-	xcopy /Y /R /F "%PATCH_SDPORT_DIR%\sdport.sys" "%IMX_WIN_ENTRPRISE_MOUNT_DIR%\windows\system32\drivers" || goto ErrExit
-) else (
-	echo Applying Sdport test binary was not requested.
-)
+
 
 
 
@@ -446,7 +457,17 @@ if not exist "%IMX_WIN_ENTERPRISE_IMAGE%" (
     echo File not found: "%IMX_WIN_ENTERPRISE_IMAGE%"
     goto err
 ) else (
-    if "%SPLIT_WIM%" == "yes" (
+    FOR /F "usebackq" %%A IN ('%IMX_WIN_ENTERPRISE_IMAGE%') DO set size=%%~zA
+
+    set size=!size:~0,-3!
+
+
+    if !size! GTR %SPLIT_WIM_SIZE_KBYTES% (
+        call :clrEcho 02 "Image split enabled due to it's size being more than %SPLIT_WIM_SIZE_KBYTES%KB. Image size = !size!KB."
+        set SPLIT_WIM=yes
+    )
+
+    if "!SPLIT_WIM!" == "yes" (
         echo:
         echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
         echo *** Step 2.1 Splitting i.MX Windows IoT Enterprise image "%IMX_WIN_ENTERPRISE_IMAGE_FILE_NAME%" into "%WIN_PE_DST_DIR%"
@@ -473,16 +494,11 @@ if not exist "%WIN_PE_SRC_DIR_ABS%\Media" (
     echo https://docs.microsoft.com/en-us/windows-hardware/manufacture/desktop/download-winpe--windows-pe
     goto err
 )
-if not exist "%WDK_SRC_DIR_ABS%" (
-    echo You must install the Windows Driver Kit for devcon.exe tool
-    echo https://docs.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk
-    goto err
-)
+
 xcopy /herky "%WIN_PE_SRC_DIR_ABS%\Media\*"                             "%WIN_PE_DST_DIR%\"                    || goto err
 xcopy /hrky  "%WIN_PE_SRC_DIR_ABS%\Media\bootmgr.efi"                   "%WIN_PE_DST_DIR%\EFI\Microsoft\Boot\" || goto err
 xcopy /hrky  "%WIN_PE_SRC_DIR_ABS%\en-us\winpe.wim"                     "%WIN_PE_DST_DIR%\sources\boot.*"      || goto err
 xcopy /hrky  "%SCRIPT_DIR%\scripts\diskpart_win_iot_enterprise.txt" "%WIN_PE_DST_DIR%"                     || goto err
-xcopy /hrky  "%WDK_SRC_DIR_ABS%\devcon.exe"                             "%WIN_PE_DST_DIR%"                     || goto err
 del /q "%WIN_PE_DST_DIR%\bootmgr.efi"                                                                      || goto err
 
 :: BCD
@@ -529,7 +545,7 @@ echo echo Setting up drive letter %WINPE_DRIVE_LETTER% for WinPE >> "%WIN_PE_STA
 echo ^( echo sel disk 1 >> "%WIN_PE_STARTNET_CMD%"
 echo echo sel partition 2 >> "%WIN_PE_STARTNET_CMD%"
 echo echo assign letter=%WINPE_DRIVE_LETTER% ^) ^| diskpart >> "%WIN_PE_STARTNET_CMD%"
-echo if not exist %WINPE_DRIVE_LETTER%:\install.cmd.txt ^(exit /b 1^) >> "%WIN_PE_STARTNET_CMD%"
+echo if not exist %WINPE_DRIVE_LETTER%:\install.cmd.txt ^( echo^: ^& echo install.cmd.txt not found. Check the installation SD card and make sure it is the only storage device connected to the board. ^& exit /b 1^) >> "%WIN_PE_STARTNET_CMD%"
 echo copy %WINPE_DRIVE_LETTER%:\install.cmd.txt %WINPE_DRIVE_LETTER%:\install.cmd >> "%WIN_PE_STARTNET_CMD%"
 echo call %WINPE_DRIVE_LETTER%:\install.cmd >> "%WIN_PE_STARTNET_CMD%"
 echo del /f /q %WINPE_DRIVE_LETTER%:\install.cmd  >> "%WIN_PE_STARTNET_CMD%"
@@ -568,7 +584,7 @@ echo diskpart /s %WINPE_DRIVE_LETTER%:\diskpart_win_iot_enterprise.txt >> "%WIN_
 
 echo echo Deploying IoT Enterprise to eMMC >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 
-if "%SPLIT_WIM%" == "yes" (
+if "!SPLIT_WIM!" == "yes" (
     echo dism /Apply-Image /ImageFile:"%WINPE_DRIVE_LETTER%:\install.swm" /SWMFile:"%WINPE_DRIVE_LETTER%:\install*.swm" /Index:2 /ApplyDir:W:\ /Compact >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 ) else (
     echo dism /Apply-Image /ImageFile:"%WINPE_DRIVE_LETTER%:\%IMX_WIN_ENTERPRISE_IMAGE_FILE_NAME%" /Index:2 /ApplyDir:W:\ /Compact >> "%WIN_ENTERPRISE_INSTALL_CMD%"
@@ -600,25 +616,76 @@ echo REG UNLOAD HKLM\OFFLINE_SYSTEM >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 :: HKLM\OFFLINE_SOFTWARE registry update section
 echo REG LOAD HKLM\OFFLINE_SOFTWARE W:\Windows\System32\config\SOFTWARE >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 
-echo echo Hide Sleep button >> "%WIN_ENTERPRISE_INSTALL_CMD%"
-echo REG ADD "HKLM\OFFLINE_SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings" /V ShowSleepOption /T REG_DWORD /D 0 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo echo Show Sleep button >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo REG ADD "HKLM\OFFLINE_SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings" /V ShowSleepOption /T REG_DWORD /D 1 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 
+REM ****************************
 REM S - VPU driver configuration
-echo set VPU_HANTRO_DEV="ACPI\NXP0109" >> "%WIN_ENTERPRISE_INSTALL_CMD%"
-echo set VPU_HANTRO_FF_STR=ACPI\NXP0109\1 >> "%WIN_ENTERPRISE_INSTALL_CMD%"
-echo set VPU_HANTRO_LF_STR=ACPI\NXP0109\2 >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM ****************************
+REM VPU driver definitions
+echo set VPU_HANTRO_FF_STR="NXP0109\1" >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo set VPU_HANTRO_LF_STR="NXP0109\2" >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo set VPU_MALONE_STR="NXP0224\0" >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo set VPU_HANTRO_FF_ID=1 >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo set VPU_HANTRO_LF_ID=2 >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo set VPU_MALONE_ID=3 >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo set VPU_NONE=0 >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo set VPU_HANTRO=false >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo set VPU_MALONE=false >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo set vpu_variant=%%VPU_NONE%% >> "%WIN_ENTERPRISE_INSTALL_CMD%"
-echo for /f "tokens=1" %%%%a in ^(^'%WINPE_DRIVE_LETTER%:\devcon.exe find /n %%VPU_HANTRO_DEV%% ^'^) do ^( >> "%WIN_ENTERPRISE_INSTALL_CMD%"
-echo 	if %%VPU_HANTRO_LF_STR%% == %%%%a ^(set vpu_variant=%%VPU_HANTRO_LF_ID%% ^) ^& goto :vpu_found >> "%WIN_ENTERPRISE_INSTALL_CMD%"
-echo 	if %%VPU_HANTRO_FF_STR%% == %%%%a ^(set vpu_variant=%%VPU_HANTRO_FF_ID%% ^) ^& goto :vpu_found >> "%WIN_ENTERPRISE_INSTALL_CMD%"
-echo ^) >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM ******************
+REM VPU find compatible HW
+REM ******************
+echo pnputil /enum-devices ^| find %%VPU_HANTRO_FF_STR%% ^> nul >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo if %%errorlevel%% == 0 ^( set vpu_variant=%%VPU_HANTRO_FF_ID%% ^& goto vpu_found ^) >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo pnputil /enum-devices ^| find %%VPU_HANTRO_LF_STR%% ^> nul >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo if %%errorlevel%% == 0 ^( set vpu_variant=%%VPU_HANTRO_LF_ID%% ^& goto vpu_found ^) >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo pnputil /enum-devices ^| find %%VPU_MALONE_STR%% ^> nul >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo if %%errorlevel%% == 0 ^( set vpu_variant=%%VPU_MALONE_ID%% ^& goto vpu_found ^) >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM ******************
+REM VPU configuration
+REM ******************
 echo :vpu_found >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo if %%vpu_variant%% == %%VPU_HANTRO_FF_ID%% set VPU_HANTRO=true >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo if %%vpu_variant%% == %%VPU_HANTRO_LF_ID%% set VPU_HANTRO=true >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo if %%vpu_variant%% == %%VPU_MALONE_ID%% set VPU_MALONE=true >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM ******************
+REM *** VPU MALONE ***
+REM ******************
+echo if %%VPU_MALONE%% == true ^( >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Classes\{40d466e9-e5fd-45a1-8707-e5059211c021}" /V Policy /T REG_DWORD /D 1 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM H.264
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\Preferred" /V {34363248-0000-0010-8000-00AA00389B71} /T REG_SZ /D {16977919-9727-4e04-ABD6-7D04C3828977} /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM H.265
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\Preferred" /V {35363248-0000-0010-8000-00AA00389B71} /T REG_SZ /D {16977919-9727-4e04-ABD6-7D04C3828977} /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM HEVC
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\Preferred" /V {43564548-0000-0010-8000-00AA00389B71} /T REG_SZ /D {16977919-9727-4e04-ABD6-7D04C3828977} /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM VP80
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\Preferred" /V {30385056-0000-0010-8000-00AA00389B71} /T REG_SZ /D {16977919-9727-4e04-ABD6-7D04C3828977} /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM MPEG-4 Simple Profile
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\Preferred" /V {5334504D-0000-0010-8000-00AA00389B71} /T REG_SZ /D {16977919-9727-4e04-ABD6-7D04C3828977} /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM MPEG-4 ASP
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\Preferred" /V {3253344D-0000-0010-8000-00AA00389B71} /T REG_SZ /D {16977919-9727-4e04-ABD6-7D04C3828977} /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM MPEG-4 Part 2
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\Preferred" /V {5634504D-0000-0010-8000-00AA00389B71} /T REG_SZ /D {16977919-9727-4e04-ABD6-7D04C3828977} /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM MPEG-2
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\Preferred" /V {E06D8026-DB46-11CF-B4D1-00805F6CBBEA} /T REG_SZ /D {16977919-9727-4e04-ABD6-7D04C3828977} /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\62ce7e72-4c71-4d20-b15d-452831a87d9d" /V MFTFLAGS /T REG_DWORD /D 00000008 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM register MaloneMFT.dll
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\CLSID\{16977919-9727-4e04-ABD6-7D04C3828977}" /D "i.MX8QM/QXP Malone VPU MFT hardware accelerator" /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\CLSID\{16977919-9727-4e04-ABD6-7D04C3828977}\InprocServer32" /T REG_EXPAND_SZ /D "%%SystemRoot%%\System32\malonemft.dll" /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\CLSID\{16977919-9727-4e04-ABD6-7D04C3828977}\InprocServer32" /V ThreadingModel /D "Both" /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\16977919-9727-4e04-ABD6-7D04C3828977" /D "i.MX8QM/QXP Malone VPU MFT hardware accelerator" /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM H264, H265, VP80,  MPEG-4 SP/ASP/Part2, MPEG-2 codecs are registered currently
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\16977919-9727-4e04-ABD6-7D04C3828977" /V InputTypes /T REG_BINARY /D 7669647300001000800000AA00389B714832363400001000800000AA00389B717669647300001000800000AA00389B714832363500001000800000AA00389B717669647300001000800000AA00389B714845564300001000800000AA00389B717669647300001000800000AA00389B715650383000001000800000AA00389B717669647300001000800000AA00389B7126806DE046DBCF11B4D100805F6CBBEA7669647300001000800000AA00389B714D50345300001000800000AA00389B717669647300001000800000AA00389B714D34533200001000800000AA00389B717669647300001000800000AA00389B714D50345600001000800000AA00389B71 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM RGBA32 output is registered currently
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\16977919-9727-4e04-ABD6-7D04C3828977" /V OutputTypes /T REG_BINARY /D 7669647300001000800000AA00389B711500000000001000800000AA00389B71 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\16977919-9727-4e04-ABD6-7D04C3828977" /V MFTFlags /T REG_DWORD /D 0x00000002 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\16977919-9727-4e04-ABD6-7D04C3828977" /V MFTFlags /T REG_DWORD /D 0x00000002 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\Categories\d6c02d4b-6833-45b4-971a-05a4b04bab91\16977919-9727-4e04-ABD6-7D04C3828977" /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo ^) >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+REM ******************
+REM *** VPU HANTRO ***
+REM ******************
 echo if %%VPU_HANTRO%% == true ^( >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Classes\{ADA9253B-628C-40CE-B2C1-19F489A0F3DA}" /V Policy /T REG_DWORD /D 1 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 REM H.264
@@ -656,9 +723,9 @@ echo ^) >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo if %%vpu_variant%% == %%VPU_HANTRO_LF_ID%% ^( >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo   REG ADD "HKLM\OFFLINE_SOFTWARE\Classes\MediaFoundation\Transforms\8a12d5a9-69ec-4fe2-bf16-7b4c857d0dc0" /V InputTypes /T REG_BINARY /D 7669647300001000800000AA00389B714832363400001000800000AA00389B717669647300001000800000AA00389B714832363500001000800000AA00389B717669647300001000800000AA00389B714845564300001000800000AA00389B717669647300001000800000AA00389B715650383000001000800000AA00389B717669647300001000800000AA00389B715650393000001000800000AA00389B71 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo ^) >> "%WIN_ENTERPRISE_INSTALL_CMD%"
-REM
+REM ****************************
 REM E - VPU driver configuration
-REM
+REM ****************************
 echo echo Remove OneDrive >>  "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo del /f /q W:\windows\SysWOW64\OneDriveSetup.exe >>  "%WIN_ENTERPRISE_INSTALL_CMD%"
 
@@ -787,10 +854,10 @@ exit /b 0
     echo    /windebug_net                    Optionally enable debugging over net for Windows. Option /debug_ip is needed for specifying IP address of host machine. File kd_8003_1fc9.dll must be in same directory as this script.
     echo    /debug_ip                        Specify IP address of debugger machine. Necessary for options /winpedebug_net and /windebug_net.
     echo    /test_signing                    Optionally enable driver test signing.
-    echo    /split_wim                       Split wim file for install.wim ^> 4GB
+    echo    /split_wim                       Split wim file for install.wim ^> 4GB. This option is no longer needed, as image split is enabled automatically for big images.
+    echo    /no_patch                        Disable the application of updates from /kbpatch directory to the Windows image.
     echo    /disable_updates                 Disable automatic updates to save disk space.
     echo    /disable_transparency            Disable window transparency to improve UI responsivness.
-    echo    /patch_sdport                    Update Sdport.sys in the Windows instalation. Use only for W10-19044.1288.211006 image and in combination with /test_signing.
     echo    /clean                           Clean up artifacts from a previous run.
     echo    /apply disk_number               Apply WinPE image to physical disk.
     echo    /?                               Help
@@ -814,7 +881,7 @@ exit /b 0
 
 :ErrExit
     exit /b 1
-:PrintErrorMsg
+:PrErr
     echo ERROR: %ERR_MSG%
     echo use make-winpe.cmd /? for help
     exit /b 0
@@ -828,3 +895,10 @@ exit /b 0
     rmdir /s /q "%IMX_WIN_ENTRPRISE_MOUNT_DIR%" 2> NUL
     del diskpart.txt
     exit /b 1
+
+:clrEcho @REM Method for coloring single line of text
+    echo off
+    <nul set /p ".=%DEL%" > "%~2"
+    findstr /v /a:%1 /R "^$" "%~2" nul
+    del "%~2" > nul 2>&1i
+    exit /b 0

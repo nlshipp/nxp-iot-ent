@@ -1,5 +1,5 @@
 /*
-* Copyright 2022 NXP
+* Copyright 2022-2023 NXP
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -44,6 +44,8 @@ typedef uint32_t Lcdifv3_Device;
 #define  LCDIF3_DEV 2U
 #define  LCDIFMAX_DEV (LCDIF3_DEV + 1) /* Always should be number of devices + 1 */
 
+BOOLEAN EFIAPI Is_Lcdifv3_Enabled(Lcdifv3_Device Dev);
+EFI_STATUS Lcdifv3_Power_Down(Lcdifv3_Device Dev);
 EFI_STATUS Lcdifv3_Reset(Lcdifv3_Device Dev);
 EFI_STATUS Lcdifv3_Enable(Lcdifv3_Device Dev, bool Enable);
 EFI_STATUS Lcdifv3_Init(Lcdifv3_Device Dev, uintptr_t FrameBuffer);

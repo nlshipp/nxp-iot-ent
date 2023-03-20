@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -149,14 +149,22 @@ GcKmImx8qxpDisplay::HwStop(
 
 void
 GcKmImx8qxpDisplay::HwSetPowerState(
-    UINT SourcePhysicalAddress,
-    UINT TileMode)
+    IN_ULONG                DeviceUid,
+    IN_DEVICE_POWER_STATE   DevicePowerState,
+    IN_POWER_ACTION         ActionType)
 {
-    SetupFramebuffer(nullptr,
-        SourcePhysicalAddress,
-        TileMode);
-    dpu_plane_atomic_page_flip(&m_crtc.plane[0]->base, &m_old_plane_state);
-    dpu_crtc_atomic_flush(&m_crtc.base, m_crtc.base.state);
+    /* A placeholder for the board specific activity during changing of the display power mode */
+}
+
+void
+GcKmImx8qxpDisplay::HwStopScanning(
+    IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
+{
+    struct drm_encoder* enc = m_LvdsTransmitter.GetEncoder(0);
+    NT_ASSERT(enc);
+    imx8qxp_ldb_encoder_disable(enc);
+    (void)dpu_crtc_atomic_disable(&m_crtc.base, m_crtc.base.state);
+    m_DispctrlIsEnabled = FALSE;
 }
 
 GC_PAGED_SEGMENT_END; //========================================================
@@ -235,7 +243,7 @@ GcKmImx8qxpDisplay::SetupHwCommit(
     UINT FrameBufferPhysicalAddress,
     UINT TileMode)
 {
-    struct drm_display_mode dmode;
+    struct drm_display_mode dmode = { 0 };
     drm_display_mode_from_videomode(vm, &dmode);
     drm_mode_set_crtcinfo(&dmode, 0);
 
@@ -293,10 +301,6 @@ GcKmImx8qxpDisplay::HwAtomicCommit(struct videomode* vm)
     // 2. The HW state can get corrupt and
     //      Shift + Ctrl + Windows + B is meant to correct that.
 
-    struct drm_display_mode dmode;
-    drm_display_mode_from_videomode(vm, &dmode);
-    drm_mode_set_crtcinfo(&dmode, 0);
-
     struct i2c_client* bridge = m_LvdsTransmitter.GetBridge();
     NT_ASSERT(bridge);
     if (m_LvdsTransmitter.BridgeIsInitialized())
@@ -306,11 +310,13 @@ GcKmImx8qxpDisplay::HwAtomicCommit(struct videomode* vm)
 
     struct drm_encoder* enc = m_LvdsTransmitter.GetEncoder(0);
     NT_ASSERT(enc);
-    imx8qxp_ldb_encoder_disable(enc);
+    if (m_DispctrlIsEnabled) {
+        imx8qxp_ldb_encoder_disable(enc);
 
-    if (dpu_crtc_atomic_disable(&m_crtc.base, m_crtc.base.state))
-    {
-        return STATUS_UNSUCCESSFUL;
+        if (dpu_crtc_atomic_disable(&m_crtc.base, m_crtc.base.state))
+        {
+            return STATUS_UNSUCCESSFUL;
+        }
     }
 
     dpu_crtc_mode_set_nofb(&m_crtc.base, enc);
@@ -345,6 +351,7 @@ GcKmImx8qxpDisplay::HwAtomicCommit(struct videomode* vm)
     {
         it6263_bridge_enable(bridge);
     }
+    m_DispctrlIsEnabled = TRUE;
 
     return STATUS_SUCCESS;
 }
@@ -448,7 +455,7 @@ GcKmImx8qxpDisplay::GetI2CResource(
     }
 
     Status = ParseReslist((PCM_RESOURCE_LIST)&Buff, CmResourceTypeConnection,
-        pI2CConnectioId, NULL, I2CId);
+        pI2CConnectioId, NULL, I2CId, ResourceType_I2C);
     if (!NT_SUCCESS(Status)) {
         return Status;
     }

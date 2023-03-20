@@ -35,10 +35,21 @@ typedef struct _D3dKmGetTileModeCap
     UINT                TileModeCap;
 } D3dKmGetTileModeCap;
 
+typedef union _D3dKmGetAdapterCaps
+{
+    struct
+    {
+        UINT            UseNV12AliasCopy : 1;
+        UINT            Unused : 31;
+    };
+    UINT                AdapterCaps;
+} D3dKmGetAdapterCaps, D3dKmAdapterCaps;
+
 typedef enum _D3dKmEscapeType
 {
     D3D_KM_ESCAPE_UPDATE_IMAGE_INFO = 'UImI',
-    D3D_KM_ESCAPE_GET_TILE_MODE_CAP = 'QTMO'
+    D3D_KM_ESCAPE_GET_TILE_MODE_CAP = 'QTMO',
+    D3D_KM_ESCAPE_GET_ADAPTER_CAPS  = 'GADC'
 } D3dKmEscapeType;
 
 typedef struct _D3dKmEscape
@@ -50,6 +61,7 @@ typedef struct _D3dKmEscape
     {
         D3dKmUpdateImageInfo    UpdateImageInfo;
         D3dKmGetTileModeCap     GetTileModeCap;
+        D3dKmGetAdapterCaps     GetAdapterCaps;
     };
 } D3dKmEscape;
 

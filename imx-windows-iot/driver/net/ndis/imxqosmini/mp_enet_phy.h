@@ -1,5 +1,5 @@
 /*
-* Copyright 2019, 2022 NXP
+* Copyright 2019,2022-2023 NXP
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -104,8 +104,9 @@ typedef union IMX_MII_LINK_STATE_union_t {
 
 
 /* Supported Realtek PHYs */
-#define REALTEK         0x0732
-    #define RTL8211F    0x11
+#define REALTEK            0x0732
+    #define RTL8211F       0x11
+    #define RTL8211F_VD_CG 0x7
 /* Supported Atheros PHYs */
 #define ATHEROS         0x1374
     #define AR8031      0x07

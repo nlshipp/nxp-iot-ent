@@ -292,9 +292,6 @@
     <ClCompile Include="lvds\it6263.c">
       <Filter>Source Files\lvds</Filter>
     </ClCompile>
-    <ClCompile Include="os\windows\src\i2c_comm.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="GcKmdImx8mnDisplay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -480,6 +477,12 @@
     </ClCompile>
     <ClCompile Include="os\windows\src\drivers\phy\phy-mixel-lvds-combo.c">
       <Filter>Source Files\phy</Filter>
+    </ClCompile>
+    <ClCompile Include="mipi_dsi\panel-raydium-rm67191.c">
+      <Filter>Source Files\mipi_dsi</Filter>
+    </ClCompile>
+    <ClCompile Include="os\windows\src\comm.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -774,9 +777,6 @@
     <ClInclude Include="lvds\it6263.h">
       <Filter>Header Files\lvds</Filter>
     </ClInclude>
-    <ClInclude Include="os\windows\src\i2c_comm.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GcKmdImx8mnDisplay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -929,6 +929,15 @@
     </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Resource Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mipi_dsi\panel-raydium-rm67191.h">
+      <Filter>Header Files\mipi_dsi</Filter>
+    </ClInclude>
+    <ClInclude Include="os\windows\include\linux\include\linux\gpio\consumer.h">
+      <Filter>Header Files\linux</Filter>
+    </ClInclude>
+    <ClInclude Include="os\windows\src\comm.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

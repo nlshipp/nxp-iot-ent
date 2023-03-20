@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,7 +36,7 @@ Device (SPI0)
   Name (_UID, 0x0)
   Method (_STA)
   {
-    Return(0x0)
+    Return(0xf)
   }
   Name (_CRS, ResourceTemplate () {
     MEMORY32FIXED(ReadWrite, 0x5a000000, 0x10000, )
@@ -54,6 +54,14 @@ Device (SPI0)
     // MsftFunctionConfig (Arg0, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6) { Pin List }
     // The MISO, MOSI, SCK pads are configured in iMX8BoardInit.c
   })
+  Name (_DSD, Package () {
+    ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+        Package (2) {"ReferenceClockHz", 160000000U},
+        Package (2) {"MaxConnectionSpeedHz", 0U},  // 0 means no limitation applied
+        Package (2) {"SampleOnDelayedSckEdge", 0}, // 0 - sample on SCK edge, 1 - sample on delayed SCK edge
+      }
+  })
 }
 
 Device (SPI1)
@@ -68,6 +76,14 @@ Device (SPI1)
   Name (_CRS, ResourceTemplate () {
       MEMORY32FIXED(ReadWrite, 0x5a010000, 0x10000, )
       Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 369 }
+  })
+  Name (_DSD, Package () {
+    ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+        Package (2) {"ReferenceClockHz", 160000000U},
+        Package (2) {"MaxConnectionSpeedHz", 0U},  // 0 means no limitation applied
+        Package (2) {"SampleOnDelayedSckEdge", 0}, // 0 - sample on SCK edge, 1 - sample on delayed SCK edge
+      }
   })
 }
 
@@ -84,6 +100,14 @@ Device (SPI2)
       MEMORY32FIXED(ReadWrite, 0x5a020000, 0x10000, )
       Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 370 }
   })
+  Name (_DSD, Package () {
+    ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+        Package (2) {"ReferenceClockHz", 160000000U},
+        Package (2) {"MaxConnectionSpeedHz", 0U},  // 0 means no limitation applied
+        Package (2) {"SampleOnDelayedSckEdge", 0}, // 0 - sample on SCK edge, 1 - sample on delayed SCK edge
+      }
+  })
 }
 
 Device (SPI3)
@@ -93,7 +117,7 @@ Device (SPI3)
   Name (_UID, 0x3)
   Method (_STA)
   {
-    Return(0x0)
+    Return(0xf)
   }
   Name (_CRS, ResourceTemplate () {
       MEMORY32FIXED(ReadWrite, 0x5a030000, 0x10000, )
@@ -110,6 +134,14 @@ Device (SPI3)
     //
     // MsftFunctionConfig (Arg0, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6) { Pin List }
     // The MISO, MOSI, SCK pads are configured in iMX8BoardInit.c
+  })
+  Name (_DSD, Package () {
+    ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+        Package (2) {"ReferenceClockHz", 160000000U},
+        Package (2) {"MaxConnectionSpeedHz", 0U},  // 0 means no limitation applied
+        Package (2) {"SampleOnDelayedSckEdge", 0}, // 0 - sample on SCK edge, 1 - sample on delayed SCK edge
+      }
   })
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -318,6 +318,7 @@ imx_clk_t* clk_hdmi_phy_imx8mp(const char* name, imx_clk_t* parent, struct platf
     clk->clk_set_parent = NULL;
     clk->clk_get_parent = NULL;
     clk->clk_get_reference_rate = &clk_hdmi_phy_get_ref_rate_imx8mp;
+    clk->flags = 0;
 
     return clk;
 }

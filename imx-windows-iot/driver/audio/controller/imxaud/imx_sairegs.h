@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
-   Copyright 2022 NXP
+   Copyright 2022-2023 NXP
    Licensed under the MIT License.
 
 Abstract:
@@ -429,11 +429,11 @@ typedef union {
 typedef union {
     ULONG AsUlong;
     struct {
-        ULONG ReadFifoPointer : 6;  // bit 0:5
-        ULONG Reserved0 : 9;        // bit 6:14
+        ULONG ReadFifoPointer : 8;  // bit 0:5
+        ULONG Reserved0 : 7;        // bit 6:14
         ULONG Reserved1 : 1;        // bit 15
-        ULONG WriteFifoPointer : 6; // bit 16:21
-        ULONG Reserved2 : 10;       // bit 22:31
+        ULONG WriteFifoPointer : 8; // bit 16:21
+        ULONG Reserved2 : 8;       // bit 22:31
 
     };
 } SAI_RECEIVE_FIFO_REGISTER, *PSAI_RECEIVE_FIFO_REGISTER;

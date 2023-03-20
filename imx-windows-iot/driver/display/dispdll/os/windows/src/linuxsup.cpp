@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -29,7 +29,7 @@
  */
 
 #include "precomp.h"
-#include "os/windows/src/i2c_comm.h"
+#include "os/windows/src/comm.h"
 
 extern "C"
 {
@@ -62,6 +62,8 @@ extern "C"
 #include "linux\i2c.h"
 #include "linux\regmap.h"
 #include "drm\drm_connector.h"
+#include "linux\gpio\consumer.h"
+#include "asm-generic\bitops\non-atomic.h"
 
 //
 // memory allocation
@@ -273,6 +275,24 @@ int of_property_read_u32_array(const struct device_node *np,
     return 0;
 }
 
+int of_property_read_long_array(const struct device_node* np,
+    const char* propname,
+    LONG* out_values, size_t sz)
+{
+    struct property* p = find_property_by_name(np, propname);
+    if (!p)
+    {
+        return -EINVAL;
+    }
+
+    for (int i = 0; i < sz; i++)
+    {
+        out_values[i] = ((LONG*)p->value)[i];
+    }
+
+    return 0;
+}
+
 const struct of_device_id *of_match_device(const struct of_device_id *matches,
     const struct device *dev)
 {
@@ -380,6 +400,9 @@ struct clk *devm_clk_get(struct device *dev, const char *id)
             if (clk_desc->parent_sel != 0) {
                 clk_parent = (dev->get_clock_item)(clk_desc->parent_sel);
                 if (clk_parent && clk->clk_set_parent) {
+                    if (clk->flags & CLK_SCFW_PRESENT) {
+                        (void)(clk->clk_enable)(clk, false, false);
+                    }
                     (void)(clk->clk_set_parent)(clk, clk_parent);
                 }
             }
@@ -995,12 +1018,12 @@ struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c)
 
     map->regmap_read = &i2c_read;
     map->regmap_write = &i2c_write;
-    i2c_clear_handle(&map->io_target);
+    comm_clear_handle(&map->io_target);
 
-    NTSTATUS Status = i2c_initialize(i2c->connection_id, &map->io_target);
+    NTSTATUS Status = comm_initialize(i2c->connection_id, &map->io_target, (GENERIC_READ | GENERIC_WRITE));
     if (Status != STATUS_SUCCESS)
     {
-        _dev_err(nullptr, "i2c_initialize failed, status-0x%lx\n", Status);
+        _dev_err(nullptr, "comm_initialize (i2c) failed, status-0x%lx\n", Status);
         kfree(map);
         return (struct regmap*)ERR_PTR(-ENOMEM);
     }
@@ -1011,7 +1034,7 @@ struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c)
 void regmap_release_i2c(struct regmap *map)
 {
     if (map) {
-        i2c_close(&map->io_target);
+        comm_close(&map->io_target);
         kfree(map);
     }
 }
@@ -1177,6 +1200,65 @@ void drm_bridge_hpd_notify(struct platform_device* pdev,
     ChildStatus.ChildUid = uid;
     ChildStatus.HotPlug.Connected = (status == connector_status_connected) ? TRUE : FALSE;
     pDxgkInterface->DxgkCbIndicateChildStatus(pDxgkInterface->DeviceHandle, &ChildStatus);
+}
+
+//
+//GPIO
+//
+
+struct gpio_desc* devm_gpiod_get(struct device* dev,
+    const char* con_id, unsigned long flags)
+{
+    LARGE_INTEGER gpio_connection_id;
+    LONG cid[2] = {0};
+    NTSTATUS status;
+    struct gpio_desc* gpio;
+
+    if (!dev || !con_id) {
+        return nullptr;
+    }
+    if (of_property_read_long_array(&dev->of_node, con_id, (LONG*)&cid, 2) != 0) {
+        return nullptr;
+    }
+    gpio_connection_id.LowPart = cid[0];
+    gpio_connection_id.HighPart = cid[1];
+
+    gpio = (struct gpio_desc*)kmalloc(sizeof(*gpio), GFP_KERNEL | __GFP_ZERO);
+    if (gpio == NULL) {
+        return (struct gpio_desc*)ERR_PTR(-ENOMEM);
+    }
+    gpio->flags = flags;
+
+    comm_clear_handle(&gpio->io_target);
+    status = comm_initialize(gpio_connection_id, &gpio->io_target, GENERIC_WRITE);
+    if (!NT_SUCCESS(status))
+    {
+        _dev_err(nullptr, "comm_initialize (gpio) failed, status-0x%lx\n", status);
+        comm_close(&gpio->io_target);
+        kfree(gpio);
+        return (struct gpio_desc*)ERR_PTR(-ENODEV);
+    }
+
+    return gpio;
+}
+
+void devm_gpiod_put(struct device* dev, struct gpio_desc* desc)
+{
+    if (desc) {
+        comm_close(&desc->io_target);
+        kfree(desc);
+    }
+}
+
+void gpiod_set_value(struct gpio_desc* desc, int value)
+{
+    if (!desc) {
+        return;
+    }
+    if (desc->flags & FLAG_ACTIVE_LOW) {
+        value = !value;
+    }
+    (void)gpio_write(&desc->io_target, value);
 }
 
 } // extern "C"

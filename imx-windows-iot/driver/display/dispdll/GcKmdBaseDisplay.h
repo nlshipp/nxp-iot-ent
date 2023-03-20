@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
    Licensed under the MIT License. */
 
 #pragma once
@@ -26,6 +26,7 @@ public:
         m_FbPhysicalAddr = {};
         m_FbSize = 0;
         m_pTransmitter = nullptr;
+        m_Pitch = 0;
     }
 
     virtual ~GcKmBaseDisplay() {}
@@ -42,6 +43,8 @@ public:
 
     virtual NTSTATUS HwStop(
         DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo) = 0;
+
+    virtual void HwStopScanning(IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn) = 0;
 
     virtual NTSTATUS QueryAdapterInfo(
         const DXGKARG_QUERYADAPTERINFO *pQueryAdapterInfo);
@@ -64,8 +67,9 @@ public:
         IN_POWER_ACTION         ActionType);
 
     virtual void HwSetPowerState(
-        UINT SourcePhysicalAddress,
-        UINT TileMode) = 0;
+        IN_ULONG                DeviceUid,
+        IN_DEVICE_POWER_STATE   DevicePowerState,
+        IN_POWER_ACTION         ActionType) = 0;
 
     virtual NTSTATUS SetPointerPosition(
         IN_CONST_PDXGKARG_SETPOINTERPOSITION    pSetPointerPosition);
@@ -114,6 +118,11 @@ public:
 
     virtual NTSTATUS UpdateMonitorLinkInfo(
         INOUT_PDXGKARG_UPDATEMONITORLINKINFO    pUpdateMonitorLinkInfo);
+
+    virtual bool SupportStandardModes()
+    {
+        return false;
+    }
 
 private:
 
@@ -174,20 +183,24 @@ private:
     NTSTATUS AddNewSourceModeSet(
         const DXGK_VIDPN_INTERFACE* pVidPnInterface,
         D3DKMDT_HVIDPN hVidPn,
-        D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId);
+        D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId,
+        bool bSupportStandardModes);
 
     NTSTATUS AddNewTargetModeSet(
         const DXGK_VIDPN_INTERFACE* pVidPnInterface,
         D3DKMDT_HVIDPN hVidPn,
-        D3DKMDT_VIDEO_PRESENT_TARGET_MODE_ID VidPnTargeId);
+        D3DKMDT_VIDEO_PRESENT_TARGET_MODE_ID VidPnTargeId,
+        bool bSupportStandardModes);
 
     NTSTATUS AddNewSourceModeInfo(
         D3DKMDT_HVIDPNSOURCEMODESET hSourceModeSet,
-        const DXGK_VIDPNSOURCEMODESET_INTERFACE* pSourceModeSetInterface);
+        const DXGK_VIDPNSOURCEMODESET_INTERFACE* pSourceModeSetInterface,
+        bool bSupportStandardModes);
 
     NTSTATUS AddNewTargetModeInfo(
         D3DKMDT_HVIDPNTARGETMODESET hTargetModeSet,
-        const DXGK_VIDPNTARGETMODESET_INTERFACE* pTargetModeSetInterface);
+        const DXGK_VIDPNTARGETMODESET_INTERFACE* pTargetModeSetInterface,
+        bool bSupportStandardModes);
 
     void SetSourceModeInfoToNative(D3DKMDT_VIDPN_SOURCE_MODE* pModeInfo);
 
@@ -217,6 +230,10 @@ protected:
     DXGK_DISPLAY_INFORMATION m_PreviousPostDisplayInfo;
     PHYSICAL_ADDRESS m_FbPhysicalAddr;
     ULONG m_FbSize;
+    UINT m_Pitch;
+
+    D3DKMDT_VIDPN_SOURCE_MODE m_CurSourceModes[1];
+    D3DKMDT_VIDPN_TARGET_MODE m_CurTargetModes[1];
 
     const UINT CHILD_COUNT = 1;
     const UINT VIDEO_PRESENT_SOURCES_COUNT = 1;

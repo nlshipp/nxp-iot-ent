@@ -97,7 +97,15 @@ Imx8mDodAdapter::QueryAdapterInfo(
     {
     case DXGKQAITYPE_DISPLAY_DRIVERCAPS_EXTENSION:
     case DXGKQAITYPE_DISPLAYID_DESCRIPTOR:
-        return STATUS_NOT_SUPPORTED;
+    {
+        if (NULL == m_pDisplay)
+        {
+            return STATUS_NOT_SUPPORTED;
+        }
+
+        return m_pDisplay->QueryAdapterInfo(pQueryAdapterInfo);
+    }
+    break;
 
     default:
         return GcKmAdapter::QueryAdapterInfo(pQueryAdapterInfo);

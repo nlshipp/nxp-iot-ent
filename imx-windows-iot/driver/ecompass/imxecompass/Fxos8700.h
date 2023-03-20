@@ -1,5 +1,5 @@
 /*
-* Copyright 2022 NXP
+* Copyright 2022-2023 NXP
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -3278,7 +3278,7 @@ const DOUBLE ACCELEROMETER_MIN_ACCELERATION_G = -8;
 const DOUBLE ACCELEROMETER_MAX_ACCELERATION_G = 8;
 
 const ULONG SENSOR_MIN_REPORT_INTERVAL = 1;
-const ULONG DEFAULT_SENSOR_REPORT_INTERVAL = 5;
+const ULONG DEFAULT_SENSOR_REPORT_INTERVAL = 10;
 const ULONG CURRENT_REPORT_INTERVAL_NOT_SET = 0;
 
 const DATA_RATE SENSOR_SUPPORTED_DATA_RATES_SINGLE[] = { { 640, ((0x07 << FXOS8700_CTRL_REG1_DR_SHIFT) | FXOS8700_CTRL_REG1_ACTIVE_ACTIVE_MODE) },

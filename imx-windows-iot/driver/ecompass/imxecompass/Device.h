@@ -1,5 +1,5 @@
 // Copyright (C) Microsoft Corporation, All Rights Reserved
-// Copyright 2022 NXP
+// Copyright 2022-2023 NXP
 // 
 // Abstract:
 //
@@ -204,7 +204,7 @@ public:
 
 public:
 
-    static DATA_RATE            GetDataRateFromReportInterval(_In_ ULONG ReportInterval);
+    static DATA_RATE            GetDataRateFromReportInterval(_In_ ULONG ReportInterval, _In_ ULONG SensorMode);
     static NTSTATUS             ConfigureIoTarget(_In_ WDFCMRESLIST ResourceList, _In_ WDFCMRESLIST ResourceListTranslated);
     //
     // Sensor specific functions

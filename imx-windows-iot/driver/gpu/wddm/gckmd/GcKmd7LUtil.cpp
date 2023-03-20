@@ -364,46 +364,6 @@ AlignAllocationSize(
     return largestPageAligned;
 }
 
-bool
-ReadDwordRegistryValue(
-    UNICODE_STRING* pRegistryPath,
-    WCHAR* pRegKeyName,
-    DWORD* pData)
-{
-    NTSTATUS Status;
-    HANDLE DriverRegKeyPath;
-
-    OBJECT_ATTRIBUTES Attr = { 0 };
-    InitializeObjectAttributes(&Attr,
-                               pRegistryPath,
-                               OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-                               NULL,
-                               NULL);
-    Status = ZwOpenKey(&DriverRegKeyPath, KEY_QUERY_VALUE, &Attr);
-    if (!NT_SUCCESS(Status))
-    {
-        return false;
-    }
-
-    DWORD Data = 0;
-    RTL_QUERY_REGISTRY_TABLE QueryTable[2];
-
-    RtlZeroMemory(&QueryTable, sizeof(QueryTable));
-    QueryTable[0].Name          = pRegKeyName;
-    QueryTable[0].Flags         = RTL_QUERY_REGISTRY_DIRECT | RTL_QUERY_REGISTRY_TYPECHECK | RTL_QUERY_REGISTRY_REQUIRED;
-    QueryTable[0].DefaultType   = (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
-    QueryTable[0].EntryContext  = &Data;
-    Status = RtlQueryRegistryValues(RTL_REGISTRY_HANDLE, (PWSTR)DriverRegKeyPath, QueryTable, NULL, NULL);
-    if (NT_SUCCESS(Status))
-    {
-        *pData = Data;
-    }
-
-    ZwClose(DriverRegKeyPath);
-
-    return NT_SUCCESS(Status);
-}
-
 
 extern "C"
 {

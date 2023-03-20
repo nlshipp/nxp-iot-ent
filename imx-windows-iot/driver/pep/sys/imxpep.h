@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2022 NXP
+// Copyright 2022-2023 NXP
 // Licensed under the MIT License.
 //
 //
@@ -43,10 +43,10 @@ public: // NONPAGED
         UART2,
         UART3,
         UART4,
-        UART5,
+        UART5,*/
         USDHC1,
         USDHC2,
-        USDHC3,
+/*        USDHC3,
         USDHC4,
         VPU,
         SSI1,
@@ -353,7 +353,7 @@ private: // NONPAGED
     //
     // private members
     //
-
+    UINT32 cpuRevision;
     volatile LONG activeProcessorCount;
     UNMASKED_INTERRUPTS unmaskedInterruptsCopy;
 
@@ -393,7 +393,7 @@ public: // PAGED
     static DRIVER_DISPATCH DispatchFileCreateClose;
 
     _IRQL_requires_max_(PASSIVE_LEVEL)
-    IMX_PEP ();
+    IMX_PEP (UINT32 cpuRevision);
 
     _IRQL_requires_max_(PASSIVE_LEVEL)
     ~IMX_PEP ();

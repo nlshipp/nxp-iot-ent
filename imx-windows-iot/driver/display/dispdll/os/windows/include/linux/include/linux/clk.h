@@ -5,7 +5,7 @@
  *  Copyright (C) 2004 ARM Limited.
  *  Written by Deep Blue Solutions Limited.
  *  Copyright (C) 2011-2012 Linaro Ltd <mturquette@linaro.org>
- *  Copyright 2022 NXP
+ *  Copyright 2022-2023 NXP
  */
 #ifndef __LINUX_CLK_H
 #define __LINUX_CLK_H
@@ -23,6 +23,8 @@ struct of_phandle_args;
 /**
  * Clk node parameters for general clock type
  */
+/* flags */
+#define CLK_SCFW_PRESENT 1
 struct clk {
 	enum imx_clk_type type;
 	const char *name;
@@ -35,6 +37,7 @@ struct clk {
 		struct imx_clk_scu clk_scu;
 	};
 	struct clk *parent;
+	int flags;
 
 	int (*clk_enable)(struct clk *clk, bool enable, bool recursive);
 	unsigned long (*clk_get_rate)(struct clk *clk);

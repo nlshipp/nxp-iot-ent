@@ -1,4 +1,5 @@
 :: Copyright (c) Microsoft Corporation. All rights reserved.
+:: Copyright 2022-2023 NXP
 :: Licensed under the MIT License.
 
 @echo off
@@ -28,14 +29,14 @@ set REPO_ROOT=%cd%
 set BSP_ROOT=%cd%\BSP\IoTEntOnNXP
 set COMP_ROOT=%cd%\components
 set DRVR_ROOT=%BSP_ROOT%\drivers
-set BINPTCH_ROOT=%BSP_ROOT%\binpatch
+set KBPTCH_ROOT=%BSP_ROOT%\kbpatch
 set BUILD_ROOT=%REPO_ROOT%\build\solution\iMXPlatform\Build\%PLATFORM%\%Configuration%
 set FAILURE=
 
 echo BSP_ROOT is %BSP_ROOT%
 echo BUILD_ROOT is %BUILD_ROOT%
 echo DRVR_ROOT is %DRVR_ROOT%
-echo BINPTCH_ROOT is %BINPTCH_ROOT%
+echo KBPTCH_ROOT is %KBPTCH_ROOT%
 echo REPO_ROOT is %REPO_ROOT%
 
 if "%SOC%"=="iMX8" (
@@ -77,6 +78,10 @@ mkdir %DRVR_ROOT%\ECOMPASS >NUL 2>NUL
 copy %BUILD_ROOT%\imxecompass\* %DRVR_ROOT%\ECOMPASS\ >NUL
 if errorlevel 1 (set FAILURE=imxecompass & goto ERROR)
 
+mkdir %DRVR_ROOT%\IMU >NUL 2>NUL
+copy %BUILD_ROOT%\imximu\* %DRVR_ROOT%\IMU\ >NUL
+if errorlevel 1 (set FAILURE=imximu & goto ERROR)
+
 mkdir %DRVR_ROOT%\GPIO >NUL 2>NUL
 copy %BUILD_ROOT%\imxgpio\* %DRVR_ROOT%\GPIO\ >NUL
 if errorlevel 1 (set FAILURE=imxgpio & goto ERROR)
@@ -85,6 +90,10 @@ copy %REPO_ROOT%\driver\gpio\imxgpio\imxgpio.wm.xml %DRVR_ROOT%\GPIO\ >NUL
 mkdir %DRVR_ROOT%\GPIO_8X >NUL 2>NUL
 copy %BUILD_ROOT%\imxgpio_8x\* %DRVR_ROOT%\GPIO_8X\ >NUL
 if errorlevel 1 (set FAILURE=imxgpio_8x & goto ERROR)
+
+mkdir %DRVR_ROOT%\RGPIO >NUL 2>NUL
+copy %BUILD_ROOT%\imxrgpio\* %DRVR_ROOT%\RGPIO\ >NUL
+if errorlevel 1 (set FAILURE=imxrgpio & goto ERROR)
 
 mkdir %DRVR_ROOT%\I2C >NUL 2>NUL
 copy %BUILD_ROOT%\imxi2c\* %DRVR_ROOT%\I2C\ >NUL
@@ -126,10 +135,20 @@ copy %BUILD_ROOT%\imxecspi\* %DRVR_ROOT%\SPI\ >NUL
 if errorlevel 1 (set FAILURE=imxecspi & goto ERROR)
 copy %REPO_ROOT%\driver\spi\imxecspi\imxecspi.wm.xml %DRVR_ROOT%\SPI\ >NUL
 
+mkdir %DRVR_ROOT%\SPI >NUL 2>NUL
+copy %BUILD_ROOT%\imxlpspi\* %DRVR_ROOT%\SPI\ >NUL
+if errorlevel 1 (set FAILURE=imxlpspi & goto ERROR)
+copy %REPO_ROOT%\driver\spi\imxlpspi\imxlpspi.wm.xml %DRVR_ROOT%\SPI\ >NUL
+
 mkdir %DRVR_ROOT%\PWM >NUL 2>NUL
 copy %BUILD_ROOT%\imxpwm\* %DRVR_ROOT%\PWM\ >NUL
 if errorlevel 1 (set FAILURE=imxpwm & goto ERROR)
 copy %REPO_ROOT%\driver\pwm\imxpwm\imxpwm.wm.xml %DRVR_ROOT%\PWM\ >NUL
+
+mkdir %DRVR_ROOT%\PWM_TPM >NUL 2>NUL
+copy %BUILD_ROOT%\imxpwm_tpm\* %DRVR_ROOT%\PWM_TPM\ >NUL
+if errorlevel 1 (set FAILURE=imxpwm_tpm & goto ERROR)
+copy %REPO_ROOT%\driver\pwm_tpm\imxpwm_tpm\imxpwm_tpm.wm.xml %DRVR_ROOT%\PWM_TPM\ >NUL
 
 mkdir %DRVR_ROOT%\ThermalSensor >NUL 2>NUL
 copy %BUILD_ROOT%\imxtmu\* %DRVR_ROOT%\ThermalSensor >NUL
@@ -155,7 +174,7 @@ mkdir %DRVR_ROOT%\Gyro >NUL 2>NUL
 copy %BUILD_ROOT%\imxgyro_fxas21002\* %DRVR_ROOT%\Gyro\ >NUL
 if errorlevel 1 (set FAILURE=Gyro & goto ERROR)
 
-:: Copy VPU stuff
+:: Copy Hantro VPU stuff
 mkdir %DRVR_ROOT%\VPU >NUL 2>NUL
 copy %BUILD_ROOT%\imxvpukm\* %DRVR_ROOT%\VPU\ >NUL
 if errorlevel 1 (set FAILURE=imxvpukm & goto ERROR)
@@ -176,6 +195,16 @@ if errorlevel 1 (set FAILURE=imx-vpu-dwl & goto ERROR)
 copy %COMP_ROOT%\video\* %DRVR_ROOT%\VPU\ >NUL
 if errorlevel 1 (set FAILURE=vcruntime140.dll & goto ERROR)
 
+:: Copy Malone VPU stuff
+mkdir %DRVR_ROOT%\VPUMalone >NUL 2>NUL
+copy %BUILD_ROOT%\malonekm\* %DRVR_ROOT%\VPUMalone\ >NUL
+if errorlevel 1 (set FAILURE=malonekm & goto ERROR)
+copy %BUILD_ROOT%\malonemft\malonemft.dll %DRVR_ROOT%\VPUMalone\ >NUL
+if errorlevel 1 (set FAILURE=malonemft & goto ERROR)
+
+copy %COMP_ROOT%\video\* %DRVR_ROOT%\VPUMalone\ >NUL
+if errorlevel 1 (set FAILURE=vcruntime140.dll & goto ERROR)
+
 :: Copy USB
 mkdir %DRVR_ROOT%\USB >NUL 2>NUL
 copy %BUILD_ROOT%\imxUcmTcpciCxClient\* %DRVR_ROOT%\USB\ >NUL
@@ -187,10 +216,15 @@ mkdir %DRVR_ROOT%\Wm8960codec >NUL 2>NUL
 copy %BUILD_ROOT%\Wm8960codec\* %DRVR_ROOT%\Wm8960codec\ >NUL
 if errorlevel 1 (set FAILURE=Wm8960codec & goto ERROR)
 
+mkdir %DRVR_ROOT%\Wm8962codec >NUL 2>NUL
+copy %BUILD_ROOT%\Wm8962codec\* %DRVR_ROOT%\Wm8962codec\ >NUL
+if errorlevel 1 (set FAILURE=Wm8962codec & goto ERROR)
+
 :: Copy Camera
 mkdir %DRVR_ROOT%\ImxCamera >NUL 2>NUL
 copy %BUILD_ROOT%\imxcamera_package\*.sys %DRVR_ROOT%\ImxCamera >NUL
 copy %BUILD_ROOT%\imxcamera_package\*.cat %DRVR_ROOT%\ImxCamera >NUL
+copy %BUILD_ROOT%\imxcamera_package\*.fw %DRVR_ROOT%\ImxCamera >NUL
 copy %BUILD_ROOT%\imxcamera_package\imxcamera_package.inf %DRVR_ROOT%\ImxCamera >NUL
 if errorlevel 1 (set FAILURE=Avstream & goto ERROR)
 
@@ -213,11 +247,11 @@ copy %BUILD_ROOT%\imxpep\* %DRVR_ROOT%\PEP\ >NUL
 if errorlevel 1 (set FAILURE=imxpep & goto ERROR)
 copy %REPO_ROOT%\driver\pep\sys\imxpep.wm.xml %DRVR_ROOT%\PEP\ >NUL
 
-:: Copy Patch files
-echo Copying Drivers to %BINPTCH_ROOT%
-mkdir %BINPTCH_ROOT%\Sdport >NUL 2>NUL
-copy %COMP_ROOT%\Sdport\* %BINPTCH_ROOT%\Sdport\ >NUL
-if errorlevel 1 (set FAILURE=Sdport & goto ERROR)
+:: Copy image package files
+echo Copying Packages to %KBPTCH_ROOT%
+mkdir %KBPTCH_ROOT% >NUL 2>NUL
+copy %COMP_ROOT%\kbpatch\* %KBPTCH_ROOT%\ >NUL
+if errorlevel 2 (set FAILURE=KBPatch & goto ERROR)
 
 :: Copy Wifi mrvlpcie8897 
 echo Copying Wifi mrvlpcie8897 to %DRVR_ROOT%

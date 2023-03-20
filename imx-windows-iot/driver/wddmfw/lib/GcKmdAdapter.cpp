@@ -311,6 +311,61 @@ GcKmAdapter::GetStandardAllocationDriverData(
     if ((NULL == pGetStandardAllocationDriverData->pAllocationPrivateDriverData) &&
         (NULL == pGetStandardAllocationDriverData->pResourcePrivateDriverData))
     {
+        //
+        // Check per process setting for redirection surface creation
+        //
+
+        if ((D3DKMDT_STANDARDALLOCATION_GDISURFACE == pGetStandardAllocationDriverData->StandardAllocationType) &&
+            ((D3DKMDT_GDISURFACE_TEXTURE_CPUVISIBLE == pGetStandardAllocationDriverData->pCreateGdiSurfaceData->Type) ||
+             (D3DKMDT_GDISURFACE_TEXTURE == pGetStandardAllocationDriverData->pCreateGdiSurfaceData->Type)))
+        {
+            UNICODE_STRING* pImagePath = nullptr;
+
+            do
+            {
+                PEPROCESS   pCreatorProcess;
+                HANDLE      ProcessId;
+
+                ProcessId = PsGetCurrentProcessId();
+
+                Status = PsLookupProcessByProcessId(ProcessId, &pCreatorProcess);
+                if (NULL == pCreatorProcess)
+                {
+                    break;
+                }
+
+                SeLocateProcessImageName(pCreatorProcess, &pImagePath);
+                if ((NULL == pImagePath) || (0 == pImagePath->Length))
+                {
+                    break;
+                }
+
+                WCHAR*  pImageName;
+
+                pImageName = wcsrchr(pImagePath->Buffer, L'\\');
+                pImageName++;
+
+                bool    bRet;
+                DWORD   GdiAccLevel = 2;
+
+                bRet = ReadDwordRegistryValue(
+                        &m_DeviceInfo.DeviceRegistryPath,
+                        pImageName,
+                        &GdiAccLevel);
+
+                if ((true == bRet) && (0 == GdiAccLevel))
+                {
+                    return STATUS_NOT_SUPPORTED;
+                }
+
+            } while (false);
+
+            if (pImagePath)
+            {
+                ExFreePool(pImagePath);
+            }
+        }
+
         pGetStandardAllocationDriverData->AllocationPrivateDriverDataSize = sizeof(AllocationExchangeData);
         pGetStandardAllocationDriverData->ResourcePrivateDriverDataSize = 0;
 
@@ -405,8 +460,19 @@ GcKmAdapter::DescribeAllocation(
 {
     GcKmAllocation *pAllocation = (GcKmAllocation *)pDescribeAllocation->hAllocation;
 
-    pDescribeAllocation->Width = pAllocation->m_mip0Info.TexelWidth;
-    pDescribeAllocation->Height = pAllocation->m_mip0Info.TexelHeight;
+    if (pAllocation->m_isPrimary &&
+        ((pAllocation->m_primaryDesc.Flags & DXGI_DDI_PRIMARY_NONPREROTATED) == 0))
+    {
+        pDescribeAllocation->Width = pAllocation->m_primaryDesc.ModeDesc.Width;
+        pDescribeAllocation->Height = pAllocation->m_primaryDesc.ModeDesc.Height;
+    }
+    else
+    {
+        pDescribeAllocation->Width = pAllocation->m_mip0Info.TexelWidth;
+        pDescribeAllocation->Height = pAllocation->m_mip0Info.TexelHeight;
+    }
+
+
     pDescribeAllocation->Format = TranslateDxgiFormat(pAllocation->m_format);
 
     pDescribeAllocation->MultisampleMethod.NumSamples = pAllocation->m_sampleDesc.Count;

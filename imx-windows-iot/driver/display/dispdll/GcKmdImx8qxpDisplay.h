@@ -46,6 +46,7 @@ public:
         m_irqsteer_pdev = {};
         m_clk_tree = nullptr;
         m_ipc_id = {};
+        m_DispctrlIsEnabled = TRUE;
     }
 
     virtual NTSTATUS HwStart(DXGKRNL_INTERFACE* pDxgkInterface) override;
@@ -53,9 +54,12 @@ public:
     virtual NTSTATUS HwStop(
         DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo) override;
 
+    virtual void HwStopScanning(IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn) override;
+
     virtual void HwSetPowerState(
-        UINT SourcePhysicalAddress,
-        UINT TileMode) override;
+        IN_ULONG                DeviceUid,
+        IN_DEVICE_POWER_STATE   DevicePowerState,
+        IN_POWER_ACTION         ActionType) override;
 
     virtual NTSTATUS SetVidPnSourceAddress(
         IN_CONST_PDXGKARG_SETVIDPNSOURCEADDRESS pSetVidPnSourceAddress) override;
@@ -101,6 +105,8 @@ private:
         DXGKRNL_INTERFACE* pDxgkInterface,
         ULONG I2CId,
         LARGE_INTEGER* pI2CConnectionId);
+
+    bool m_DispctrlIsEnabled;
 
     QxpLvdsTransmitter m_LvdsTransmitter;
 

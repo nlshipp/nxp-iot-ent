@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|ARM">
@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\shared\acpi\acpiutil.cpp" />
     <ClCompile Include="..\..\shared\scfw\main\ipc.c" />
     <ClCompile Include="..\..\shared\scfw\svc\irq\irq_rpc_clnt.c" />
     <ClCompile Include="..\..\shared\scfw\svc\misc\misc_rpc_clnt.c" />

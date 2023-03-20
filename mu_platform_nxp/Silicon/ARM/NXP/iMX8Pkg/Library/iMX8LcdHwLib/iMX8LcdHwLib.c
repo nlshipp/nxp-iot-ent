@@ -1,7 +1,7 @@
 /** @file
 
   Copyright (c) 2020, Linaro, Ltd. All rights reserved.
-  Copyright 2020, 2022 NXP
+  Copyright 2020, 2022-2023 NXP
 
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -26,6 +26,7 @@
 #include "iMX8.h"
 #include "it6263.h"
 #include "dw_hdmi.h"
+#include "MipiDsi_rm67191.h"
 
 #if defined(CPU_IMX8MP)
   #define DISP_CTRL_LCDIFV3
@@ -70,6 +71,28 @@
 IMX_DISPLAY_TIMING PreferredTiming;
 
 /* Predefined modes - one selected is copied to PreferredTiming in LcdDisplayDetect */
+/* 1080x1920@60Hz */
+const IMX_DISPLAY_TIMING PreferredTiming_1080x1920_60 = {
+  .PixelClock = 108000000,
+  .HActive = 1080,
+  .HBlank = 56,
+  .VActive = 1920,
+  .VBlank = 16,
+  .HSync = 2,
+  .VSync = 2,
+  .HSyncOffset = 34,
+  .VSyncOffset = 4,
+  .HImageSize = 296,
+  .VImageSize = 527,
+  .HBorder = 0,
+  .VBorder = 0,
+  .EdidFlags = 0,
+  .Flags = 0,
+  .PixelRepetition = 0,
+  .Bpp = 24,
+  .PixelFormat = PIXEL_FORMAT_ARGB32,
+};
+
 /* 1920x1080@60Hz */
 const IMX_DISPLAY_TIMING PreferredTiming_1920x1080_60 = {
   .PixelClock = 148500000,
@@ -125,6 +148,28 @@ const IMX_DISPLAY_TIMING PreferredTiming_1280x1024_60 = {
   .VSync = 3,
   .HSyncOffset = 48,
   .VSyncOffset = 1,
+  .HImageSize = 527,
+  .VImageSize = 296,
+  .HBorder = 0,
+  .VBorder = 0,
+  .EdidFlags = 0,
+  .Flags = 0,
+  .PixelRepetition = 0,
+  .Bpp = 24,
+  .PixelFormat = PIXEL_FORMAT_ARGB32,
+};
+
+/* 1366x768@60 */
+const IMX_DISPLAY_TIMING PreferredTiming_1366x768_60 = {
+  .PixelClock = 85500000,
+  .HActive = 1366,
+  .HBlank = 426,
+  .VActive = 768,
+  .VBlank = 30,
+  .HSync = 143,
+  .VSync = 3,
+  .HSyncOffset = 70,
+  .VSyncOffset = 3,
   .HImageSize = 527,
   .VImageSize = 296,
   .HBorder = 0,
@@ -440,7 +485,7 @@ LcdDisplayDetect (
   if (converter == transmitterUnknown) {
     if (displayInterface == imxMipiDsi) {
       videoModesCnt++;
-      LcdInitPreferredTiming (&PreferredTiming_1920x1080_60, &PreferredTiming);
+      LcdInitPreferredTiming (&PreferredTiming_1080x1920_60, &PreferredTiming);
       DEBUG((DEBUG_ERROR, "Mipi-dsi display interface. Default resolution used. %dx%d pclk=%d Hz\n", 
             PreferredTiming.HActive, PreferredTiming.VActive, PreferredTiming.PixelClock));
       LcdDumpDisplayTiming(0, &PreferredTiming);
@@ -685,6 +730,9 @@ LcdSetMode (
     if (converter == ADV7535) {
       /* ADV7535 set timing mode */
       CHECK_STATUS_RETURN_ERR(Adv7535SetMode(Timing), "ADV7535 config");
+    } else {
+      /* MIPI-DSI panel init must be called after MipiDsiConfig() */
+      CHECK_STATUS_RETURN_ERR(Rm67191Init(), "RM67191 config");
     }
 #if defined(DISP_CTRL_LCDIFV3)
     /* LCDIF set timing mode */

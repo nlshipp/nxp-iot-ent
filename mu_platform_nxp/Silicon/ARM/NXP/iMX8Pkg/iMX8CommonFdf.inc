@@ -1,7 +1,7 @@
 #
 #  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
 #  Copyright (c) 2013-2018, ARM Limited. All rights reserved.
-#  Copyright 2019, 2022 NXP
+#  Copyright 2019, 2022-2023 NXP
 #
 #  This program and the accompanying materials
 #  are licensed and made available under the terms and conditions of the BSD License
@@ -78,7 +78,7 @@
   # Usb Support
   #
 !if $(CONFIG_USB) == TRUE
-!if (($(IMX_FAMILY) == IMX8MM) || ($(IMX_FAMILY) == IMX8MN))
+!if (($(IMX_FAMILY) == IMX8MM) || ($(IMX_FAMILY) == IMX8MN) || ($(IMX_FAMILY) == IMX93))
   INF MdeModulePkg/Bus/Pci/EhciDxe/EhciDxe.inf
 !else
   INF MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf

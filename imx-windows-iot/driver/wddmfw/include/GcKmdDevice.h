@@ -54,5 +54,11 @@ public: // PAGED
     _Function_class_DXGK_(DXGKDDI_OPENALLOCATIONINFO)
     _IRQL_requires_(PASSIVE_LEVEL)
     NTSTATUS OpenAllocation (IN_CONST_PDXGKARG_OPENALLOCATION);
+
+    HANDLE
+    GetRtDevice()
+    {
+        return m_hRTDevice;
+    }
 };
 
