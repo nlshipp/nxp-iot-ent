@@ -85,7 +85,8 @@ public:
     UpdateMTlbEntries(
         Gc7LMTlbEntry4K    *pMTlbEntry,
         UINT                StartIndex,
-        UINT                NumEntries)
+        UINT                NumEntries,
+        UINT                DummyMTlbEntry)
     {
         UINT    i;
 
@@ -93,7 +94,7 @@ public:
 
         for (i = StartIndex; i < (StartIndex + NumEntries); i++)
         {
-            if (pMTlbEntry[i].Present)
+            if (pMTlbEntry[i].Present && (pMTlbEntry[i].Value != DummyMTlbEntry))
             {
                 pMTlbEntry[i].STlbPageSize = m_CachedMTlb[i].STlbPageSize;
             }

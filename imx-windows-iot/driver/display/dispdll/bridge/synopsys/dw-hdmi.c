@@ -2,7 +2,7 @@
 /*
  * DesignWare High-Definition Multimedia Interface (HDMI) driver
  *
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  * Copyright (C) 2013-2015 Mentor Graphics Inc.
  * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  * Copyright (C) 2010, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
@@ -140,7 +140,6 @@ struct dw_hdmi {
 
 	unsigned int version;
 
-	struct platform_device *audio;
 	struct platform_device *cec;
 	struct device *dev;
 	struct clk *isfr_clk;
@@ -178,7 +177,6 @@ struct dw_hdmi {
 	u8 mc_clkdis;			/* clock disable register */
 
 	spinlock_t audio_lock;
-	struct mutex audio_mutex;
 	unsigned int sample_non_pcm;
 	unsigned int sample_width;
 	unsigned int sample_rate;
@@ -568,6 +566,7 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 	unsigned int n, cts;
 	u8 config3;
 	u64 tmp;
+	KIRQL flags;
 
 	n = hdmi_compute_n(sample_rate, pixel_clk);
 
@@ -585,65 +584,82 @@ static void hdmi_set_clk_regenerator(struct dw_hdmi *hdmi,
 		tmp = (u64)ftdms * n;
 		do_div(&tmp, 128 * sample_rate);
 		cts = (unsigned int)tmp;
-
-		dev_dbg(hdmi->dev, "%s: fs=%uHz ftdms=%lu.%03luMHz N=%d cts=%d\n",
-			__func__, sample_rate,
-			ftdms / 1000000, (ftdms / 1000) % 1000,
-			n, cts);
 	} else {
 		cts = 0;
 	}
 
-	spin_lock_irq(&hdmi->audio_lock);
+	dev_dbg(hdmi->dev, "%s: fs=%uHz ftdms=%lu.%03luMHz N=%d cts=%d\n",
+		__func__, sample_rate,
+		ftdms / 1000000, (ftdms / 1000) % 1000,
+		n, cts);
+
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
 	hdmi->audio_n = n;
 	hdmi->audio_cts = cts;
 	hdmi_set_cts_n(hdmi, cts, hdmi->audio_enable ? n : 0);
-	spin_unlock_irq(&hdmi->audio_lock);
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
 }
 
 static void hdmi_init_clk_regenerator(struct dw_hdmi *hdmi)
 {
-	mutex_lock(&hdmi->audio_mutex);
-	hdmi_set_clk_regenerator(hdmi, 74250000, hdmi->sample_rate);
-	mutex_unlock(&hdmi->audio_mutex);
+	unsigned int sample_rate;
+	KIRQL flags;
+
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
+	sample_rate = hdmi->sample_rate;
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
+
+	hdmi_set_clk_regenerator(hdmi, 74250000, sample_rate);
 }
 
 static void hdmi_clk_regenerator_update_pixel_clock(struct dw_hdmi *hdmi)
 {
-	mutex_lock(&hdmi->audio_mutex);
+	unsigned int sample_rate;
+	KIRQL flags;
+
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
+	sample_rate = hdmi->sample_rate;
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
+
 	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mtmdsclock,
-				 hdmi->sample_rate);
-	mutex_unlock(&hdmi->audio_mutex);
+				 sample_rate);
 }
 
 void dw_hdmi_set_sample_width(struct dw_hdmi *hdmi, unsigned int width)
 {
-	mutex_lock(&hdmi->audio_mutex);
+	KIRQL flags;
+
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
 	hdmi->sample_width = width;
-	mutex_unlock(&hdmi->audio_mutex);
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
 }
 
 void dw_hdmi_set_sample_non_pcm(struct dw_hdmi *hdmi, unsigned int non_pcm)
 {
-	mutex_lock(&hdmi->audio_mutex);
+	KIRQL flags;
+
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
 	hdmi->sample_non_pcm = non_pcm;
-	mutex_unlock(&hdmi->audio_mutex);
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
 }
 
 void dw_hdmi_set_sample_rate(struct dw_hdmi *hdmi, unsigned int rate)
 {
-	mutex_lock(&hdmi->audio_mutex);
+	KIRQL flags;
+
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
 	hdmi->sample_rate = rate;
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
 	hdmi_set_clk_regenerator(hdmi, hdmi->hdmi_data.video_mode.mtmdsclock,
-				 hdmi->sample_rate);
-	mutex_unlock(&hdmi->audio_mutex);
+				 rate);
 }
 
 void dw_hdmi_set_channel_count(struct dw_hdmi *hdmi, unsigned int cnt)
 {
 	u8 layout;
+	KIRQL flags;
 
-	mutex_lock(&hdmi->audio_mutex);
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
 	hdmi->channels = cnt;
 
 	/*
@@ -662,16 +678,18 @@ void dw_hdmi_set_channel_count(struct dw_hdmi *hdmi, unsigned int cnt)
 	hdmi_modb(hdmi, (u8)((cnt - 1) << HDMI_FC_AUDICONF0_CC_OFFSET),
 		  HDMI_FC_AUDICONF0_CC_MASK, HDMI_FC_AUDICONF0);
 
-	mutex_unlock(&hdmi->audio_mutex);
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
 }
 
 void dw_hdmi_set_channel_allocation(struct dw_hdmi *hdmi, unsigned int ca)
 {
-	mutex_lock(&hdmi->audio_mutex);
+	KIRQL flags;
+
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
 
 	hdmi_writeb(hdmi, (u8)ca, HDMI_FC_AUDICONF2);
 
-	mutex_unlock(&hdmi->audio_mutex);
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
 }
 
 static void hdmi_enable_audio_clk(struct dw_hdmi *hdmi, bool enable)
@@ -764,6 +782,16 @@ static void dw_hdmi_gp_audio_disable(struct dw_hdmi *hdmi)
 	hdmi_enable_audio_clk(hdmi, false);
 }
 
+bool dw_hdmi_audio_supported(struct dw_hdmi* hdmi)
+{
+	/* Modification from original hdmi_audio_get_eld, don't return complete eld (edid like data)
+	   but just bool flag if audio is supported */
+	if (!hdmi)
+		return false;
+
+	return hdmi->sink_has_audio;
+}
+
 static void dw_hdmi_ahb_audio_enable(struct dw_hdmi *hdmi)
 {
 	hdmi_set_cts_n(hdmi, hdmi->audio_cts, hdmi->audio_n);
@@ -787,24 +815,24 @@ static void dw_hdmi_i2s_audio_disable(struct dw_hdmi *hdmi)
 
 void dw_hdmi_audio_enable(struct dw_hdmi *hdmi)
 {
-	unsigned long flags;
+	KIRQL flags;
 
-	spin_lock_irqsave(&hdmi->audio_lock, flags);
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
 	hdmi->audio_enable = true;
 	if (hdmi->enable_audio)
 		hdmi->enable_audio(hdmi);
-	spin_unlock_irqrestore(&hdmi->audio_lock, flags);
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
 }
 
 void dw_hdmi_audio_disable(struct dw_hdmi *hdmi)
 {
-	unsigned long flags;
+	KIRQL flags;
 
-	spin_lock_irqsave(&hdmi->audio_lock, flags);
+	wspin_lock_irqsave(&hdmi->audio_lock, &flags);
 	hdmi->audio_enable = false;
 	if (hdmi->disable_audio)
 		hdmi->disable_audio(hdmi);
-	spin_unlock_irqrestore(&hdmi->audio_lock, flags);
+	wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
 }
 
 static bool hdmi_bus_fmt_is_rgb(unsigned int bus_format)
@@ -2137,6 +2165,7 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 			 const struct drm_display_mode *mode)
 {
 	int ret;
+	KIRQL flags;
 
 	hdmi_disable_overflow_interrupts(hdmi);
 
@@ -2199,7 +2228,10 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 
 		/* HDMI Initialization Step E - Configure audio */
 		hdmi_clk_regenerator_update_pixel_clock(hdmi);
+
+		wspin_lock_irqsave(&hdmi->audio_lock, &flags);
 		hdmi_enable_audio_clk(hdmi, hdmi->audio_enable);
+		wspin_unlock_irqrestore(&hdmi->audio_lock, &flags);
 	}
 
 	/* not for DVI mode */
@@ -2727,15 +2759,6 @@ static void dw_hdmi_cec_disable(struct dw_hdmi *hdmi)
 	mutex_unlock(&hdmi->mutex);
 }
 
-#ifdef __undefined__
-static const struct dw_hdmi_cec_ops dw_hdmi_cec_ops = {
-	.write = hdmi_writeb,
-	.read = hdmi_readb,
-	.enable = dw_hdmi_cec_enable,
-	.disable = dw_hdmi_cec_disable,
-};
-#endif
-
 static const struct regmap_config hdmi_regmap_8bit_config = {
 	.reg_bits	= 32,
 	.val_bits	= 8,
@@ -2808,10 +2831,11 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 	hdmi->phy_mask = (u8)~(HDMI_PHY_HPD | HDMI_PHY_RX_SENSE);
 	hdmi->mc_clkdis = 0x7f;
 	hdmi->last_connector_result = connector_status_disconnected;
+	hdmi->sink_has_audio = false;
 	hdmi->pdev = pdev;
 
 	mutex_init(&hdmi->mutex);
-	mutex_init(&hdmi->audio_mutex);
+	wspin_lock_init(&hdmi->audio_lock);
 	pdev->dev.platform_data = hdmi;
 
 	if (!plat_data->regm) {
@@ -2951,6 +2975,7 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->enable_audio = dw_hdmi_i2s_audio_enable;
 		hdmi->disable_audio = dw_hdmi_i2s_audio_disable;
 	} else if (iores && config3 & HDMI_CONFIG3_GPAUD) {
+		/* imx8mp - only GPAUD is supported */
 		hdmi->enable_audio = dw_hdmi_gp_audio_enable;
 		hdmi->disable_audio = dw_hdmi_gp_audio_disable;
 	}

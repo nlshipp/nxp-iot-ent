@@ -350,6 +350,7 @@ static int clk_start_imx8mp(imx8mp_clk_device_t *dev, imx_display_interface new_
         break;
     case imx_hdmi:
         imx_clk_enable(dev->clks[IMX8MP_CLK_HDMI_ROOT], true, false);
+        imx_clk_set_rate(dev->clks[IMX8MP_CLK_HDMI_REF_266M], IMX_CLK_FREQ_24M);
         imx_clk_enable(dev->clks[IMX8MP_CLK_HDMI_REF_266M], true, false);
         break;
     default:
@@ -828,20 +829,21 @@ void clk_dump_clock_tree_imx8mp(const imx8mp_clk_device_t *dev)
  * Stop selected clocks.
  *
  * @param  dev device to stop the clock for
+ * @param  stop_disp display to be stopped
  *
  * @return 0 on success. Returns -1 on failure.
  */
 
-int clk_stop_imx8mp(imx8mp_clk_device_t *dev)
+int clk_stop_imx8mp(imx8mp_clk_device_t *dev, imx_display_interface stop_disp)
 {
     if (dev == NULL) {
         return -1;
     }
 
-    if (dev->disp_mipi != imx_interface_undefined) {
+    if ((stop_disp == imx_mipi_dsi) && (dev->disp_mipi != imx_interface_undefined)) {
         CHECK_SUCCESS(imx_clk_enable(dev->clks[IMX8MP_CLK_MEDIA_DISP1_PIX], false, false));
     }
-    if ((dev->disp_lvds != imx_interface_undefined)) {
+    if ((stop_disp == imx_lvds) && (dev->disp_lvds != imx_interface_undefined)) {
         CHECK_SUCCESS(imx_clk_enable(dev->clks[IMX8MP_CLK_MEDIA_DISP2_PIX], false, false));
     }
 
@@ -852,16 +854,35 @@ int clk_stop_imx8mp(imx8mp_clk_device_t *dev)
  * De-initialize clock tree.
  *
  * @param  dev device to init clock tree for
+ * @param  stop_disp display to deinit
  *
  * @return 0 on success. Returns -1 on failure.
  */
 
-int clk_deinit_imx8mp(imx8mp_clk_device_t *dev)
+int clk_deinit_imx8mp(imx8mp_clk_device_t *dev, imx_display_interface stop_disp)
 {
     int i;
 
     if (dev == NULL) {
         return -1;
+    }
+    switch (stop_disp) {
+    case imx_lvds:
+        dev->disp_lvds = imx_interface_undefined;
+        break;
+    case imx_mipi_dsi:
+        dev->disp_mipi = imx_interface_undefined;
+        break;
+    case imx_hdmi:
+        dev->disp_hdmi = imx_interface_undefined;
+        break;
+    default:
+        CLK_PRINTK("Display CLK: unsupported interface %d!", stop_disp);
+        return -1;
+    }
+    if ((dev->disp_lvds != imx_interface_undefined) || (dev->disp_mipi != imx_interface_undefined) || (dev->disp_hdmi != imx_interface_undefined)) {
+        /* Another display interface still running, keep the clock tree alive. The last one will do the cleaning. */
+        return 0;
     }
 
     for (i = 0; i < IMX8MP_DC_CLK_END; i++) {

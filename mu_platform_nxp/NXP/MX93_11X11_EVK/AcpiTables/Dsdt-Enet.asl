@@ -3,7 +3,7 @@
 * Description: 10/100/1000-Mbps Ethernet MAC (ENET)
 *
 *  Copyright (c) Microsoft Corporation. All rights reserved.
-*  Copyright 2019-2022 NXP
+*  Copyright 2019-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -81,7 +81,7 @@ Device (NET1) {
   }
   Name (_DSD, Package () {
     ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
-    Package () { // ATHEROS AR8031
+    Package () { // RTL8211FDI-VD-CG
       Package (2) {"MDIOBusController_InputClk_kHz", 266000},
       Package (2) {"PhyAddress",                     0x00},
       Package (2) {"PhyInterafceType",               0x00},  // RGMII, default value
@@ -89,9 +89,12 @@ Device (NET1) {
       Package (2) {"PhyMinSTAHoldTime_ns",           10},
       Package (2) {"PhyDisablePreamble",             0},
       Package (2) {"ConfigCmds", Package () {
-                                  //  Enable GTX_CLK delay
-                                  //MII_WRITE_COMMAND(0x11, 0x0100),
-                                  //MII_WRITE_COMMAND(0x15, 0x0008),
+                                  MII_REG_WR (0x1F, 0x0d08),         // Select page
+                                  MII_REG_RMW(0x11, 0x0000, 0x0100), // Enable Tx-delay
+                                  MII_REG_RMW(0x15, 0x0000, 0x0008), // Enable Rx-delay
+                                  MII_REG_WR (0x1F, 0x0d04),         // Select page
+                                  MII_REG_WR (0x10, 0x617F),         // Set green LED for Link, yellow LED for Active
+                                  MII_REG_WR (0x1F, 0x0000),         // Set default page
                                   ENET_MII_END}}
     }
   })

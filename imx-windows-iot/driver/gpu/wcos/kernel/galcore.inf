@@ -19,6 +19,8 @@ CatalogFile=galcore.cat
 [SourceDisksFiles]
 galcore.sys = 0
 dispctrl.dll = 0
+umdcommon.dll = 0
+umd9.dll = 0
 umd11.dll = 0
 vulkan.dll = 0
 libGLSLC.dll = 0
@@ -27,12 +29,22 @@ spvconverter.dll = 0
 libGAL.dll = 0
 
 [SourceDisksFiles.arm64]
+umdcommon_32.dll = 0
+umd9_32.dll = 0
 umd11_32.dll = 0
 vulkan_32.dll = 0
 libGLSLC_32.dll = 0
 libVSC_32.dll = 0
 spvconverter_32.dll = 0
 libGAL_32.dll = 0
+umdcommon_X86.dll = 0
+umd9_X86.dll = 0
+umd11_X86.dll = 0
+vulkan_X86.dll = 0
+libGLSLC_X86.dll = 0
+libVSC_X86.dll = 0
+spvconverter_X86.dll = 0
+libGAL_X86.dll = 0
 
 [SourceDisksFiles.amd64]
 libEmulator.dll = 0
@@ -41,6 +53,7 @@ libEmulator.dll = 0
 GalCore.Miniport = 12 ; drivers
 GalCore.UserMode = 11 ; system32
 GalCore.WoW = 10, SysArm32
+GalCore.WoW2 = 10, SysWOW64
 Emulator.UserMode = 11 ; system32
 
 ;*****************************************
@@ -60,20 +73,20 @@ Emulator.UserMode = 11 ; system32
 %galcore.DeviceDesc%=EmuGC7L_Device, EmuGC7LDevice
 
 [galcore_Device.NT]
-CopyFiles=GalCore.Miniport, GalCore.UserMode, GalCore.WoW
-AddReg=GcWddm_AddReg
+CopyFiles=GalCore.Miniport, GalCore.UserMode, GalCore.WoW, GalCore.WoW2
+AddReg=GcWddm_AddReg, GdiRedirSurf_AddReg
 
 [galcoreMP_Device.NT]
-CopyFiles=GalCore.Miniport, GalCore.UserMode, GalCore.WoW
-AddReg=GcWddmMP_AddReg
+CopyFiles=GalCore.Miniport, GalCore.UserMode, GalCore.WoW, GalCore.WoW2
+AddReg=GcWddmMP_AddReg, GdiRedirSurf_AddReg
 
 [galcoreMN_Device.NT]
-CopyFiles=GalCore.Miniport, GalCore.UserMode, GalCore.WoW
-AddReg=GcWddmMN_AddReg
+CopyFiles=GalCore.Miniport, GalCore.UserMode, GalCore.WoW, GalCore.WoW2
+AddReg=GcWddmMN_AddReg, GdiRedirSurf_AddReg
 
 [galcore8X_Device.NT]
-CopyFiles=GalCore.Miniport, GalCore.UserMode, GalCore.WoW
-AddReg=GcWddm8X_AddReg
+CopyFiles=GalCore.Miniport, GalCore.UserMode, GalCore.WoW, GalCore.WoW2
+AddReg=GcWddm8X_AddReg, GdiRedirSurf_AddReg
 
 [EmuGC7L_Device.NT]
 CopyFiles=GalCore.Miniport, GalCore.UserMode, Emulator.UserMode
@@ -84,6 +97,8 @@ galcore.sys,,,0x100
 dispctrl.dll,,,0x100
 
 [GalCore.UserMode]
+umdcommon.dll,,,0x4000
+umd9.dll,,,0x4000
 umd11.dll,,,0x4000
 vulkan.dll,,,0x4000
 libGLSLC.dll,,,0x4000
@@ -92,6 +107,8 @@ spvconverter.dll,,,0x4000
 libGAL.dll,,,0x4000
 
 [GalCore.WoW]
+umdcommon.dll,umdcommon_32.dll,,0x4000
+umd9.dll,umd9_32.dll,,0x4000
 umd11.dll,umd11_32.dll,,0x4000
 vulkan.dll,vulkan_32.dll,,0x4000
 libGLSLC.dll,libGLSLC_32.dll,,0x4000
@@ -99,11 +116,22 @@ libVSC.dll,libVSC_32.dll,,0x4000
 spvconverter.dll,spvconverter_32.dll,,0x4000
 libGAL.dll,libGAL_32.dll,,0x4000
 
+[GalCore.WoW2]
+umdcommon.dll,umdcommon_X86.dll,,0x4000
+umd9.dll,umd9_X86.dll,,0x4000
+umd11.dll,umd11_X86.dll,,0x4000
+vulkan.dll,vulkan_X86.dll,,0x4000
+libGLSLC.dll,libGLSLC_X86.dll,,0x4000
+libVSC.dll,libVSC_X86.dll,,0x4000
+spvconverter.dll,spvconverter_X86.dll,,0x4000
+libGAL.dll,libGAL_X86.dll,,0x4000
+
 [Emulator.UserMode]
 libEmulator.dll,,,0x4000
 
 [GcWddm_AddReg]
 HKR,,UserModeDriverName,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
+HKR,,UserModeDriverNameWow,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
 HKR,,UserModeDriverNameWow2,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
 HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",DisableAutoAcpiPostDeivce,%REG_DWORD%,0
 ;HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\MemoryManager",GpuVaFirstValidAddress,%REG_DWORD%,0x1000000
@@ -118,6 +146,7 @@ HKR,,GdiAccLevel,%REG_DWORD%,2
 
 [GcWddmMP_AddReg]
 HKR,,UserModeDriverName,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
+HKR,,UserModeDriverNameWow,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
 HKR,,UserModeDriverNameWow2,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
 HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",DisableAutoAcpiPostDeivce,%REG_DWORD%,0
 ;HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\MemoryManager",GpuVaFirstValidAddress,%REG_DWORD%,0x1000000
@@ -129,8 +158,10 @@ HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrDebugMode,%REG_DWORD%
 HKLM,"SOFTWARE\Microsoft\XAML",ForceWARP,%REG_DWORD%,0
 ; GDI acceleration level of 2 : HW rendering, 1 : SW redirection surface, 0 : off
 HKR,,GdiAccLevel,%REG_DWORD%,2
+; Enable support for multiple monitors
+HKR,,EnableMultiMon,%REG_DWORD%,1
 ; Display parameters for LVDS interface
-HKR,,Display0Interface,%REG_DWORD%,%DISP_INTERFACE_HDMI%
+HKR,,Display0Interface,%REG_DWORD%,0
 ; HKR,,Display0Interface,%REG_DWORD%,%DISP_INTERFACE_LVDS0%
 ;Following parameters relevant to LVDS interface
 HKR,,Display0BusDataWidth,%REG_DWORD%,24
@@ -149,9 +180,12 @@ HKR,,Display0EDID,%REG_BINARY%,\
 0x59,0x30,0x36,0x37,0x56,0x32,0x35,0x4B,0x53,0x0A,0x00,0x00,0x00,0xFC,0x00,0x44,\
 0x45,0x4C,0x4C,0x20,0x55,0x32,0x34,0x31,0x32,0x4D,0x0A,0x20,0x00,0x00,0x00,0xFD,\
 0x00,0x32,0x3D,0x1E,0x53,0x11,0x00,0x0A,0x20,0x20,0x20,0x20,0x20,0x20,0x00,0x6D
+; Enable HDMI interface by default
+HKR,,Display1Interface,%REG_DWORD%,%DISP_INTERFACE_HDMI%
 
 [GcWddmMN_AddReg]
 HKR,,UserModeDriverName,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
+HKR,,UserModeDriverNameWow,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
 HKR,,UserModeDriverNameWow2,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
 HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",DisableAutoAcpiPostDeivce,%REG_DWORD%,0
 ;HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\MemoryManager",GpuVaFirstValidAddress,%REG_DWORD%,0x1000000
@@ -180,6 +214,7 @@ HKR,,Display0EDID,%REG_BINARY%,\
 
 [GcWddm8X_AddReg]
 HKR,,UserModeDriverName,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
+HKR,,UserModeDriverNameWow,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
 HKR,,UserModeDriverNameWow2,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
 HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",DisableAutoAcpiPostDeivce,%REG_DWORD%,0
 ;HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\MemoryManager",GpuVaFirstValidAddress,%REG_DWORD%,0x1000000
@@ -208,10 +243,17 @@ HKR,,Display0EDID,%REG_BINARY%,\
 
 [EmuGC7L_AddReg]
 HKR,,SoftGPUAdapter,%REG_DWORD%,1
-HKR,,UserModeDriverName,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
-HKR,,UserModeDriverNameWow,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
+HKR,,UserModeDriverName,%REG_MULTI_SZ%,umd9.dll,umd11.dll,umd11.dll,umd12.dll
+HKR,,UserModeDriverNameWow,%REG_MULTI_SZ%,umd9.dll,umd11.dll,umd11.dll,umd12.dll
 HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrDebugMode,%REG_DWORD%,1
 HKLM,"SOFTWARE\Microsoft\XAML",ForceWARP,%REG_DWORD%,1
+HKR,,D3D9Hybrid,%REG_DWORD%,0
+
+[GdiRedirSurf_AddReg]
+HKLM,"SOFTWARE\VSI\GPU\GdiRedirSurf"
+
+[GdiRedirSurf_AddReg.Security]
+"G:BUD:(A;CIOI;KA;;;BU)"
 
 ;-------------- Service installation
 [galcore_Device.NT.Services]

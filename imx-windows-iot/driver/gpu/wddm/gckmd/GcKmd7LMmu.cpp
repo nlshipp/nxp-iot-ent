@@ -471,7 +471,8 @@ GcKm7LMmu::BuildPagingBuffer(
             pProcess->UpdateMTlbEntries(
                         (Gc7LMTlbEntry4K *)pUpdatePageTable->PageTableAddress.CpuVirtual,
                         pUpdatePageTable->StartIndex,
-                        pUpdatePageTable->NumPageTableEntries);
+                        pUpdatePageTable->NumPageTableEntries,
+                        m_DummyMTlbEntry.Value);
 
             DXGK_PTE   *pRtPde = pUpdatePageTable->pPageTableEntries;
             for (UINT i = 0; i < pUpdatePageTable->NumPageTableEntries; i++, pRtPde++)
@@ -484,7 +485,6 @@ GcKm7LMmu::BuildPagingBuffer(
                                 pRtPde->ReadOnly);
 
                     ULONGLONG           GpuAddress1M = (pRtPde->PageTableAddress << 12) + m_VideoMemoryPhysicalAddress.QuadPart;
-                    UINT                InternalSTlbIndex = (UINT)((GpuAddress1M - m_VideoMemoryPhysicalAddress.QuadPart) >> 24);
                     Gc7LSTlbEntry1M    *pInternalSTlb;
 
                     UINT MTlbIndex              = pUpdatePageTable->StartIndex + i;
@@ -528,24 +528,82 @@ GcKm7LMmu::BuildPagingBuffer(
             if (m_bEnableShadow1MSTlb &&
                 (pUpdatePageTable->FirstPteVirtualAddress >= GC_7L_1MB_PAGE_GPU_VA_START) &&
                 (pUpdatePageTable->FirstPteVirtualAddress < GC_7L_1MB_PAGE_GPU_VA_END) &&
-                pUpdatePageTable->Flags.Use64KBPages &&
-                ((pUpdatePageTable->FirstPteVirtualAddress & (1024*1024 - 1)) == 0) &&
-                ((pUpdatePageTable->NumPageTableEntries & (16 - 1)) == 0))
+                pUpdatePageTable->Flags.Use64KBPages)
             {
-                UINT                MTlbIndex = (UINT)(pUpdatePageTable->FirstPteVirtualAddress >> (GC_7L_GPU_VA_BIT_COUNT - GC_7L_MTLB_INDEX_BITS));
+                D3DGPU_VIRTUAL_ADDRESS  AffectedAddressStart = pUpdatePageTable->FirstPteVirtualAddress & ~(1024*1024 - 1);
+                D3DGPU_VIRTUAL_ADDRESS  RtGpuVaEnd = pUpdatePageTable->FirstPteVirtualAddress + pUpdatePageTable->NumPageTableEntries*64*1024;
+                D3DGPU_VIRTUAL_ADDRESS  AffectedAddressEnd = (RtGpuVaEnd + 1024*1024 - 1) & ~(1024*1024 - 1);
+
+                UINT    NumPageTableEntries = (UINT)((AffectedAddressEnd - AffectedAddressStart)/(64*1024));
+
+                UINT                MTlbIndex = (UINT)(AffectedAddressStart >> (GC_7L_GPU_VA_BIT_COUNT - GC_7L_MTLB_INDEX_BITS));
                 Gc7LSTlbEntry1M    *pPrivateSTlb = pProcess->GetPrivateSTlb(MTlbIndex);
 
-                pRtPte   = pUpdatePageTable->pPageTableEntries;
+                DXGK_PTE    RtPTEs[16*1024*1024/(64*1024)];
+                D3DGPU_VIRTUAL_ADDRESS  GpuVa = AffectedAddressStart;
+
+                pRtPte = pUpdatePageTable->pPageTableEntries;
                 RtPteInc = pUpdatePageTable->Flags.Repeat ? 0 : 1;
 
-                UINT    STlbOffset = pUpdatePageTable->StartIndex >> 4;
-                UINT    STlbOffsetEnd = (pUpdatePageTable->StartIndex + pUpdatePageTable->NumPageTableEntries) >> 4;
-
-                for (; STlbOffset < STlbOffsetEnd; STlbOffset++)
+                for (UINT i = 0; i < NumPageTableEntries; i++, GpuVa += 64*1024)
                 {
-                    UINT        i = 0;
-                    DXGK_PTE   *pStart64KRtPte = pRtPte;
-                    DXGK_PTE   *pNextRtPte;
+                    if ((GpuVa < pUpdatePageTable->FirstPteVirtualAddress) ||
+                        (GpuVa >= RtGpuVaEnd))
+                    {
+                        Gc7LSTlbEntry  *pSTlbEntry = (Gc7LSTlbEntry*)pUpdatePageTable->PageTableAddress.CpuVirtual;
+
+                        Gc7LSTlbEntry   CurSTlbEntry = pSTlbEntry[(GpuVa - MTlbIndex*16*1024*1024)/(64*1024)];
+
+                        memset(&RtPTEs[i], 0, sizeof(RtPTEs[i]));
+
+                        if (CurSTlbEntry.Present)
+                        {
+                            if (CurSTlbEntry.WriteException)
+                            {
+                                RtPTEs[i].ReadOnly = 1;
+                            }
+
+                            ULONGLONG   PagePhysicalAddress = (((ULONGLONG)CurSTlbEntry.PageIndexExt) << 32) | (((ULONGLONG)CurSTlbEntry.PageIndex) << 12);
+
+                            if ((PagePhysicalAddress >= (ULONGLONG)m_VideoMemoryPhysicalAddress.QuadPart) &&
+                                (PagePhysicalAddress < (ULONGLONG)m_VideoMemoryPhysicalAddress.QuadPart + m_VideoMemorySize))
+                            {
+                                RtPTEs[i].Segment = LOCAL_VIDMEM_SEGMENT_ID;
+                                RtPTEs[i].PageAddress = (PagePhysicalAddress - m_VideoMemoryPhysicalAddress.QuadPart) >> 12;
+
+                                RtPTEs[i].Valid = 1;
+                            }
+                            else
+                            {
+                                if (PagePhysicalAddress != (ULONGLONG)m_DummyPagePhysicalAddress.QuadPart)
+                                {
+                                    RtPTEs[i].PageAddress = PagePhysicalAddress >> 12;
+
+                                    RtPTEs[i].Valid = 1;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        RtPTEs[i] = *pRtPte;
+                        pRtPte += RtPteInc;
+                    }
+                }
+
+                UINT    STlbOffset = pUpdatePageTable->StartIndex >> 4;
+                UINT    STlbOffsetEnd = (pUpdatePageTable->StartIndex + pUpdatePageTable->NumPageTableEntries + 15) >> 4;
+
+                pRtPte = RtPTEs;
+                RtPteInc = 1;
+                DXGK_PTE   *pStart64KRtPte = RtPTEs;
+
+                for (; STlbOffset < STlbOffsetEnd; STlbOffset++, pStart64KRtPte += (16*RtPteInc))
+                {
+                    Gc7LSTlbEntry1M    *pCur1MSTlbEntry = pPrivateSTlb + STlbOffset;
+
+                    pCur1MSTlbEntry->Value = 0;
+                    pCur1MSTlbEntry->Present = pStart64KRtPte->Valid;
 
                     //
                     // HW requires physical page address for 1MB STlb to be 1M aligned.
@@ -555,10 +613,13 @@ GcKm7LMmu::BuildPagingBuffer(
                     if (pStart64KRtPte->Valid &&
                         (pStart64KRtPte->PageAddress & (0x100 - 1)))
                     {
-                        break;
+                        continue;
                     }
 
-                    for (i = 0; i < 15; i++, pRtPte += RtPteInc)
+                    UINT        i = 0;
+                    DXGK_PTE   *pNextRtPte;
+
+                    for (i = 0, pRtPte = pStart64KRtPte; i < 15; i++, pRtPte += RtPteInc)
                     {
                         pNextRtPte = pRtPte + RtPteInc;
 
@@ -574,11 +635,6 @@ GcKm7LMmu::BuildPagingBuffer(
                             break;
                         }
                     }
-
-                    Gc7LSTlbEntry1M    *pCur1MSTlbEntry = pPrivateSTlb + STlbOffset;
-
-                    pCur1MSTlbEntry->Value = 0;
-                    pCur1MSTlbEntry->Present = pStart64KRtPte->Valid;
 
                     //
                     // Build an internal 1MB STlb if all 16 64KB PTEs have the
@@ -612,12 +668,14 @@ GcKm7LMmu::BuildPagingBuffer(
                         {
                             pCur1MSTlbEntry->EnableException = 1;
                         }
-
-                        pRtPte = pStart64KRtPte + (16*RtPteInc);
                     }
                     else
                     {
-                        break;
+                        //
+                        // Mark the 1MB range as not contiguous
+                        //
+
+                        pCur1MSTlbEntry->Present = 1;
                     }
                 }
 
@@ -625,29 +683,36 @@ GcKm7LMmu::BuildPagingBuffer(
                 // If the newly updated STlbs can be upgraded to 1MB entry
                 //
 
-                if (STlbOffset == STlbOffsetEnd)
+                UINT    i;
+
+                //
+                // Check if all 16MB of the MTlb can be covered by 1MB STlb
+                //
+
+                for (i = 0; i < 16; i++)
                 {
-                    UINT    i;
-
-                    //
-                    // Check if all 16MB of the MTlb can be covered by 1MB STlb
-                    //
-
-                    for (i = 0; i < 16; i++)
+                    if (pPrivateSTlb[i].Present &&
+                        (pPrivateSTlb[i].PageIndex == 0))
                     {
-                        if (pPrivateSTlb[i].Present &&
-                            (pPrivateSTlb[i].PageIndex == 0))
-                        {
-                            break;
-                        }
+                        break;
                     }
+                }
 
-                    if (i == 16)
-                    {
-                        pProcess->UpdateSTlbPageSize(
-                                    MTlbIndex,
-                                    STlbPageSize1M);
-                    }
+                if (i == 16)
+                {
+                    pProcess->UpdateSTlbPageSize(
+                                MTlbIndex,
+                                STlbPageSize1M);
+                }
+                else
+                {
+                    //
+                    // Request UpdateHwPageTable() to switch back to 64KB page table
+                    //
+
+                    pProcess->UpdateSTlbPageSize(
+                                MTlbIndex,
+                                STlbPageSize64K);
                 }
             }
         }

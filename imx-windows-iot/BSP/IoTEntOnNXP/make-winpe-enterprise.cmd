@@ -28,7 +28,7 @@
 :: 
 
 ::
-:: Run this script in order to prepare a WinPE image for boot on i.MX 8M and i.MX 8M Mini.
+:: Run this script in order to prepare a WinPE image for boot on i.MX8 and i.MX9
 ::
 
 setlocal enableextensions
@@ -56,7 +56,7 @@ set WIN_PE_SRC_DIR_ABS=%ProgramFiles(x86)%\Windows Kits\10\Assessment and Deploy
 set WINPE_DRIVE_LETTER=O
 set WIN_PE_MOUNT_DIR=%OUT_DIR_REL%\mount_winpe
 set DISABLE_UPDATES=no
-set DISABLE_TRANSPARENCY=no
+set DISABLE_TRANSPARENCY=yes
 set SCRIPT_DIR=%~dp0
 set WIN_PE_DST_DIR=%OUT_DIR_REL%\winpe-imx-sdcard-layout
 set SWM_IMG=%WIN_PE_DST_DIR%\install.swm
@@ -107,7 +107,7 @@ if /I "%~1" == "/?" ( goto USAGE
 ) else (if /I "%~1" == "/unattend" (   break
 ) else (if /I "%~1" == "/no_unattend" ( set NO_UNATTEND=1
 ) else (if /I "%~1" == "/disable_updates" ( set DISABLE_UPDATES=yes
-) else (if /I "%~1" == "/disable_transparency" ( set DISABLE_TRANSPARENCY=yes
+) else (if /I "%~1" == "/enable_transparency" ( set DISABLE_TRANSPARENCY=no
 ) else (if /I "%~1" == "/split_wim" ( set SPLIT_WIM=yes
 ) else ( if /I "%~1" == "/no_patch" ( set NO_PATCH=yes
 ) else (if /I "%~1" == "/?" ( goto USAGE
@@ -857,7 +857,7 @@ exit /b 0
     echo    /split_wim                       Split wim file for install.wim ^> 4GB. This option is no longer needed, as image split is enabled automatically for big images.
     echo    /no_patch                        Disable the application of updates from /kbpatch directory to the Windows image.
     echo    /disable_updates                 Disable automatic updates to save disk space.
-    echo    /disable_transparency            Disable window transparency to improve UI responsivness.
+    echo    /enable_transparency             Enable window transparency. Window transparency is disabled by default to improve UI responsivness and stability.
     echo    /clean                           Clean up artifacts from a previous run.
     echo    /apply disk_number               Apply WinPE image to physical disk.
     echo    /?                               Help
@@ -866,7 +866,7 @@ exit /b 0
     echo.
     echo Create a WinPE image that deploys a Windows IOT Enterprise image to MMC.
     echo.
-    echo    make-winpe.cmd /disable_updates /disable_transparency
+    echo    make-winpe.cmd /disable_updates
     echo.
     echo Apply the WinPE image to an SD card (Physical Disk 7, use diskpart
     echo to find the disk number)

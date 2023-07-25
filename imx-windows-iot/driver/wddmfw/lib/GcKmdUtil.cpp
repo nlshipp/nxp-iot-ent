@@ -245,3 +245,32 @@ ReadDwordRegistryValue(
 
     return NT_SUCCESS(Status);
 }
+
+void
+ReadDwordRegistryValue2(
+    HANDLE* phRegKey,
+    WCHAR*  pRegValueName,
+    DWORD*  pData)
+{
+    NTSTATUS    Status;
+    RTL_QUERY_REGISTRY_TABLE    QueryTable[2];
+    DWORD       Data;
+
+    RtlZeroMemory(&QueryTable, sizeof(QueryTable));
+    QueryTable[0].Name          = pRegValueName;
+    QueryTable[0].Flags         = RTL_QUERY_REGISTRY_DIRECT | RTL_QUERY_REGISTRY_TYPECHECK | RTL_QUERY_REGISTRY_REQUIRED;
+    QueryTable[0].DefaultType   = (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
+    QueryTable[0].EntryContext  = &Data;
+
+    Status = RtlQueryRegistryValues(RTL_REGISTRY_HANDLE, (PCWSTR)*phRegKey, QueryTable, NULL, NULL);
+    if (NT_SUCCESS(Status))
+    {
+        *pData = Data;
+    }
+    else if (STATUS_KEY_DELETED == Status)
+    {
+        ZwClose(*phRegKey);
+        *phRegKey = 0;
+    }
+}
+

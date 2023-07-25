@@ -1,5 +1,5 @@
 /*
-* Copyright 2019 NXP
+* Copyright 2019, 2023 NXP
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -101,6 +101,7 @@ typedef struct _MP_MDIO_DEVICE {
     MP_MDIO_FRAME*                 MDIODev_pPendingFrameListTail;                   // MDIO pending frame item list tail.
     BOOLEAN                        MDIODev_CmdPending;
     MSCR_t                         MDIODev_MSCR;                                    // ENET MSCR register value for this Phy device.
+    MMFR_t                         MDIODev_MMFR;                                    // Copy of MMFR register used for read modify write (RWM) operation 
     LONG                           MDIODev_PhyDevice_Address;                       // PHY device address << 23 (Clause 22).
     MP_MDIO_PHY_INTERFACE_TYPE     MDIODev_PhyDevice_InterfaceType;
     NDIS_HANDLE                    MDIODev_Context;

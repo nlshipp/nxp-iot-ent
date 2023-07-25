@@ -1,5 +1,5 @@
 ﻿/* Copyright (c) Microsoft Corporation. All rights reserved.
-   Copyright 2019,2022 NXP
+   Copyright 2019,2022-2023 NXP
    Licensed under the MIT License.
 
 Module Name:
@@ -830,10 +830,6 @@ Return Value:
 
         UlongValue = *((const ULONG*)ContextPtr);
 
-        if (UlongValue > SdmaControllerPtr->SdmaReqMaxId) {
-            return STATUS_INVALID_PARAMETER;
-        }
-
         return SdmaHwSetRequestLineOwnership(SdmaControllerPtr,
                                              ChannelNumber,
                                              UlongValue,
@@ -964,9 +960,6 @@ Return Value:
     SDMA_CONTROLLER* SdmaControllerPtr;
     volatile SDMA_REGS* SdmaRegsPtr;
 
-
-    SDMA_DEBUG_PRINT("%s start\n", __FUNCTION__);
-
     SdmaControllerPtr = (SDMA_CONTROLLER*)ControllerContextPtr;
     SdmaRegsPtr = SdmaControllerPtr->SdmaRegsPtr;
 
@@ -1066,7 +1059,6 @@ Return Value:
     }
 
     SdmaControllerPtr->PendingInterrupts = 0;
-    SDMA_DEBUG_PRINT("%s end\n", __FUNCTION__);
     return FALSE;
 }
 
@@ -2521,7 +2513,7 @@ Return Value:
     SdmaBufferDescExtPtr->BytesTransferred = 0;
 
     SdmaBufferDescAttrPtr->AsUlong = 0;
-    SdmaBufferDescAttrPtr->Count = Length / SdmaChannelPtr->DmaWordSize;
+    SdmaBufferDescAttrPtr->Count = Length; // Count is in bytes
     SdmaBufferDescAttrPtr->Command = (ULONG)SdmaChannelConfigPtr->TransferWidth;
 
     if (IsLast) {
@@ -2653,8 +2645,8 @@ Return Value:
     //
 
     CurrentCount = (ULONG)SdmaBufferDescAttrPtr->Count;
-    SdmaBufferDescExtPtr->BytesTransferred += (CurrentCount * DmaWordSize);
-    SdmaChannelPtr->AutoInitBytesTransferred += (CurrentCount * DmaWordSize);
+    SdmaBufferDescExtPtr->BytesTransferred += CurrentCount;
+    SdmaChannelPtr->AutoInitBytesTransferred += CurrentCount;
 
     NT_ASSERT(SdmaBufferDescExtPtr->BytesTransferred <=
               SdmaBufferDescExtPtr->ByteLength);
@@ -2673,7 +2665,7 @@ Return Value:
 
         SdmaBufferDescAttrPtr->Count =
             (SdmaBufferDescExtPtr->ByteLength -
-             SdmaBufferDescExtPtr->BytesTransferred) / DmaWordSize;
+                SdmaBufferDescExtPtr->BytesTransferred);
 
         SdmaBufferDescPtr->Address +=  CurrentCount;
 
@@ -2701,8 +2693,7 @@ Return Value:
             NextSdmaBufferDescExtPtr = &SdmaChannelPtr->SdmaBdExt[NextBufferIndex];
 
             NextSdmaBufferDescPtr->Address = NextSdmaBufferDescExtPtr->Address;
-            NextSdmaBufferDescAttrPtr->Count =
-                (int)(NextSdmaBufferDescExtPtr->ByteLength / DmaWordSize);
+            NextSdmaBufferDescAttrPtr->Count = NextSdmaBufferDescExtPtr->ByteLength;
 
             NextSdmaBufferDescAttrPtr->R = 0;
             NextSdmaBufferDescAttrPtr->D = 1;
@@ -2713,8 +2704,7 @@ Return Value:
         IsDescriptorDone = FALSE;
 
     } else {
-        SdmaBufferDescAttrPtr->Count =
-            (int)(SdmaBufferDescExtPtr->ByteLength / DmaWordSize);
+        SdmaBufferDescAttrPtr->Count = SdmaBufferDescExtPtr->ByteLength;
 
         SdmaBufferDescPtr->Address = SdmaBufferDescExtPtr->Address;
         SdmaBufferDescExtPtr->BytesTransferred = 0;
@@ -3167,7 +3157,6 @@ Return Value:
     volatile SDMA_BD_ATTRIBUTES* SdmaBufferDescAttrPtr;
     const SDMA_BD_EXT* SdmaBufferDescExtPtr;
     SDMA_CHANNEL* SdmaChannelPtr;
-    SDMA_DEBUG_PRINT("%s start\n", __FUNCTION__);
 
     SdmaChannelPtr = SdmaControllerPtr->ChannelsPtr[ChannelNumber];
     ActiveBufferCount = SdmaChannelPtr->ActiveBufferCount;
@@ -3190,8 +3179,7 @@ Return Value:
             break;
         }
 
-        if (((ULONG)SdmaBufferDescAttrPtr->Count * DmaWordSize) <
-            SdmaBufferDescLength) {
+        if ((ULONG)SdmaBufferDescAttrPtr->Count < SdmaBufferDescLength) {
 
             IsPartialDescriptorDone =
                 SdmaHwUpdateBufferDescriptorForAutoInitialize(
@@ -3225,10 +3213,10 @@ Return Value:
                 SdmaChannelPtr->AutoInitBytesTransferred += SdmaBufferDescLength;
             }
         }
+
     }
 
     SdmaChannelPtr->AutoInitNextBufferIndex = BufferIndex;
-    SDMA_DEBUG_PRINT("%s end\n", __FUNCTION__);
     return;
 }
 

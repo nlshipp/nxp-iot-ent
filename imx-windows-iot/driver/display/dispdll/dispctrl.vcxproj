@@ -99,6 +99,7 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="bridge\synopsys\dw-hdmi-gp-audio.c" />
     <ClCompile Include="bridge\synopsys\dw-hdmi.c" />
     <ClCompile Include="bridge\synopsys\dw_hdmi-imx.c" />
     <ClCompile Include="bridge\synopsys\imx8mp-hdmi-pavi.c" />
@@ -138,6 +139,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">precomp.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="GcKmdBaseDisplayController.cpp" />
     <ClCompile Include="GcKmdDwHdmiTransmitter.cpp" />
     <ClCompile Include="dpu\dpu-common.c" />
     <ClCompile Include="dpu\dpu-constframe.c" />
@@ -175,6 +177,7 @@
     </ClCompile>
     <ClCompile Include="GcKmdImx8mnDisplay.cpp" />
     <ClCompile Include="GcKmdImx8mpDisplay.cpp" />
+    <ClCompile Include="GcKmdImx8mpDisplayController.cpp" />
     <ClCompile Include="GcKmdImx8mpHdmiDisplay.cpp" />
     <ClCompile Include="GcKmdImx8mqDisplay.cpp" />
     <ClCompile Include="GcKmdImx8qxpDisplay.cpp" />
@@ -276,6 +279,7 @@
     <ClInclude Include="dpu\dpu-plane.h" />
     <ClInclude Include="dpu\dpu-prv.h" />
     <ClInclude Include="GcKmd7LIO.h" />
+    <ClInclude Include="GcKmdBaseDisplayController.h" />
     <ClInclude Include="GcKmdBaseTransmitter.h" />
     <ClInclude Include="GcKmdDwHdmiTransmitter.h" />
     <ClInclude Include="GcKmdErroHandling.h" />
@@ -284,8 +288,10 @@
     <ClInclude Include="GcKmdHdmiTransmitter.h" />
     <ClInclude Include="GcKmdHdpOpcodes.h" />
     <ClInclude Include="GcKmdBaseDisplay.h" />
+    <ClInclude Include="GcKmdImx8Display.h" />
     <ClInclude Include="GcKmdImx8mnDisplay.h" />
     <ClInclude Include="GcKmdImx8mpDisplay.h" />
+    <ClInclude Include="GcKmdImx8mpDisplayController.h" />
     <ClInclude Include="GcKmdImx8mpHdmiDisplay.h" />
     <ClInclude Include="GcKmdImx8mqDisplay.h" />
     <ClInclude Include="GcKmdImx8qxpDisplay.h" />

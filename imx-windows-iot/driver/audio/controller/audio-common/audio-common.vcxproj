@@ -77,6 +77,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\shared\OperatorNew.cpp" />
     <ClCompile Include="basetopo.cpp" />
+    <ClCompile Include="hdmitopo.cpp" />
     <ClCompile Include="kshelper.cpp" />
     <ClCompile Include="micinhptopo.cpp" />
     <ClCompile Include="mintopo.cpp" />
@@ -88,6 +89,9 @@
     <ClInclude Include="..\..\..\include\OperatorNew.hpp" />
     <ClInclude Include="basetopo.h" />
     <ClInclude Include="common.h" />
+    <ClInclude Include="hdmitopo.h" />
+    <ClInclude Include="hdmitoptable.h" />
+    <ClInclude Include="hdmiwavtable.h" />
     <ClInclude Include="hptoptable.h" />
     <ClInclude Include="imx_audio.h" />
     <ClInclude Include="kshelper.h" />

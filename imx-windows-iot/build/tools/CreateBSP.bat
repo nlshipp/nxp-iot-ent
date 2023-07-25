@@ -60,6 +60,11 @@ copy %BUILD_ROOT%\imxaudsc\* %DRVR_ROOT%\Audio\ >NUL
 if errorlevel 1 (set FAILURE=imxaudsc & goto ERROR)
 copy %REPO_ROOT%\driver\audio\controller\imxaudsc\imxaudsc.wm.xml %DRVR_ROOT%\Audio\ >NUL
 
+mkdir %DRVR_ROOT%\Audio >NUL 2>NUL
+copy %BUILD_ROOT%\imxaud_hdmi\* %DRVR_ROOT%\Audio\ >NUL
+if errorlevel 1 (set FAILURE=imxaud_hdmi & goto ERROR)
+copy %REPO_ROOT%\driver\audio\controller\imxaud_hdmi\imxaud_hdmi.wm.xml %DRVR_ROOT%\Audio\ >NUL
+
 :: Copy ALS
 mkdir %DRVR_ROOT%\ALS >NUL 2>NUL
 copy %BUILD_ROOT%\imxals\* %DRVR_ROOT%\ALS\ >NUL
@@ -257,6 +262,12 @@ if errorlevel 2 (set FAILURE=KBPatch & goto ERROR)
 echo Copying Wifi mrvlpcie8897 to %DRVR_ROOT%
 mkdir %DRVR_ROOT%\Wifi_mrvlpcie8897 >NUL 2>NUL
 copy %COMP_ROOT%\Wifi\mrvlpcie8897\* %DRVR_ROOT%\Wifi_mrvlpcie8897\ >NUL
+if errorlevel 1 (set FAILURE=Galcore & goto ERROR)
+
+:: Copy Wifi mrvlpcie8997 
+echo Copying Wifi mrvlpcie8997 to %DRVR_ROOT%
+mkdir %DRVR_ROOT%\Wifi_mrvlpcie8997 >NUL 2>NUL
+copy %COMP_ROOT%\Wifi\mrvlpcie8997\* %DRVR_ROOT%\Wifi_mrvlpcie8997\ >NUL
 if errorlevel 1 (set FAILURE=Galcore & goto ERROR)
 
 exit /b 0

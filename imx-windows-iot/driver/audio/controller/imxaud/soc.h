@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
-   Copyright 2022 NXP
+   Copyright 2022-2023 NXP
    Licensed under the MIT License.
 
 Abstract:
@@ -13,6 +13,7 @@ Abstract:
 #include "imx_sairegs.h"
 #include "minwavertstream.h"
 
+#define SOC_MAX_BUFFER_NUMBER 2
 class CSoc;
 
 class CDmaBuffer
@@ -186,7 +187,7 @@ public:
 
 private:
 
-    CDmaBuffer m_Buffer[eMaxDeviceType];
+    CDmaBuffer m_Buffer[SOC_MAX_BUFFER_NUMBER];
 
     BOOLEAN m_bIsRenderActive;
     BOOLEAN m_bIsCaptureActive;

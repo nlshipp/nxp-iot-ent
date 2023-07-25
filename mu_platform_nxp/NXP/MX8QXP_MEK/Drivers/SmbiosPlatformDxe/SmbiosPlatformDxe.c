@@ -1,5 +1,5 @@
 /** @file
-  This driver installs SMBIOS information for iMX8M MINI EVK
+  This driver installs SMBIOS information for iMX8QXP MEK
 
   platforms Note SMBIOS 2.7.1 Required structures:
     BIOS Information (Type 0)
@@ -17,7 +17,7 @@
   Copyright (c) Microsoft Corporation. All rights reserved.
   Copyright (c) 2012, Apple Inc. All rights reserved. 
   Copyright (c) 2015, ARM Limited. All rights reserved.
-  Copyright 2019 NXP
+  Copyright 2019, 2023 NXP
 
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -41,8 +41,8 @@
 #include <Protocol/Smbios.h>
 
 #define TYPE0_STRINGS                                  \
-  "Microsoft Corp.\0"                /* Vendor */      \
-  "0.1\0"                            /* BiosVersion */ \
+  "NXP\0"                            /* Vendor */      \
+  "1.0\0"                            /* BiosVersion */ \
   __DATE__"\0"                       /* BiosReleaseDate */
 
 #define TYPE1_STRINGS                                    \
@@ -72,7 +72,7 @@
   "FCPBGA-21x21\0"                   /* socket type */              \
   "NXP\0"                            /* manufacturer */             \
   "i.MX8QXP\0"                       /* processor 1 description */  \
-  "MIMX8QX6AVLFZ\0"                  /* iMX8M part number */        \
+  "MIMX8QX6AVLFZ\0"                  /* iMX8QXP part number */      \
 
 #define TYPE7_STRINGS                              \
   "L1 Instruction\0"                 /* L1I  */    \
@@ -203,8 +203,8 @@ STATIC ARM_TYPE0 mArmDefaultType0 = {
       0x1, // Acpi supported
       0xC, // TargetContentDistribution, UEFI
     },
-    0,     // UINT8                     SystemBiosMajorRelease
-    1,     // UINT8                     SystemBiosMinorRelease
+    1,     // UINT8                     SystemBiosMajorRelease
+    0,     // UINT8                     SystemBiosMinorRelease
     0xFF,  // UINT8                     EmbeddedControllerFirmwareMajorRelease
     0xFF   // UINT8                     EmbeddedControllerFirmwareMinorRelease
   },
@@ -412,7 +412,7 @@ STATIC CONST ARM_TYPE16 mArmDefaultType16 = {
     MemoryArrayLocationSystemBoard, //on motherboard
     MemoryArrayUseSystemMemory,     //system RAM
     MemoryErrorCorrectionNone,
-    0x200000, //2GB
+    0x300000, //3GB
     0xFFFE,   //No error information structure
     0x1,      //soldered memory
   },
@@ -431,7 +431,7 @@ STATIC CONST ARM_TYPE17 mArmDefaultType17 = {
     0xFFFE,               //no errors
     0xFFFF, // unknown total width
     0xFFFF, // unknown data width
-    0x0800, // 2GB
+    0x0C00, // 3GB
     0x05,   // Chip
     0,      //not part of a set
     1,      //Device locator
@@ -580,7 +580,7 @@ InstallAllStructures (
   mArmDefaultType0.Base.SystemBiosMinorRelease = PcdGet32 ( PcdFirmwareRevision ) & 0xFF;
 
   //
-  // Add all iMX8M table entries
+  // Add all iMX8QXP table entries
   //
   Status=InstallStructures (Smbios,DefaultCommonTables);
   ASSERT_EFI_ERROR (Status);

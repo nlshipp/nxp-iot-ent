@@ -278,3 +278,78 @@ Return Value:
     return ntStatus;
 } 
 
+//=============================================================================
+#pragma code_seg("PAGE")
+VOID
+CMiniportTopologyIMXWAV::AddEventToEventList
+(
+    _In_  PKSEVENT_ENTRY    EventEntry
+)
+/*++
+
+Routine Description:
+
+  The AddEventToEventList method adds an event to the port driver's event list
+
+Arguments:
+
+  EventEntry -
+
+--*/
+{
+    PAGED_CODE();
+    DPF_ENTER(("[CMiniportTopologyIMXWAV::AddEventToEventList]"));
+
+    ASSERT(m_PortEvents != NULL);
+
+    m_PortEvents->AddEventToEventList(EventEntry);
+}
+
+//=============================================================================
+#pragma code_seg()
+VOID
+CMiniportTopologyIMXWAV::GenerateEventList
+(
+    _In_opt_    GUID*   Set,
+    _In_        ULONG   EventId,
+    _In_        BOOL    PinEvent,
+    _In_        ULONG   PinId,
+    _In_        BOOL    NodeEvent,
+    _In_        ULONG   NodeId
+)
+/*++
+
+Routine Description:
+
+  The GenerateEventList method notifies clients through the port driver's list
+  of event entries that a particular event has occurred.
+
+Arguments:
+
+  Set -
+
+  EventId -
+
+  PinEvent -
+
+  PinId -
+
+  NodeEvent -
+
+  NodeId -
+
+--*/
+{
+    DPF_ENTER(("[CMiniportTopologyIMXWAV::GenerateEventList]"));
+
+    ASSERT(m_PortEvents != NULL);
+
+    m_PortEvents->GenerateEventList(
+        Set,
+        EventId,
+        PinEvent,
+        PinId,
+        NodeEvent,
+        NodeId);
+}
+

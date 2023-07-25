@@ -36,6 +36,9 @@
 #include <acpiioct.h>
 #include <initguid.h>
 
+//Enable enhanced registers for Ethernet chip
+#define ENET_ENHANCED_BD 1U
+
 #include "trace.h"
 #include "enet_iomap.h"
 #include "mii_iomap.h"

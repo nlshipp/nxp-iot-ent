@@ -1,13 +1,15 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
 #include "GcKmdGlobal.h"
 #include "GcKmdBaseDisplay.h"
+#include "GcKmdImx8Display.h"
 #include "GcKmdImx8mqDisplay.h"
 #include "GcKmdImx8mpDisplay.h"
 #include "GcKmdImx8mpHdmiDisplay.h"
+#include "GcKmdImx8mpDisplayController.h"
 #include "GcKmdImx8mnDisplay.h"
 #include "GcKmdImx8qxpDisplay.h"
 #include "GcKmdUtil.h"
@@ -16,15 +18,7 @@
 #include "dispctrl.tmh"
 #include "getresrc.h"
 
-/*Display interfaces read from registry */
-#define DISP_INTERFACE_DISABLED     0x0
-#define DISP_INTERFACE_HDMI         0x1
-#define DISP_INTERFACE_MIPI_DSI0    0x2
-#define DISP_INTERFACE_MIPI_DSI1    0x3
-#define DISP_INTERFACE_LVDS0        0x4
-#define DISP_INTERFACE_LVDS1        0x5
-#define DISP_INTERFACE_LVDS_DUAL0   0x6
-#define DISP_INTERFACE_PARALLEL_LCD 0x7
+
 
 extern "C"
 {
@@ -133,9 +127,21 @@ static enum PlatformName GetPlatform(DXGKRNL_INTERFACE* pDxgkInterface)
     return PLAT_NAME_UNDEF;
 }
 
-static GcKmBaseDisplay* GetDisplay(
-    enum PlatformName Name, ULONG DisplaySel)
+static GcKmDisplay* GetDisplay(
+    enum PlatformName   Name,
+    DXGKRNL_INTERFACE*  pDxgkInterface)
 {
+    NTSTATUS    Status;
+    ULONG   DisplaySel;
+    ULONG   EnableMultiMon = 0;
+
+    GetDwordRegistryParam(pDxgkInterface, L"EnableMultiMon", &EnableMultiMon);
+
+    Status = GetDwordRegistryParam(pDxgkInterface, L"Display0Interface", &DisplaySel);
+    if (!NT_SUCCESS(Status)) {
+        DisplaySel = DISP_INTERFACE_DISABLED;
+    }
+
     switch (Name)
     {
     case iMX8MM:
@@ -146,16 +152,23 @@ static GcKmBaseDisplay* GetDisplay(
     case iMX8MQ:
         return new (NonPagedPoolNx, 'PSID') GcKmImx8mqDisplay();
     case iMX8MP:
-        switch (DisplaySel)
+        if ((DisplayOnly == GcKmdGlobal::s_DriverMode) || (FALSE == EnableMultiMon))
+        { 
+            switch (DisplaySel)
+            {
+            case DISP_INTERFACE_LVDS0:
+            case DISP_INTERFACE_LVDS1:
+            case DISP_INTERFACE_LVDS_DUAL0:
+                return new (NonPagedPoolNx, 'PSID') GcKmImx8mpDisplay();
+            case DISP_INTERFACE_HDMI:
+                return new (NonPagedPoolNx, 'PSID') GcKmImx8mpHdmiDisplay();
+            default:
+                return nullptr;
+            }
+        }
+        else
         {
-        case DISP_INTERFACE_LVDS0:
-        case DISP_INTERFACE_LVDS1:
-        case DISP_INTERFACE_LVDS_DUAL0:
-            return new (NonPagedPoolNx, 'PSID') GcKmImx8mpDisplay();
-        case DISP_INTERFACE_HDMI:
-            return new (NonPagedPoolNx, 'PSID') GcKmImx8mpHdmiDisplay();
-        default:
-            return nullptr;
+            return new (NonPagedPoolNx, 'PSID') GcKmImx8mpDisplayController(pDxgkInterface);
         }
     case iMX8QXP:
         return new (NonPagedPoolNx, 'PSID') GcKmImx8qxpDisplay();
@@ -174,7 +187,6 @@ DisplayStartController(
     ULONG              *pNumberOfChildren)
 {
     NTSTATUS    Status;
-    ULONG    DisplaySel;
 
     WPP_INIT_TRACING(NULL, NULL);
 
@@ -196,12 +208,7 @@ DisplayStartController(
         return STATUS_INVALID_PARAMETER;
     }
 
-    Status = GetDwordRegistryParam(pDxgkInterface, L"Display0Interface", &DisplaySel);
-    if (!NT_SUCCESS(Status)) {
-        DisplaySel = DISP_INTERFACE_DISABLED;
-    }
-
-    GcKmBaseDisplay    *pDisplay = GetDisplay(PlatName, DisplaySel);
+    GcKmDisplay    *pDisplay = GetDisplay(PlatName, pDxgkInterface);
     if (nullptr == pDisplay)
     {
         return STATUS_NO_MEMORY;

@@ -9,6 +9,7 @@
     <ClCompile Include="mintopo.cpp" />
     <ClCompile Include="micinhptopo.cpp" />
     <ClCompile Include="speakerhptopo.cpp" />
+    <ClCompile Include="hdmitopo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="basetopo.h" />
@@ -26,6 +27,9 @@
     <ClInclude Include="micinwavtable.h" />
     <ClInclude Include="minipairs.h" />
     <ClInclude Include="imx_audio.h" />
+    <ClInclude Include="hdmitopo.h" />
+    <ClInclude Include="hdmitoptable.h" />
+    <ClInclude Include="hdmiwavtable.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\OperatorNew.hpp" />

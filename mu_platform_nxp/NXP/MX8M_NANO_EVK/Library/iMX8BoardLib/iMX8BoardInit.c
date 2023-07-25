@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
-*  Copyright 2019-2020,2022 NXP
+*  Copyright 2019-2020,2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -22,8 +22,12 @@
 #include <Library/TimerLib.h>
 #include <Library/ArmSmcLib.h>
 #include <Ppi/ArmMpCoreInfo.h>
+#include <iMXI2cLib.h>
 
 #include "iMX8.h"
+
+#define IMX_I2C1_BASE                   0x30A20000
+#define IMX_PMIC_I2C_BASE               IMX_I2C1_BASE
 
 #define IMX_SIP_CONFIG_GPC_PM_DOMAIN    0x03
 /* Values taken from imx-atf/plat/imx/imx8m/imx8mn/gpc.c */
@@ -384,6 +388,8 @@ VOID UsdhcInit()
 /**
   Initialize GPU block.
 **/
+static UINT8 overdriveSuccess = 0;
+
 VOID GpuInit()
 {
   UINT32 val;
@@ -408,39 +414,39 @@ VOID GpuInit()
   val |= GPC_PU_PGC_SW_PDN_REQ_GPUMIX_SW_PDN_REQ_MASK;
   GPC_PU_PGC_SW_PDN_REQ = val;
 
-#if defined(GPU_OVERDRIVE_MODE)
-  INT32 count;
+  if (overdriveSuccess) {
+    INT32 count;
 
-  CCM_PLL_CTRL13 = 0x3333;
-  /* Setup GPU PLL to 1200MHz */
-  CCM_ANALOG_GPU_PLL_GEN_CTRL = CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_BYPASS_MASK |
-                                CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_CLKE_MASK;
-  CCM_ANALOG_GPU_PLL_FDIV_CTL0 = CCM_ANALOG_GPU_PLL_FDIV_CTL0_PLL_MAIN_DIV(300) |
-                                 CCM_ANALOG_GPU_PLL_FDIV_CTL0_PLL_PRE_DIV(3) |
-                                 CCM_ANALOG_GPU_PLL_FDIV_CTL0_PLL_POST_DIV(1);
-  MicroSecondDelay (4);
-  CCM_ANALOG_GPU_PLL_GEN_CTRL |=  CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_RST_MASK;
-  for (count = 0 ; count < 100; ++count) {
-    if (CCM_ANALOG_GPU_PLL_GEN_CTRL & CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_LOCK_MASK) {
-      break;
+    CCM_PLL_CTRL13 = 0x3333; //3h=11b Domain clocks needed all the time - for all domains
+    /* Setup GPU PLL to 1200MHz */
+    CCM_ANALOG_GPU_PLL_GEN_CTRL = CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_BYPASS_MASK |
+                                  CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_CLKE_MASK;
+    CCM_ANALOG_GPU_PLL_FDIV_CTL0 = CCM_ANALOG_GPU_PLL_FDIV_CTL0_PLL_MAIN_DIV(300) |
+                                   CCM_ANALOG_GPU_PLL_FDIV_CTL0_PLL_PRE_DIV(3) |
+                                   CCM_ANALOG_GPU_PLL_FDIV_CTL0_PLL_POST_DIV(1);
+    MicroSecondDelay (4);
+    CCM_ANALOG_GPU_PLL_GEN_CTRL |=  CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_RST_MASK;
+    for (count = 0 ; count < 100; ++count) {
+      if (CCM_ANALOG_GPU_PLL_GEN_CTRL & CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_LOCK_MASK) {
+        break;
+      }
+      MicroSecondDelay (10);
     }
-    MicroSecondDelay (10);
-  }
-  if (!(CCM_ANALOG_GPU_PLL_GEN_CTRL & CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_LOCK_MASK)) {
-    DebugPrint (0xFFFFFFFF, "Time out waiting for PLL to lock\n");
-  }
-  CCM_ANALOG_GPU_PLL_GEN_CTRL &= ~(CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_BYPASS_MASK);
+    if (!(CCM_ANALOG_GPU_PLL_GEN_CTRL & CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_LOCK_MASK)) {
+      DebugPrint (0xFFFFFFFF, "Time out waiting for PLL to lock\n");
+    }
+    CCM_ANALOG_GPU_PLL_GEN_CTRL &= ~(CCM_ANALOG_GPU_PLL_GEN_CTRL_PLL_BYPASS_MASK);
 
-  /* Configure GPU_CORE input clock to 600MHz (SYSTEM_GPU_PLL / 2) */
-  CCM_TARGET_ROOT_GPU_CORE = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(1) | CCM_TARGET_ROOT_ENABLE_MASK;
-  /* Configure GPU_SHADER input clock to 600MHz (SYSTEM_GPU_PLL / 2) */
-  CCM_TARGET_ROOT_GPU_SHADER = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(1) | CCM_TARGET_ROOT_ENABLE_MASK;
-#else
-  /* Configure GPU_CORE input clock to 400MHz (SYSTEM_PLL1_CLK / 2) */
-  CCM_TARGET_ROOT_GPU_CORE = CCM_TARGET_ROOT_MUX(2) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(1) | CCM_TARGET_ROOT_ENABLE_MASK;
-  /* Configure GPU_SHADER input clock to 400MHz (SYSTEM_PLL1_CLK / 2) */
-  CCM_TARGET_ROOT_GPU_SHADER = CCM_TARGET_ROOT_MUX(2) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(1) | CCM_TARGET_ROOT_ENABLE_MASK;
-#endif
+    /* Configure GPU_CORE input clock to 600MHz (SYSTEM_GPU_PLL / 2) */
+    CCM_TARGET_ROOT_GPU_CORE = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(1) | CCM_TARGET_ROOT_ENABLE_MASK;
+    /* Configure GPU_SHADER input clock to 600MHz (SYSTEM_GPU_PLL / 2) */
+    CCM_TARGET_ROOT_GPU_SHADER = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(1) | CCM_TARGET_ROOT_ENABLE_MASK;
+  } else { //No overdrive
+    /* Configure GPU_CORE input clock to 400MHz (SYSTEM_PLL1_CLK / 2) */
+    CCM_TARGET_ROOT_GPU_CORE = CCM_TARGET_ROOT_MUX(2) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(1) | CCM_TARGET_ROOT_ENABLE_MASK;
+    /* Configure GPU_SHADER input clock to 400MHz (SYSTEM_PLL1_CLK / 2) */
+    CCM_TARGET_ROOT_GPU_SHADER = CCM_TARGET_ROOT_MUX(2) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(1) | CCM_TARGET_ROOT_ENABLE_MASK;
+  }
 
   /* Configure GPU_AXI input clock to 800MHz (SYSTEM_PLL1) */
   CCM_TARGET_ROOT_GPU_AXI = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK;
@@ -548,6 +554,141 @@ VOID SpiInit()
   CCM_TARGET_ROOT_ECSPI2 = CCM_TARGET_ROOT_MUX(0) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK;
 }
 
+#if FixedPcdGet32(PcdPmicOverDriveEnable)
+IMX_I2C_CONTEXT PmicI2cConfig =
+{
+  (uintptr_t)IMX_PMIC_I2C_BASE,         /* Base address of the I2C used for communication with PMIC */
+  0,                                    /* iMX I2C Controller SlaveAddress - not used, I2C interface is used in master mode only */
+  24000000,                             /* 2.4 MHz I2C ReferenceFreq */
+  400000,                               /* 400 kHz required TargetFreq */
+  0x4B,                                 /* PMIC SlaveAddress */
+  100000,                               /* TimeoutInUs */
+};
+
+static EFI_STATUS WriteI2Creg(IMX_I2C_CONTEXT* i2cConfig, uint8_t reg, uint8_t* Data)
+{
+  EFI_STATUS Status;
+
+  Status = iMXI2cWrite(i2cConfig, reg, Data, 1);
+  if (Status != EFI_SUCCESS) {
+    DEBUG((DEBUG_INFO, "PMIC EnableOverDrive I2C Write Error:   Slave=0x%02x Addr=0x%02x Data=0x%02x\n", i2cConfig->SlaveAddress, reg, *Data));
+  } else {
+    DEBUG((DEBUG_INFO, "PMIC EnableOverDrive I2C Write Success: Slave=0x%02x Addr=0x%02x Data=0x%02x\n", i2cConfig->SlaveAddress, reg, *Data));
+  }
+  return Status;
+}
+
+static EFI_STATUS ReadI2Creg(IMX_I2C_CONTEXT* i2cConfig, uint8_t reg, uint8_t* Data)
+{
+  EFI_STATUS Status;
+
+  Status = iMXI2cRead(i2cConfig, reg, Data, 1);
+  if (Status != EFI_SUCCESS) {
+    DEBUG((DEBUG_INFO, "PMIC EnableOverDrive I2C Read Error:   Slave=0x%02x Addr=0x%02x Data=0x%02x\n", i2cConfig->SlaveAddress, reg, *Data));
+  } else {
+    DEBUG((DEBUG_INFO, "PMIC EnableOverDrive I2C Read Success: Slave=0x%02x Addr=0x%02x Data=0x%02x\n", i2cConfig->SlaveAddress, reg, *Data));
+  }
+  return Status;
+}
+/**
+  Initialize MCUs clock speed and power.
+**/
+VOID McuClkSetOverdriveFrequency()
+{
+  // Select PLL2 1GHz to have stable clock, while ARM_PLL_FDIV is locked to 1400 MHz
+  CCM_TARGET_ROOT_ARM_A53 = CCM_TARGET_ROOT_MUX(3) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK; /* ROOT_ARM_A53 = SYSTEM_PLL2_CLK  */
+
+  /* Set the ARM PLL Fout = 1400 MHz, Fout = Fin/PreDiv*MainDiv/(2^PostDiv) = 24/6*700/(2^1) = 1400 MHz */
+  CCM_ANALOG_ARM_PLL_FDIV_CTL0 = CCM_ANALOG_ARM_PLL_FDIV_CTL0_PLL_PRE_DIV(6) | CCM_ANALOG_ARM_PLL_FDIV_CTL0_PLL_MAIN_DIV(700) | CCM_ANALOG_ARM_PLL_FDIV_CTL0_PLL_POST_DIV(1);
+  while ((CCM_ANALOG_ARM_PLL_GEN_CTRL & CCM_ANALOG_ARM_PLL_GEN_CTRL_PLL_LOCK_MASK) == 0) {};
+
+  // Select ARM_PLL_CLK
+  CCM_TARGET_ROOT_ARM_A53 = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK; /* ROOT_ARM_A53 = ARM_PLL_CLK  */
+
+  overdriveSuccess = 1; //This flag indicates to GPU to go to overdrive mode too
+  DebugPrint(0xffffffff, "EnableOverDrive Success\n");
+}
+
+VOID McuClkPwrInitBD718XX()
+{
+  uint8_t Data;
+
+  // PMIC register addresses
+  uint8_t bd718xxBuck1VoltRun      = 0x0d;
+  uint8_t bd718xxBuck2VoltRun      = 0x10;
+  uint8_t bd718xxReglock           = 0x2f;
+  uint8_t buckRegs[2] = { bd718xxBuck1VoltRun, bd718xxBuck2VoltRun };
+
+  /* unlock the PMIC regs */
+  Data = 0x1;
+  WriteI2Creg(&PmicI2cConfig, bd718xxReglock, &Data);
+
+  for (int i = 0; i < sizeof(buckRegs)/sizeof(uint8_t); i++) {
+    Data = 0x19;  // 0x19 = 0.95 V, see BUCK1/2_VOLT_RUN in Nano DDR4 PMIC BD71837A Datasheet
+
+    uint8_t reg = buckRegs[i];
+    WriteI2Creg(&PmicI2cConfig, reg, &Data);
+
+    Data = 0x0; //To verify the read-back
+    ReadI2Creg(&PmicI2cConfig, reg, &Data);
+    if (Data != 0x19) {
+      DEBUG((DEBUG_ERROR, "PMIC EnableOverDrive Readback not matching Error:   Slave=0x%02x Addr=0x%02x Data=0x%02x\n", PmicI2cConfig.SlaveAddress, reg, Data));
+      DebugPrint(0xffffffff, "EnableOverDrive with PMIC BD718XX failed\n");
+      return; //Skip CPU and GPU frequency increase (overdrive)
+    }
+  }
+
+  /* lock the PMIC regs */
+  Data = 0x11;
+  WriteI2Creg(&PmicI2cConfig, bd718xxReglock, &Data);
+
+  McuClkSetOverdriveFrequency();
+}
+
+IMX_I2C_CONTEXT PmicPCA9450_I2cConfig =
+{
+  (uintptr_t)IMX_PMIC_I2C_BASE,         /* Base address of the I2C used for communication with PMIC */
+  0,                                    /* iMX I2C Controller SlaveAddress - not used, I2C interface is used in master mode only */
+  24000000,                             /* 2.4 MHz I2C ReferenceFreq */
+  400000,                               /* 400 kHz required TargetFreq */
+  0x25,                                 /* PMIC SlaveAddress */
+  100000,                               /* TimeoutInUs */
+};
+
+VOID McuClkPwrInitPCA9450()
+{
+  DEBUG((DEBUG_INFO, "McuClkPwrInit PMIC_PCA9450\n"));
+
+  #define PCA9450_BUCK123_DVS 0x0C
+
+  uint8_t Data;
+  EFI_STATUS Status;
+
+  Data = 0x0; //To verify the read-back
+  Status = ReadI2Creg(&PmicPCA9450_I2cConfig, PCA9450_BUCK123_DVS, &Data);
+  if (Status != EFI_SUCCESS) {
+      DEBUG((DEBUG_ERROR, "PMIC PCA9450 read failed. EnableOverDrive skipped\n"));
+      return;
+  }
+
+  /* Write BUCK123_DVS. Set BUCK1 and BUCK2 to 0.95V. BUCK3 is in dual phase with BUCK1 thus no need to set it. */
+  uint8_t DvsValue = (1 << 7) | (1 << 5) | (3 << 3) | (3);
+  Data = DvsValue;
+  WriteI2Creg(&PmicPCA9450_I2cConfig, PCA9450_BUCK123_DVS, &Data);
+
+  Data = 0x0; //To verify the read-back
+  ReadI2Creg(&PmicPCA9450_I2cConfig, PCA9450_BUCK123_DVS, &Data);
+  if (Data != DvsValue) {
+    DEBUG((DEBUG_ERROR, "PMIC EnableOverDrive Readback not matching Error:   Slave=0x%02x Addr=0x%02x Data=0x%02x\n", PmicPCA9450_I2cConfig.SlaveAddress, PCA9450_BUCK123_DVS, Data));
+    DebugPrint(0xffffffff, "EnableOverDrive with PMIC PCA9450 failed\n");
+    return; //Skip CPU and GPU frequency increase (overdrive)
+  }
+
+  McuClkSetOverdriveFrequency();
+}
+
+#endif
+
 /**
   Initialize controllers that must setup at the early stage
 **/
@@ -566,6 +707,12 @@ RETURN_STATUS ArmPlatformInitialize(IN UINTN MpId)
   EnetInit();
   AudioInit();
   I2cInit();
+
+#if FixedPcdGet32(PcdPmicOverDriveEnable)
+  McuClkPwrInitPCA9450();   // For the newer LPDDR Nano boards PMIC = PCA9450
+  //McuClkPwrInitBD718XX(); // For the older DDR4 boards PMIC = BD718XX
+#endif
+
   PwmInit();
   UsdhcInit();
   DisplayInit();

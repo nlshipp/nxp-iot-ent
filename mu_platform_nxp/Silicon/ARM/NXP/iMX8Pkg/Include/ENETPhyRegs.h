@@ -22,17 +22,32 @@
 
 // MII read/write commands for the external PHY
 
-#define MII_READ_COMMAND(reg)          (BIT_FIELD_VAL(ENET_MMFR_ST, ENET_MMFR_ST_VALUE) |\
+#define MII_REG_RD(reg)                (BIT_FIELD_VAL(ENET_MMFR_ST, ENET_MMFR_ST_VALUE) |\
                                          BIT_FIELD_VAL(ENET_MMFR_OP, ENET_MMFR_OP_READ) |\
                                          BIT_FIELD_VAL(ENET_MMFR_TA, ENET_MMFR_TA_VALUE) |\
                                          BIT_FIELD_VAL(ENET_MMFR_RA, reg & 0x1F) |\
                                          BIT_FIELD_VAL(ENET_MMFR_DATA, 0x0 & 0xFFFF))
 
-#define MII_WRITE_COMMAND(reg, val)    (BIT_FIELD_VAL(ENET_MMFR_ST, ENET_MMFR_ST_VALUE) |\
+#define MII_REG_WR(reg, val)           (BIT_FIELD_VAL(ENET_MMFR_ST, ENET_MMFR_ST_VALUE) |\
                                          BIT_FIELD_VAL(ENET_MMFR_OP, ENET_MMFR_OP_WRITE) |\
                                          BIT_FIELD_VAL(ENET_MMFR_TA, ENET_MMFR_TA_VALUE) |\
                                          BIT_FIELD_VAL(ENET_MMFR_RA, reg & 0x1F) |\
                                          BIT_FIELD_VAL(ENET_MMFR_DATA, val & 0xFFFF))
+
+#define MII_REG_RMW(reg, bitToClr, bitToSet) \
+                                       (BIT_FIELD_VAL(ENET_MMFR_ST, 3) |\
+                                         BIT_FIELD_VAL(ENET_MMFR_OP, ENET_MMFR_OP_READ) |\
+                                         BIT_FIELD_VAL(ENET_MMFR_TA, ENET_MMFR_TA_VALUE) |\
+                                         BIT_FIELD_VAL(ENET_MMFR_RA, reg & 0x1F) |\
+                                         BIT_FIELD_VAL(ENET_MMFR_DATA, bitToClr & 0xFFFF)),\
+                                       (BIT_FIELD_VAL(ENET_MMFR_ST, 3) |\
+                                         BIT_FIELD_VAL(ENET_MMFR_OP, ENET_MMFR_OP_WRITE) |\
+                                         BIT_FIELD_VAL(ENET_MMFR_TA, ENET_MMFR_TA_VALUE) |\
+                                         BIT_FIELD_VAL(ENET_MMFR_RA, reg & 0x1F) |\
+                                         BIT_FIELD_VAL(ENET_MMFR_DATA, bitToSet & 0xFFFF))
+
+#define MII_READ_COMMAND(reg)        MII_REG_RD(reg)
+#define MII_WRITE_COMMAND(reg, val)  MII_REG_WR(reg, val)
 
 #define ENET_MII_END                     0
 

@@ -1,7 +1,7 @@
 #
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Copyright (c) 2013-2018, ARM Limited. All rights reserved.
-#  Copyright 2019-2022 NXP
+#  Copyright 2019-2023 NXP
 #
 #  This program and the accompanying materials
 #  are licensed and made available under the terms and conditions of the BSD License
@@ -78,6 +78,7 @@
 
   #
   giMX8TokenSpaceGuid.PcdUsb1EhciBaseAddress|0x00000000|UINT64|0x00000041
+  giMX8TokenSpaceGuid.PcdUsb2EhciBaseAddress|0x00000000|UINT64|0x0000004B
   giMX8TokenSpaceGuid.PcdUsb1XhciBaseAddress|0x00000000|UINT64|0x0000001B
   giMX8TokenSpaceGuid.PcdUsb2XhciBaseAddress|0x00000000|UINT64|0x0000001C
 
@@ -161,3 +162,7 @@
   #GPU Reserved Memory
   giMX8TokenSpaceGuid.PcdArmGPUReservedMemoryBase|0x00000000|UINT64|0x00000049
   giMX8TokenSpaceGuid.PcdArmGPUReservedMemorySize|0x00000000|UINT64|0x0000004A
+
+  gArmPlatformTokenSpaceGuid.PcdPowerButtonEnabled|FALSE|BOOLEAN|0x0000004C
+  
+ 

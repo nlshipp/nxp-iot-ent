@@ -25,6 +25,9 @@ public:
     virtual NTSTATUS QueryAdapterInfo(
         CONST DXGKARG_QUERYADAPTERINFO *pQueryAdapterInfo) = NULL;
 
+    virtual NTSTATUS QueryInterface(
+        IN_PQUERY_INTERFACE QueryInterface) = NULL;
+
     virtual NTSTATUS QueryChildRelations(
         INOUT_PDXGK_CHILD_DESCRIPTOR    ChildRelations,
         IN_ULONG                        ChildRelationsSize) = NULL;
@@ -97,6 +100,10 @@ public:
 
     virtual NTSTATUS UpdateMonitorLinkInfo(
         INOUT_PDXGKARG_UPDATEMONITORLINKINFO    pUpdateMonitorLinkInfoArg) = NULL;
+
+    virtual NTSTATUS GetChildContainerId(
+        _In_ ULONG  ChildUid,
+        _Inout_ PDXGK_CHILD_CONTAINER_ID    pChildChildContainId) = NULL;
 };
 
 

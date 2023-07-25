@@ -713,23 +713,21 @@ LPSPIHwConfigureTransfer (
             //
             // Write configuration
             //
-            if (!IsInitialSetup) {
-                size_t wordsLeftToTransfer = LPSPISpbWordsLeftToTransfer(TransferPtr);
+            size_t wordsLeftToTransfer = LPSPISpbWordsLeftToTransfer(TransferPtr);
 
-                intEnableReg.AsUlong &= ~LPSPI_TX_INTERRUPTS;
+            intEnableReg.AsUlong &= ~LPSPI_TX_INTERRUPTS;
 
-                if (wordsLeftToTransfer > 0) {
-                    fifoCtrlReg.TXWATER = DevExtPtr->TxFifoWatermarkMax;
-                    intEnableReg.TDIE = 1; // TX threshold interrupt
-                }
-                else {
-                    fifoCtrlReg.TXWATER = 0;
-                }
-                if (requestPtr->Type != LPSPI_REQUEST_TYPE::FULL_DUPLEX) {
-                    intEnableReg.TCIE = 1; // Transfer complete interrupt
-                }
+            if (wordsLeftToTransfer > 0) {
+                fifoCtrlReg.TXWATER = DevExtPtr->TxFifoWatermarkMax;
+                intEnableReg.TDIE = 1; // TX threshold interrupt
             }
-
+            else {
+                fifoCtrlReg.TXWATER = 0;
+            }
+            if (requestPtr->Type != LPSPI_REQUEST_TYPE::FULL_DUPLEX) {
+                intEnableReg.TCIE = 1; // Transfer complete interrupt
+            }
+        
         } else {
             //
             // Read configuration

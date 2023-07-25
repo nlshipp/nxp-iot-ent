@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
    Licensed under the MIT License. */
 
 #pragma once
@@ -26,9 +26,12 @@ public:
     virtual NTSTATUS HwStart(DXGKRNL_INTERFACE* pDxgkInterface) override;
 
     virtual NTSTATUS HwStop(
-        DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo) override;
+        DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo, BOOLEAN DoCommitFwFb) override;
 
-    virtual void HwStopScanning(IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn) override;
+    virtual void HwStopScanning(D3DDDI_VIDEO_PRESENT_TARGET_ID TargetId) override;
+
+    virtual NTSTATUS QueryInterface(
+        IN_PQUERY_INTERFACE pQueryInterface) override;
 
     virtual void HwSetPowerState(
         IN_ULONG                DeviceUid,
@@ -42,6 +45,9 @@ public:
         const D3DKMDT_VIDPN_SOURCE_MODE* pSourceMode,
         const D3DKMDT_VIDPN_TARGET_MODE* pTargetMode,
         IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn) override;
+
+    virtual NTSTATUS RecommendMonitorModes(
+        IN_CONST_PDXGKARG_RECOMMENDMONITORMODES_CONST   pRecommendMonitorMode) override;
 
     virtual BOOLEAN InterruptRoutine(
         UINT    MessageNumber) override;
@@ -59,6 +65,18 @@ public:
     }
 
 private:
+
+    static int AudioSetHwParams(
+        IN GcKmImx8mpHdmiDisplay* pThis,
+        IN struct imx8mp_hdmi_audio_params* pAudioParams);
+
+    static int AudioMuteStream(
+        IN GcKmImx8mpHdmiDisplay* pThis,
+        IN BOOLEAN  Enable);
+
+    static int AudioGetContainerId(
+        IN GcKmImx8mpHdmiDisplay* pThis,
+        OUT DXGK_CHILD_CONTAINER_ID* pContainerId);
 
     DwHdmiTransmitter m_DwHdmiTransmitter;
 

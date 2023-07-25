@@ -2,7 +2,7 @@
 * Common IMX definitions
 *
 *  Copyright (c) Microsoft Corporation. All rights reserved.
-*  Copyright 2019,2022 NXP
+*  Copyright 2019,2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -151,3 +151,4 @@
 #define SDMA_REQ_EXT4 99
 #define SDMA_REQ_SAI7_TX 100
 #define SDMA_REQ_SAI7_RX 101
+#define SDMA_REQ_AUD2HTX 102

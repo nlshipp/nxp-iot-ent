@@ -81,6 +81,22 @@ videomode g_StandardModeTimings[] =
         (display_flags)(DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH | DISPLAY_FLAGS_PIXDATA_NEGEDGE)
     },
 
+    {   // 1280 x 800 x 60Hz
+        71000000,
+
+        1280,
+        48,
+        80,
+        32,
+
+        800,
+        3,
+        14,
+        6,
+
+        (display_flags)(DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH | DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+    },
+
     {   // 1280 x 1024 x 60Hz : Used by u-boots\u-boot-imx_arm64\arch\arm\dts\imx8mq-evk.dts
         108000000,
 

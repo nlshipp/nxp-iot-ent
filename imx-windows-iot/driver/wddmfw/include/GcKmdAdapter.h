@@ -219,6 +219,9 @@ public:
     virtual NTSTATUS Escape(
         IN_CONST_PDXGKARG_ESCAPE    pEscape) = NULL;
 
+    virtual NTSTATUS QueryInterface(
+        IN_PQUERY_INTERFACE QueryInterface);
+
     NTSTATUS QueryChildRelations(
         INOUT_PDXGK_CHILD_DESCRIPTOR    ChildRelations,
         IN_ULONG                        ChildRelationsSize);
@@ -416,6 +419,16 @@ public: // PAGED
         return m_pDisplay->UpdateMonitorLinkInfo(pUpdateMonitorLinkInfoArg);
     }
 
+    _Check_return_
+    _Function_class_DXGK_(DXGKDDI_GETCHILDCONTAINERID)
+    _IRQL_requires_(PASSIVE_LEVEL)
+    NTSTATUS GetChildContainerId(
+        _In_ ULONG  ChildUid,
+        _Inout_ PDXGK_CHILD_CONTAINER_ID    pChildContainIdArg)
+    {
+        return m_pDisplay->GetChildContainerId(ChildUid, pChildContainIdArg);
+    }
+
 protected:
 
     GcKmAdapter(
@@ -522,5 +535,7 @@ protected:
     GcKmNode                   *m_Nodes[kMaxNodes];
 
     GcKmDisplay                *m_pDisplay;
+
+    HANDLE                      m_hGdiRegKey = NULL;
 };
 

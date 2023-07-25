@@ -3,7 +3,7 @@
 ##
 ##
 ## Copyright (c) Microsoft Corporation. All rights reserved.
-## Copyright 2019, 2022 NXP
+## Copyright 2019, 2022-2023 NXP
 ##
 import os, sys
 import stat
@@ -31,8 +31,8 @@ from edk2toolext.invocables.edk2_update import UpdateSettingsManager
 #
 gProfile = {
     "SECURE":    {"BLD_*_CONFIG_AUTH_VAR" : "TRUE",  "BLD_*_CONFIG_SECURE_BOOT" : "TRUE",  "BLD_*_CONFIG_MEASURED_BOOT" : "TRUE"},
-    "DEV":       {"BLD_*_CONFIG_AUTH_VAR" : "FALSE", "BLD_*_CONFIG_SECURE_BOOT" : "FALSE", "BLD_*_CONFIG_MEASURED_BOOT" : "FALSE", "BLD_*_CONFIG_OPTEE_PROFILE" : "FALSE", "BLD_*_CONFIG_USB" : "FALSE"},
-    "FRONTPAGE": {"BLD_*_CONFIG_AUTH_VAR" : "FALSE", "BLD_*_CONFIG_SECURE_BOOT" : "FALSE", "BLD_*_CONFIG_MEASURED_BOOT" : "FALSE", "BLD_*_CONFIG_OPTEE_PROFILE" : "FALSE", "BLD_*_CONFIG_USB" : "TRUE", "BLD_*_CONFIG_FRONTPAGE" : "TRUE"},
+    "DEV":       {"BLD_*_CONFIG_AUTH_VAR" : "FALSE", "BLD_*_CONFIG_SECURE_BOOT" : "FALSE", "BLD_*_CONFIG_MEASURED_BOOT" : "FALSE", "BLD_*_CONFIG_OPTEE_PROFILE" : "FALSE"},
+    "FRONTPAGE": {"BLD_*_CONFIG_AUTH_VAR" : "FALSE", "BLD_*_CONFIG_SECURE_BOOT" : "FALSE", "BLD_*_CONFIG_MEASURED_BOOT" : "FALSE", "BLD_*_CONFIG_OPTEE_PROFILE" : "FALSE", "BLD_*_CONFIG_FRONTPAGE" : "TRUE"},
     }
 
 #--------------------------------------------------------------------------------------------------------
@@ -131,8 +131,8 @@ class ImxPlatformBuilder(UpdateSettingsManager, SetupSettingsManager, BuildSetti
         self.env.SetValue("BLD_*_CONFIG_DUMP_SYMBOL_INFO", "TRUE", "On by default")
         # # Enable if PSCI is implemented
         self.env.SetValue("BLD_*_CONFIG_MPCORE", "TRUE", "On by default")
-        # # Disable the USB stack by default. It currently has issues and need to be taken care of
-        self.env.SetValue("BLD_*_CONFIG_USB", "FALSE", "currently has issues")
+        # # Enable the USB stack by default.
+        self.env.SetValue("BLD_*_CONFIG_USB", "TRUE", "On by default")
         # # Disable the PCIexpress stack by default. Enable on demand.
         self.env.SetValue("BLD_*_CONFIG_PCIE", "TRUE", "On by default")
         # # States whether OPTEE boot flow is in effect or not. This has the following

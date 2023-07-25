@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -81,18 +81,21 @@ GcKmImx8mqDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
 
 NTSTATUS
 GcKmImx8mqDisplay::HwStop(
-    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo)
+    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo,
+    BOOLEAN DoCommitFwFb)
 {
     // Free resources and flip framebuffer to the linear mode
     // but keep display running so when the display/GPU driver
     // is disabled/uninstalled, the desktop should continue to work
     // (with Basic Display Driver).
-    SetupFramebuffer(nullptr,
-        m_PreviousPostDisplayInfo.PhysicAddress.LowPart,
-        GetDrmTileFromHwTile(Linear));
-    dcss_plane_atomic_page_flip(&m_crtc.plane[0]->base,
-        &m_old_plane_state);
-    dcss_crtc_atomic_flush(&m_crtc.base, &m_crtc_state.base);
+    if (DoCommitFwFb) {
+        SetupFramebuffer(nullptr,
+            m_PreviousPostDisplayInfo.PhysicAddress.LowPart,
+            GetDrmTileFromHwTile(Linear));
+        dcss_plane_atomic_page_flip(&m_crtc.plane[0]->base,
+            &m_old_plane_state);
+        dcss_crtc_atomic_flush(&m_crtc.base, &m_crtc_state.base);
+    }
 
     dcss_dev_destroy(m_dcss_dev, false);
     board_deinit(&m_dcss_pdev);
@@ -116,7 +119,7 @@ GcKmImx8mqDisplay::HwSetPowerState(
 
 void
 GcKmImx8mqDisplay::HwStopScanning(
-    IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
+    D3DDDI_VIDEO_PRESENT_TARGET_ID  TargetId)
 {
     struct cdns_mhdp_device* mhdp =
         (cdns_mhdp_device*)dev_get_drvdata(&m_mhdp_pdev.dev);
@@ -292,6 +295,9 @@ GcKmImx8mqDisplay::HwCommitVidPn(
     UINT FrameBufferPhysicalAddress = 0;
     UINT TileMode = 0;
 
+    m_CurSourceModes[0] = { 0 };
+    m_CurTargetModes[0] = { 0 };
+
     if (GcKmdGlobal::s_DriverMode == FullDriver)
     {
         GcKmAllocation* pPrimaryAllocation = (GcKmAllocation*)pCommitVidPn->hPrimaryAllocation;
@@ -332,6 +338,11 @@ GcKmImx8mqDisplay::HwCommitVidPn(
     }
 
     HwAtomicCommit(&vm);
+
+    m_CurSourceModes[0] = *pSourceMode;
+    m_CurTargetModes[0] = *pTargetMode;
+
+    m_bNotifyVSync = true;
 
     return STATUS_SUCCESS;
 }
@@ -424,11 +435,17 @@ GcKmImx8mqDisplay::HandleVsyncInterrupt(void)
     m_InterruptData.CrtcVsync.PhysicalAdapterMask = 1;
     m_InterruptData.Flags.ValidPhysicalAdapterMask = TRUE;
 
-    m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle, &m_InterruptData);
+    if (m_bNotifyVSync)
+    {
+        m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle, &m_InterruptData);
+    }
 
     dcss_dtg_vblank_irq_clear(m_dcss_dev->dtg);
 
-    m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+    if (m_bNotifyVSync)
+    {
+        m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+    }
 }
 
 BOOLEAN

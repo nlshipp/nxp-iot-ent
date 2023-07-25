@@ -128,6 +128,8 @@ NTSTATUS GcKmdGlobal::DriverEntry(__in IN DRIVER_OBJECT* pDriverObject, __in IN 
         DriverInitializationData.DxgkDdiResetDevice             = GcKmdDdi::DdiResetDevice;
         DriverInitializationData.DxgkDdiUnload                  = GcKmdGlobal::DdiUnload;
 
+        DriverInitializationData.DxgkDdiQueryInterface          = GcKmdDdi::DdiQueryInterface;
+
         DriverInitializationData.DxgkDdiQueryAdapterInfo        = GcKmdDdi::DdiQueryAdapterInfo;
 
         DriverInitializationData.DxgkDdiCreateDevice            = GcKmdDdi::DdiCreateDevice;
@@ -210,7 +212,7 @@ NTSTATUS GcKmdGlobal::DriverEntry(__in IN DRIVER_OBJECT* pDriverObject, __in IN 
 
             DriverInitializationData.DxgkDdiUpdateMonitorLinkInfo       = GcKmdDisplayDdi::DdiUpdateMonitorLinkInfo;
 
-            DriverInitializationData.DxgkDdiGetChildContainerId;
+            DriverInitializationData.DxgkDdiGetChildContainerId         = GcKmdDisplayDdi::DdiGetChildContainerId;
 
             DriverInitializationData.DxgkDdiControlInterrupt;
 
@@ -244,7 +246,7 @@ NTSTATUS GcKmdGlobal::DriverEntry(__in IN DRIVER_OBJECT* pDriverObject, __in IN 
         KmDodInitializationData.DxgkDdiNotifyAcpiEvent;
         KmDodInitializationData.DxgkDdiResetDevice              = GcKmdDdi::DdiResetDevice;
         KmDodInitializationData.DxgkDdiUnload                   = GcKmdGlobal::DdiUnload;
-        KmDodInitializationData.DxgkDdiQueryInterface;
+        KmDodInitializationData.DxgkDdiQueryInterface           = GcKmdDdi::DdiQueryInterface;
         KmDodInitializationData.DxgkDdiControlEtwLogging;
         KmDodInitializationData.DxgkDdiQueryAdapterInfo         = GcKmdDdi::DdiQueryAdapterInfo;
         KmDodInitializationData.DxgkDdiSetPalette               = GcKmdDisplayDdi::DdiSetPalette;
@@ -285,7 +287,7 @@ NTSTATUS GcKmdGlobal::DriverEntry(__in IN DRIVER_OBJECT* pDriverObject, __in IN 
         KmDodInitializationData.DxgkDdiSystemDisplayEnable;
         KmDodInitializationData.DxgkDdiSystemDisplayWrite;
 
-        KmDodInitializationData.DxgkDdiGetChildContainerId;
+        KmDodInitializationData.DxgkDdiGetChildContainerId      = GcKmdDisplayDdi::DdiGetChildContainerId;;
 
 
         KmDodInitializationData.DxgkDdiSetPowerComponentFState;

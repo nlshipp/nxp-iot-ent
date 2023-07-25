@@ -1,4 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
+   Copyright 2023 NXP
    Licensed under the MIT License.
 
 Abstract:
@@ -61,6 +62,8 @@ public:
     ULONG GetDmaBufferSize() { return m_ulDmaBufferSize; }
     ULONG* GetDmaBuffer() { return m_DataBuffer; }
     PWAVEFORMATEXTENSIBLE       GetDataFormat() { return m_pWfExt; }
+    PMDL GetDmaBufferMdl() { return m_DataBufferMdl; }
+    ULONG GetNotificationsPerBuffer() { return m_ulNotificationsPerBuffer; }
 
 protected:
     CMiniportWaveRT*            m_pMiniport;
@@ -68,6 +71,7 @@ protected:
     BOOLEAN                     m_bUnregisterStream;
     ULONG                       m_ulDmaBufferSize;
     ULONG*                      m_DataBuffer;
+    PMDL                        m_DataBufferMdl;
     LIST_ENTRY                  m_NotificationList;
     ULONG                       m_ulNotificationsPerBuffer;
     LARGE_INTEGER               m_PerformanceCounterFrequency;

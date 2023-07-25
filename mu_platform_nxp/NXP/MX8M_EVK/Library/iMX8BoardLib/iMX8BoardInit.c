@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) Microsoft Corporation. All rights reserved.
-*  Copyright 2019-2020,2022 NXP
+*  Copyright 2019-2020,2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -62,6 +62,232 @@
     33 SYSTEM_PLL2_DIV20  50 System PLL2 divided 20 clock output
     34 SYSTEM_PLL3_CLK  1000 System PLL3 output clock
 */
+
+
+/* USB MIX offset */
+#define USBMIX_PHY_OFFSET                        0xF0040
+
+/* DWC3 register and bit-fields definition */    
+#define DWC3_GHWPARAMS1                          0xC144
+
+#define DWC3_GSNPSID                             0xC120
+
+#define DWC3_GCTL                                0xC110
+#define DWC3_GCTL_PWRDNSCALE_SHIFT               19
+#define DWC3_GCTL_PWRDNSCALE_MASK                (0x1FFF << 19)
+#define DWC3_GCTL_U2RSTECN_MASK                  (1 << 16)
+#define DWC3_GCTL_PRTCAPDIR(n)                   ((n) << 12)
+#define DWC3_GCTL_PRTCAP_HOST                    1
+#define DWC3_GCTL_PRTCAP_DEVICE                  2
+#define DWC3_GCTL_PRTCAP_OTG                     3
+#define DWC3_GCTL_CORESOFTRESET_MASK             (1 << 11)
+#define DWC3_GCTL_SCALEDOWN(n)                   ((n) << 4)
+#define DWC3_GCTL_SCALEDOWN_MASK                 DWC3_GCTL_SCALEDOWN(3)
+#define DWC3_GCTL_DISSCRAMBLE_MASK               (1 << 3)
+#define DWC3_GCTL_DSBLCLKGTNG_MASK               (1 << 0)
+
+#define DWC3_GUSB2PHYCFG                         0xC200
+#define DWC3_GUSB2PHYCFG_PHYSOFTRST_MASK         (1 << 31)
+#define DWC3_GUSB2PHYCFG_U2_FREECLK_EXISTS_MASK  (1 << 30)
+#define DWC3_GUSB2PHYCFG_ENBLSLPM_MASK           (1 << 8)
+#define DWC3_GUSB2PHYCFG_SUSPHY_MASK             (1 << 6)
+#define DWC3_GUSB2PHYCFG_PHYIF_MASK              (1 << 3)
+
+#define DWC3_GUSB3PIPECTL                        0xC2C0
+#define DWC3_GUSB3PIPECTL_PHYSOFTRST_MASK        (1 << 31)
+
+#define DWC3_GFLADJ                              0xC630
+#define GFLADJ_30MHZ_REG_SEL                     (1 << 7)
+#define GFLADJ_30MHZ(n)                          ((n) & 0x3f)
+#define GFLADJ_30MHZ_DEFAULT                     0x20
+
+/* USB PHYx registers and bit-fields definition */
+#define USB_PHY_CTRL0                            0x0
+#define USB_PHY_CTRL0_REF_SSP_EN_MASK            (1 << 2)
+
+#define USB_PHY_CTRL1                            0x4
+#define USB_PHY_CTRL1_RESET_MASK                 (1 << 0)
+#define USB_PHY_CTRL1_COMMONONN_MASK             (1 << 1)
+#define USB_PHY_CTRL1_ATERESET_MASK              (1 << 3)
+#define USB_PHY_CTRL1_VDATSRCENB0_MASK           (1 << 19)
+#define USB_PHY_CTRL1_VDATDETENB0_MASK           (1 << 20)
+
+#define USB_PHY_CTRL2                            0x8
+#define USB_PHY_CTRL2_TXENABLEN0_MASK            (1 << 8)
+
+#define USB_PHY_CTRL6                            0x18
+
+#define HSIO_GPR_REG_0                           (0x32F10000U)
+#define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT (1)
+#define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN       (0x1U << HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT)
+
+#define IMX_USB3_OTG1_BASE ((UINT64)0x38100000u)
+#define IMX_USB3_OTG2_BASE ((UINT64)0x38200000u)
+
+
+#define in32(_Addr)          (*(UINT32*)((void*)(UINT64)(_Addr)))
+#define out32(_Addr,_Val)    (*(UINT32*)(void*)(UINT64)(_Addr)) = _Val
+
+/**
+  Initialize USB PHY.
+**/
+void UsbPhyInit(UINT32 base)
+{
+    UINT32 reg;
+
+    reg = in32(base + USBMIX_PHY_OFFSET + USB_PHY_CTRL1);
+    reg &= ~(USB_PHY_CTRL1_VDATSRCENB0_MASK | USB_PHY_CTRL1_VDATDETENB0_MASK);
+    reg |= USB_PHY_CTRL1_RESET_MASK | USB_PHY_CTRL1_ATERESET_MASK;
+    out32(base + USBMIX_PHY_OFFSET + USB_PHY_CTRL1, reg);
+
+    reg = in32(base + USBMIX_PHY_OFFSET + USB_PHY_CTRL0);
+    reg |= USB_PHY_CTRL0_REF_SSP_EN_MASK;
+    out32(base + USBMIX_PHY_OFFSET + USB_PHY_CTRL0, reg);
+
+    reg = in32(base + USBMIX_PHY_OFFSET + USB_PHY_CTRL2);
+    reg |= USB_PHY_CTRL2_TXENABLEN0_MASK;
+    out32(base + USBMIX_PHY_OFFSET + USB_PHY_CTRL2, reg);
+
+    reg = in32(base + USBMIX_PHY_OFFSET + USB_PHY_CTRL1);
+    reg &= ~(USB_PHY_CTRL1_RESET_MASK | USB_PHY_CTRL1_ATERESET_MASK);
+    out32(base + USBMIX_PHY_OFFSET + USB_PHY_CTRL1, reg);
+}
+
+/**
+  Reset USB PHY.
+**/
+void UsbPhyReset(UINT32 base)
+{
+    UINT32 reg;
+
+    /* Before Resetting PHY, put Core in Reset */
+    reg = in32(base + DWC3_GCTL);
+    reg |= DWC3_GCTL_CORESOFTRESET_MASK;
+    out32(base + DWC3_GCTL, reg);
+
+    /* Assert USB3 PHY reset */
+    reg = in32(base + DWC3_GUSB3PIPECTL);
+    reg |= DWC3_GUSB3PIPECTL_PHYSOFTRST_MASK;
+    out32(base + DWC3_GUSB3PIPECTL, reg);
+
+    /* Assert USB2 PHY reset */
+    reg = in32(base + DWC3_GUSB2PHYCFG);
+    reg |= DWC3_GUSB2PHYCFG_PHYSOFTRST_MASK;
+    out32(base + DWC3_GUSB2PHYCFG, reg);
+
+    MicroSecondDelay(100 * 1000);
+
+    /* Clear USB3 PHY reset */
+    reg = in32(base + DWC3_GUSB3PIPECTL);
+    reg &= ~DWC3_GUSB3PIPECTL_PHYSOFTRST_MASK;
+    out32(base + DWC3_GUSB3PIPECTL, reg);
+
+    /* Clear USB2 PHY reset */
+    reg = in32(base + DWC3_GUSB2PHYCFG);
+    reg &= ~DWC3_GUSB2PHYCFG_PHYSOFTRST_MASK;
+    out32(base + DWC3_GUSB2PHYCFG, reg);
+
+    MicroSecondDelay(100 * 1000);
+
+    out32(base + DWC3_GUSB2PHYCFG, (reg | DWC3_GUSB2PHYCFG_SUSPHY_MASK));
+
+    /* After PHYs are stable we can take Core out of reset state */
+    reg = in32(base + DWC3_GCTL);
+    reg &= ~DWC3_GCTL_CORESOFTRESET_MASK;
+    out32(base + DWC3_GCTL, reg);
+}
+
+/**
+  Initialize USB Core.
+**/
+void UsbDwc3CoreInit(UINT32 base)
+{
+    UINT32 reg;
+
+    UsbPhyReset(base);
+    reg = in32(base + DWC3_GCTL);
+    reg &= ~DWC3_GCTL_SCALEDOWN_MASK;
+    reg &= ~DWC3_GCTL_DISSCRAMBLE_MASK;
+    reg &= ~DWC3_GCTL_DSBLCLKGTNG_MASK;
+    out32(base + DWC3_GCTL, reg);
+}
+
+/**
+  Suspend XHCI clock.
+**/
+void UsbXhciSuspendClock(UINT32 base)
+{
+    UINT32 reg;
+
+    /* Set suspend_clk to be 32KHz */
+    reg = in32(base + DWC3_GCTL);
+    reg &= ~DWC3_GCTL_PWRDNSCALE_MASK;
+    reg |= 2 << DWC3_GCTL_PWRDNSCALE_SHIFT;
+
+    out32(base + DWC3_GCTL, reg);
+}
+
+/**
+  Initialize controller core and calls controller initialization method for OTG1, OTG2 controller..
+**/
+void UsbInit(void)
+{
+    UINT32 reg;
+    ARM_SMC_ARGS smc_args;
+
+    /* Disable USB Controller 1 power domain */
+    imx_fill_sip(IMX_SIP_GPC, IMX_SIP_CONFIG_GPC_PM_DOMAIN, IMX_USB1_PD, 0x01, 0x00, smc_args);
+    ArmCallSmc(&smc_args);
+    /* Disable USB Controller 2 power domain */
+    imx_fill_sip(IMX_SIP_GPC, IMX_SIP_CONFIG_GPC_PM_DOMAIN, IMX_USB2_PD, 0x01, 0x00, smc_args);
+    ArmCallSmc(&smc_args);
+    /* Disable USB Controllers clock root */
+    CCM_CCGR_CLR(CCM_CCGR_IDX_USB_CTRL1) = 0x03;
+    CCM_CCGR_CLR(CCM_CCGR_IDX_USB_CTRL2) = 0x03;
+    /* Disable USB PHYs clock root */
+    CCM_CCGR_CLR(CCM_CCGR_IDX_USB_PHY1)  = 0x03;
+    CCM_CCGR_CLR(CCM_CCGR_IDX_USB_PHY2)  = 0x03;
+    CCM_TARGET_ROOT_USB_BUS      = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK; /* 500MHz, SYSTEM_PLL2_DIV2 */
+    CCM_TARGET_ROOT_USB_CORE_REF = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK; /* 100MHz, SYSTEM_PLL1_DIV8 */
+    CCM_TARGET_ROOT_USB_PHY_REF  = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK; /* 100MHz, SYSTEM_PLL1_DIV8 */
+    /* Enable USB Controllers clock root */
+    CCM_CCGR_SET(CCM_CCGR_IDX_USB_CTRL1) = 0x03;
+    CCM_CCGR_SET(CCM_CCGR_IDX_USB_CTRL2) = 0x03;
+    /* Enable USB USB PHYs clock root */
+    CCM_CCGR_SET(CCM_CCGR_IDX_USB_PHY1)  = 0x03;
+    CCM_CCGR_SET(CCM_CCGR_IDX_USB_PHY2)  = 0x03;
+
+    UsbPhyInit(IMX_USB3_OTG1_BASE);
+    UsbPhyInit(IMX_USB3_OTG2_BASE);
+
+    UsbDwc3CoreInit(IMX_USB3_OTG1_BASE);
+    UsbDwc3CoreInit(IMX_USB3_OTG2_BASE);
+
+    UsbXhciSuspendClock(IMX_USB3_OTG1_BASE);
+    UsbXhciSuspendClock(IMX_USB3_OTG2_BASE);
+
+    /* Set DWC3 core to Host Mode for OTG1 */
+    reg = in32(IMX_USB3_OTG1_BASE + DWC3_GCTL);
+    reg &= ~DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG);
+    reg |= DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_HOST);
+    out32(IMX_USB3_OTG1_BASE + DWC3_GCTL, reg);
+
+    /* Set DWC3 core to Host Mode for OTG2 */
+    reg = in32(IMX_USB3_OTG2_BASE + DWC3_GCTL);
+    reg &= ~DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG);
+    reg |= DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_HOST);
+    out32(IMX_USB3_OTG2_BASE + DWC3_GCTL, reg);
+
+    /* Set GFLADJ_30MHZ as 20h as per XHCI spec default value */
+    reg = in32(IMX_USB3_OTG1_BASE + DWC3_GFLADJ);
+    reg |= GFLADJ_30MHZ_REG_SEL | GFLADJ_30MHZ(GFLADJ_30MHZ_DEFAULT);
+    out32(IMX_USB3_OTG1_BASE + DWC3_GFLADJ, reg);
+
+    /* Set GFLADJ_30MHZ as 20h as per XHCI spec default value */
+    reg = in32(IMX_USB3_OTG2_BASE + DWC3_GFLADJ);
+    reg |= GFLADJ_30MHZ_REG_SEL | GFLADJ_30MHZ(GFLADJ_30MHZ_DEFAULT);
+    out32(IMX_USB3_OTG2_BASE + DWC3_GFLADJ, reg);
+}
 
 ARM_CORE_INFO iMX8Ppi[] =
 {
@@ -295,90 +521,6 @@ VOID EnetInit(VOID)
   CCM_CCGR_ENET1 = 0x00000003;                                   // ENET1 clock gate
 }
 
-/**
-  Initialize USBs modules on the SOC and perform required pin-muxing.
-**/
-#define PHY1_CTRL0_REG  0x00000000381F0040
-#define PHY1_CTRL1_REG  0x00000000381F0044
-#define PHY1_CTRL2_REG  0x00000000381F0048
-
-#define PHY2_CTRL0_REG  0x00000000382F0040
-#define PHY2_CTRL1_REG  0x00000000382F0044
-#define PHY2_CTRL2_REG  0x00000000382F0048
-
-#define PHY_CTRL0_REF_SSP_EN        (0x01 <<  2)
-#define PHY_CTRL1_RESET             (0x01 <<  0)
-#define PHY_CTRL1_ATERESET          (0x01 <<  3)
-#define PHY_CTRL1_VDATSRCENB0       (0x01 << 19)
-#define PHY_CTRL1_VDATDETENB0       (0x01 << 20)
-#define PHY_CTRL2_TXENABLEN0        (0x01 <<  8)
-
-#define RdReg32(_RegAddr)            ((UINT32)*((volatile UINT32*)(_RegAddr)))
-#define WrReg32(_RegAddr, _RegVal)   *((volatile UINT32*)(_RegAddr)) = _RegVal;
-VOID USBInit() {
-  UINT32 reg;
-  ARM_SMC_ARGS smc_args;
-
-  /* Disable USB Controller 1 power domain */
-  imx_fill_sip(IMX_SIP_GPC, IMX_SIP_CONFIG_GPC_PM_DOMAIN, IMX_USB1_PD, 0x01, 0x00, smc_args);
-  ArmCallSmc(&smc_args);
-  /* Disable USB Controller 2 power domain */
-  imx_fill_sip(IMX_SIP_GPC, IMX_SIP_CONFIG_GPC_PM_DOMAIN, IMX_USB2_PD, 0x01, 0x00, smc_args);
-  ArmCallSmc(&smc_args);
-  /* Disable USB Controllers clock root */
-  CCM_CCGR_CLR(CCM_CCGR_IDX_USB_CTRL1) = 0x03;
-  CCM_CCGR_CLR(CCM_CCGR_IDX_USB_CTRL2) = 0x03;
-  /* Disable USB PHYs clock root */
-  CCM_CCGR_CLR(CCM_CCGR_IDX_USB_PHY1)  = 0x03;
-  CCM_CCGR_CLR(CCM_CCGR_IDX_USB_PHY2)  = 0x03;
-  CCM_TARGET_ROOT_USB_BUS      = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK; /* 500MHz, SYSTEM_PLL2_DIV2 */
-  CCM_TARGET_ROOT_USB_CORE_REF = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK; /* 100MHz, SYSTEM_PLL1_DIV8 */
-  CCM_TARGET_ROOT_USB_PHY_REF  = CCM_TARGET_ROOT_MUX(1) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK; /* 100MHz, SYSTEM_PLL1_DIV8 */
-  /* Enable USB Controllers clock root */
-  CCM_CCGR_SET(CCM_CCGR_IDX_USB_CTRL1) = 0x03;
-  CCM_CCGR_SET(CCM_CCGR_IDX_USB_CTRL2) = 0x03;
-  /* Enable USB USB PHYs clock root */
-  CCM_CCGR_SET(CCM_CCGR_IDX_USB_PHY1)  = 0x03;
-  CCM_CCGR_SET(CCM_CCGR_IDX_USB_PHY2)  = 0x03;
-
-  /* Configure USB USB PHY 1 */
-  reg = RdReg32(PHY1_CTRL1_REG);
-  reg &= ~(PHY_CTRL1_VDATSRCENB0 | PHY_CTRL1_VDATDETENB0);
-  reg |= PHY_CTRL1_RESET | PHY_CTRL1_ATERESET;
-  WrReg32(PHY1_CTRL1_REG, reg);
-
-  reg = RdReg32(PHY1_CTRL0_REG);
-  reg |= PHY_CTRL0_REF_SSP_EN;
-  WrReg32(PHY1_CTRL0_REG, reg);
-
-  reg = RdReg32(PHY1_CTRL2_REG);
-  reg |= PHY_CTRL2_TXENABLEN0;
-  WrReg32(PHY1_CTRL2_REG, reg);
-
-  reg = RdReg32(PHY1_CTRL1_REG);
-  reg &= ~(PHY_CTRL1_RESET | PHY_CTRL1_ATERESET);
-  WrReg32(PHY1_CTRL1_REG, reg);
-
-  /* Configure USB USB PHY 2 */
-  reg = RdReg32(PHY2_CTRL1_REG);
-  reg &= ~(PHY_CTRL1_VDATSRCENB0 | PHY_CTRL1_VDATDETENB0);
-  reg |= PHY_CTRL1_RESET | PHY_CTRL1_ATERESET;
-  WrReg32(PHY2_CTRL1_REG, reg);
-
-  reg = RdReg32(PHY2_CTRL0_REG);
-  reg |= PHY_CTRL0_REF_SSP_EN;
-  WrReg32(PHY2_CTRL0_REG, reg);
-
-  reg = RdReg32(PHY2_CTRL2_REG);
-  reg |= PHY_CTRL2_TXENABLEN0;
-  WrReg32(PHY2_CTRL2_REG, reg);
-
-  reg = RdReg32(PHY2_CTRL1_REG);
-  reg &= ~(PHY_CTRL1_RESET | PHY_CTRL1_ATERESET);
-  WrReg32(PHY2_CTRL1_REG, reg);
-};
-
-
 #if (FixedPcdGet32(PcdPcie1Enable) || FixedPcdGet32(PcdPcie2Enable))
 /**
   Initialize PCI Express module on the SOC and perform required pin-muxing
@@ -451,6 +593,13 @@ VOID PcieInit ()
   IOMUXC_SW_MUX_CTL_PAD_ECSPI2_SCLK = IOMUXC_MUX_ALT5;
   GPIO5_DR |= (0x01 << 10);                     /* Set the pad to the high level */
   GPIO5_GDIR |= (0x01 << 10);                   /* Set output direction */
+
+  // Configure I2C4_SDA to control PCIE nCLKREQ PAD
+  IOMUXC_SW_MUX_CTL_PAD_I2C4_SDA = IOMUXC_MUX_ALT5;
+  GPIO5_DR &= ~(0x01 << 21);                    /* Set the pad to the low level */
+  GPIO5_GDIR |= (0x01 << 21);                   /* Set output direction */
+  IOMUXC_SW_PAD_CTL_PAD_I2C4_SDA = IOMUXC_PAD_ODE_ENABLED | IOMUXC_PAD_DSE_R0_DIV_6;
+
 #endif
 }
 #endif
@@ -708,7 +857,7 @@ RETURN_STATUS ArmPlatformInitialize(IN UINTN MpId)
 #if (FixedPcdGet32(PcdPcie1Enable) || FixedPcdGet32(PcdPcie2Enable))
   PcieInit ();
 #endif
-  USBInit();
+  UsbInit();
   PwmInit();
   VpuInit();
   GpuInit();

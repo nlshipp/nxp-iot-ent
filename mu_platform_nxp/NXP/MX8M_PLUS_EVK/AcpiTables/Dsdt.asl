@@ -63,7 +63,6 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 5, "MSFT", "EDK2", 1) {
     include("Dsdt-Gfx.asl")
     include("Dsdt-HantroVpuLF.asl") /* Limited Feature */
     include("Dsdt-Pwm.asl")
-    include("Dsdt-Tmu.asl")
     include("Dsdt-CAN.asl")
 #if FixedPcdGet32(PcdCsi1CameraOv5640)
     include("Dsdt-Camera_Ov5640_mipi_csi1.asl")

@@ -309,9 +309,10 @@ LPSPIDeviceGetMaxSpeed(
 )
 {
     ULONG maxSpeed = DevExtPtr->MaxConnectionSpeedHz;
-    if (maxSpeed == 0) {
+    ULONG refClock = LPSPIDeviceGetReferenceClock(DevExtPtr);
+    if ((maxSpeed == 0) || (maxSpeed > (refClock / 2))) {
 
-        return LPSPIDeviceGetReferenceClock(DevExtPtr) / 2;
+        return refClock / 2;
     }
     return maxSpeed;
 }

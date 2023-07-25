@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -100,60 +100,60 @@
 
 
 /* USB MIX offset */
-#define USBMIX_PHY_OFFSET                      0xF0040
+#define USBMIX_PHY_OFFSET                            0xF0040
 
 /* DWC3 register and bit-fields definition */
-#define DWC3_GHWPARAMS1                        0xC144
+#define DWC3_GHWPARAMS1                              0xC144
 
-#define DWC3_GSNPSID                           0xC120
-#define DWC3_GCTL                              0xC110
-    #define DWC3_GCTL_PWRDNSCALE_SHIFT         19
-    #define DWC3_GCTL_PWRDNSCALE_MASK          (0x1FFF << 19)
-    #define DWC3_GCTL_U2RSTECN_MASK            (1 << 16)
-    #define DWC3_GCTL_PRTCAPDIR(n)             ((n) << 12)
-    #define DWC3_GCTL_PRTCAP_HOST              1
-    #define DWC3_GCTL_PRTCAP_DEVICE            2
-    #define DWC3_GCTL_PRTCAP_OTG               3
-    #define DWC3_GCTL_CORESOFTRESET_MASK       (1 << 11)
-    #define DWC3_GCTL_SCALEDOWN(n)             ((n) << 4)
-    #define DWC3_GCTL_SCALEDOWN_MASK           DWC3_GCTL_SCALEDOWN(3)
-    #define DWC3_GCTL_DISSCRAMBLE_MASK         (1 << 3)
-    #define DWC3_GCTL_DSBLCLKGTNG_MASK         (1 << 0)
+#define DWC3_GSNPSID                                 0xC120
+#define DWC3_GCTL                                    0xC110
+#define DWC3_GCTL_PWRDNSCALE_SHIFT                   19
+#define DWC3_GCTL_PWRDNSCALE_MASK                    (0x1FFF << 19)
+#define DWC3_GCTL_U2RSTECN_MASK                      (1 << 16)
+#define DWC3_GCTL_PRTCAPDIR(n)                       ((n) << 12)
+#define DWC3_GCTL_PRTCAP_HOST                        1
+#define DWC3_GCTL_PRTCAP_DEVICE                      2
+#define DWC3_GCTL_PRTCAP_OTG                         3
+#define DWC3_GCTL_CORESOFTRESET_MASK                 (1 << 11)
+#define DWC3_GCTL_SCALEDOWN(n)                       ((n) << 4)
+#define DWC3_GCTL_SCALEDOWN_MASK                     DWC3_GCTL_SCALEDOWN(3)
+#define DWC3_GCTL_DISSCRAMBLE_MASK                   (1 << 3)
+#define DWC3_GCTL_DSBLCLKGTNG_MASK                   (1 << 0)
 
-#define DWC3_GUSB2PHYCFG                              0xC200
-    #define DWC3_GUSB2PHYCFG_PHYSOFTRST_MASK         (1 << 31)
-    #define DWC3_GUSB2PHYCFG_U2_FREECLK_EXISTS_MASK  (1 << 30)
-    #define DWC3_GUSB2PHYCFG_ENBLSLPM_MASK           (1 << 8)
-    #define DWC3_GUSB2PHYCFG_SUSPHY_MASK             (1 << 6)
-    #define DWC3_GUSB2PHYCFG_PHYIF_MASK              (1 << 3)
+#define DWC3_GUSB2PHYCFG                             0xC200
+#define DWC3_GUSB2PHYCFG_PHYSOFTRST_MASK             (1 << 31)
+#define DWC3_GUSB2PHYCFG_U2_FREECLK_EXISTS_MASK      (1 << 30)
+#define DWC3_GUSB2PHYCFG_ENBLSLPM_MASK               (1 << 8)
+#define DWC3_GUSB2PHYCFG_SUSPHY_MASK                 (1 << 6)
+#define DWC3_GUSB2PHYCFG_PHYIF_MASK                  (1 << 3)
 
 #define DWC3_GUSB3PIPECTL                            0xC2C0
-    #define DWC3_GUSB3PIPECTL_PHYSOFTRST_MASK        (1 << 31)
+#define DWC3_GUSB3PIPECTL_PHYSOFTRST_MASK            (1 << 31)
 
-#define DWC3_GFLADJ                         0xC630
-    #define GFLADJ_30MHZ_REG_SEL            (1 << 7)
-    #define GFLADJ_30MHZ(n)                 ((n) & 0x3f)
-    #define GFLADJ_30MHZ_DEFAULT            0x20
+#define DWC3_GFLADJ                                  0xC630
+#define GFLADJ_30MHZ_REG_SEL                         (1 << 7)
+#define GFLADJ_30MHZ(n)                              ((n) & 0x3f)
+#define GFLADJ_30MHZ_DEFAULT                         0x20
 
 /* USB PHYx registers and bit-fields definition */
-#define USB_PHY_CTRL0                       0x0
-    #define USB_PHY_CTRL0_REF_SSP_EN_MASK       (1 << 2)
+#define USB_PHY_CTRL0                                0x0
+#define USB_PHY_CTRL0_REF_SSP_EN_MASK                (1 << 2)
 
-#define USB_PHY_CTRL1                           0x4
-    #define USB_PHY_CTRL1_RESET_MASK            (1 << 0)
-    #define USB_PHY_CTRL1_COMMONONN_MASK        (1 << 1)
-    #define USB_PHY_CTRL1_ATERESET_MASK         (1 << 3)
-    #define USB_PHY_CTRL1_VDATSRCENB0_MASK      (1 << 19)
-   #define USB_PHY_CTRL1_VDATDETENB0_MASK       (1 << 20)
+#define USB_PHY_CTRL1                                0x4
+#define USB_PHY_CTRL1_RESET_MASK                     (1 << 0)
+#define USB_PHY_CTRL1_COMMONONN_MASK                 (1 << 1)
+#define USB_PHY_CTRL1_ATERESET_MASK                  (1 << 3)
+#define USB_PHY_CTRL1_VDATSRCENB0_MASK               (1 << 19)
+#define USB_PHY_CTRL1_VDATDETENB0_MASK               (1 << 20)
 
-#define USB_PHY_CTRL2                               0x8
-    #define USB_PHY_CTRL2_TXENABLEN0_MASK           (1 << 8)
+#define USB_PHY_CTRL2                                0x8
+#define USB_PHY_CTRL2_TXENABLEN0_MASK                (1 << 8)
 
-#define USB_PHY_CTRL6                               0x18
+#define USB_PHY_CTRL6                                0x18
 
-#define HSIO_GPR_REG_0                             (0x32F10000U)
-#define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT   (1)
-#define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN         (0x1U << HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT)
+#define HSIO_GPR_REG_0                               (0x32F10000U)
+#define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT     (1)
+#define HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN           (0x1U << HSIO_GPR_REG_0_USB_CLOCK_MODULE_EN_SHIFT)
 
 #define IMX_USB3_OTG1_BASE ((UINT64)USB1_BASE_PTR)
 #define IMX_USB3_OTG2_BASE ((UINT64)USB2_BASE_PTR)
@@ -162,6 +162,9 @@
 #define in32(_Addr)          (*(UINT32*)((void*)(UINT64)(_Addr)))
 #define out32(_Addr,_Val)    (*(UINT32*)(void*)(UINT64)(_Addr)) = _Val
 
+/**
+  Initialize USB PHY
+**/
 void UsbPhyInit(UINT32 base)
 {
     UINT32 reg;
@@ -198,6 +201,9 @@ void UsbPhyInit(UINT32 base)
     out32(base + USBMIX_PHY_OFFSET + USB_PHY_CTRL1, reg);
 }
 
+/**
+  Reset USB PHY
+**/
 void UsbPhyReset(UINT32 base)
 {
     UINT32 reg;
@@ -231,12 +237,18 @@ void UsbPhyReset(UINT32 base)
 
     MicroSecondDelay(100 * 1000);
 
+    /* Disable PHY suspend (ERR011231) */
+    out32(base + DWC3_GUSB2PHYCFG, (reg | DWC3_GUSB2PHYCFG_SUSPHY_MASK));
+
     /* After PHYs are stable we can take Core out of reset state */
     reg = in32(base + DWC3_GCTL);
     reg &= ~DWC3_GCTL_CORESOFTRESET_MASK;
     out32(base + DWC3_GCTL, reg);
 }
 
+/**
+  Initialize USB core
+**/
 void UsbDwc3CoreInit(UINT32 base)
 {
     UINT32 reg;
@@ -249,6 +261,9 @@ void UsbDwc3CoreInit(UINT32 base)
     out32(base + DWC3_GCTL, reg);
 }
 
+/**
+  Suspend XHCI clock
+**/
 void UsbXhciSuspendClock(UINT32 base)
 {
     UINT32 reg;
@@ -383,7 +398,6 @@ VOID UngateClocks ()
 {
   // Enable SDMA
   CCM_CCGR_SDMA1 = 0x02;  // Domain 0 clocks needed when in RUN and WAIT
-  // CCM_CCGR_SDMA2 = 0x02;  // Domain 0 clocks needed when in RUN and WAIT
   // Enable UARTs
   CCM_CCGR_UART1 = 0x02;  // Domain 0 clocks needed when in RUN and WAIT
   CCM_CCGR_UART2 = 0x02;  // Domain 0 clocks needed when in RUN and WAIT

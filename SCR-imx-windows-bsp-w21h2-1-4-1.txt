@@ -1,9 +1,9 @@
 NXP Software Content Register
 
-Release - Windows 10 IoT 1.4.0
-March 2023
+Release - Windows 10 IoT 1.4.1
+July 2023
 
-License file: EULA.txt  NXP Proprietary LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution license granted, Section 2.3 applies
+License file: EULA.txt  NXP Proprietary LA_OPT_NXP_Software_License v47 July 2023 - Additional distribution license granted, Section 2.3 applies
 
 --------------------------------------------
 
@@ -159,7 +159,7 @@ Origin:                      NXP (GPL-2.0)
 --------------------------------------------  
 
 Package:                     ./imx-windows-iot/driver/video/imx-vpu-hantro
-Outgoing License:            LA_OPT_NXP_Software_License v40 December 2022 - Additional distribution license granted, Section 2.3 applies
+Outgoing License:            LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution license granted, Section 2.3 applies
 License Files:               EULA.txt
 Type of content:             Source code
 Description and comments:    i.MX VPU library
@@ -172,7 +172,7 @@ Origin: 		      VeriSilicon Inc. (proprietary)
 --------------------------------------------
 
 Package:                     ./imx-windows-iot/driver/video/imx-vpuwrap
-Outgoing Outgoing License:   LA_OPT_NXP_Software_License v31 December 2021 - Additional distribution license granted, Section 2.3 applies
+Outgoing Outgoing License:   LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution license granted, Section 2.3 applies
 License File:                EULA.txt
 Type of content:             Source code
 Description and comments:    i.MX VPU wrapper library
@@ -184,8 +184,8 @@ Origin:                      NXP (proprietary)
 --------------------------------------------
 
 Package:                     galcore
-Version:                     1.3
-Outgoing license             LA_OPT_NXP_Software_License v40 December 2022 - Additional distribution license granted, Section 2.3 applies
+Version:                     1.5
+Outgoing license             LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution license granted, Section 2.3 applies
 License File:                EULA.txt
 Package Category:            Graphics
 Type of Content:             binary and source
@@ -201,11 +201,10 @@ Description and comments:    GPU Core IP in binary
                              LLVM Compiler (BSD-3-clause) - https://github.com/prof123/llvm/
 
     Release Location:        ./imx-windows-iot/driver/gpu
-                             ./IoTEntOnNXP/drivers/Galcore/galcore.sys
     Origin:                  Microsoft (MIT)
                              Verisilicon (formerly Vivante Corp.) (MIT)
 
-    Release Location:        ./IoTEntOnNXP/drivers/Galcore/umd11*.dll,
+    Release Location:        ./IoTEntOnNXP/drivers/Galcore/umd*.dll,
     License File:            ./IoTEntOnNXP/drivers/Galcore/NOTICE
     Origin:                  Microsoft
 
@@ -225,7 +224,7 @@ Origin:                      NXP (GPL-2.0)
 -------------------------------------------- 
 
 Packages:                    ./imx-windows-iot/driver/Wifi_mrvlpcie8897
-Outgoing License:            LA_OPT_NXP_Software_License v40 December 2022 - Additional distribution Use
+Outgoing License:            LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution Use
 License File:                License
 Type of content:             Binary
 Description and comments:    Wi-Fi Windows driver (WiFi-BT firmware included) for W8897
@@ -253,11 +252,21 @@ Origin:                      NXP (GPL-2.0)
 -------------------------------------------- 
 
 Packages:                    ./imx-windows-iot/driver/Wifi_mrvlpcie8897
-Outgoing License:            LA_OPT_NXP_Software_License v40 December 2022 - Additional distribution Use
+Outgoing License:            LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution Use
 License File:                License
 Type of content:             Binary
 Description and comments:    Wi-Fi Windows driver (WiFi-BT firmware included) for W8897
 Origin:                      NXP (proprietary)
                              ThreadX licensed from Express Logic (Express Logic) - https://rtos.com/solutions/threadx/
+
+-------------------------------------------- 
+
+Packages:                    ./imx-windows-iot/driver/camera/imxsns_x_rpi_cam_mipi/ap1302_fw
+Outgoing License:            ON Semiconductor (proprietary)
+License File:                ./imx-windows-iot/driver/camera/imxsns_x_rpi_cam_mipi/ap1302_fw/AP1302 Software License Agreement.pdf
+Type of content:             Binary
+Description and comments:    AP1302 Camera Firmware
+Release Location:            https://github.com/ONSemiconductor/ap1302_binaries
+Origin:                      ON Semiconductor
 
 -------------------------------------------- 

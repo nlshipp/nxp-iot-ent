@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2011 Freescale Semiconductor, Inc.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  */
 
 #ifndef __DW_HDMI__
@@ -13,6 +13,9 @@ struct drm_encoder;
 struct dw_hdmi;
 struct platform_device;
 struct videomode;
+struct hdmi_codec_params;
+
+struct imx8mp_hdmi_audio_params;
 
 /**
  * DOC: Supported input formats and encodings
@@ -190,6 +193,7 @@ void dw_hdmi_set_channel_status(struct dw_hdmi *hdmi, u8 *channel_status);
 void dw_hdmi_set_channel_allocation(struct dw_hdmi *hdmi, unsigned int ca);
 void dw_hdmi_audio_enable(struct dw_hdmi *hdmi);
 void dw_hdmi_audio_disable(struct dw_hdmi *hdmi);
+bool dw_hdmi_audio_supported(struct dw_hdmi* hdmi);
 void dw_hdmi_set_high_tmds_clock_ratio(struct dw_hdmi *hdmi,
 				       const struct drm_display_info *display);
 
@@ -225,4 +229,9 @@ void dw_hdmi_imx_dumpreg(struct platform_device* pdev);
 int dw_hdmi_imx_atomic_check(u32* bus_format, struct videomode* vm);
 int dw_hdmi_imx_probe(struct platform_device* pdev, unsigned int uid);
 int dw_hdmi_imx_remove(struct platform_device* pdev);
+int audio_mute_stream(struct platform_device *pdev, bool enable);
+int audio_hw_params(struct platform_device* pdev,
+	struct imx8mp_hdmi_audio_params* params);
+bool audio_is_supported(struct platform_device* pdev);
+
 #endif /* __IMX_HDMI_H__ */

@@ -436,7 +436,7 @@ LcdDisplayDetect (
     Status = LcdReadEdid(Edid, 0, BASIC_EDID_STRUCTURE_LENGTH);
     if (EFI_ERROR(Status)) {
       DEBUG((DEBUG_ERROR, "Unable to read EDID\n"));
-      goto End;
+      goto ErrorEdid;
     }
 
     /* Ignore extensions */
@@ -451,7 +451,7 @@ LcdDisplayDetect (
     Status = ImxValidateEdidData(Edid);
     if (EFI_ERROR(Status)) {
       DEBUG((DEBUG_ERROR, "EDID data not valid\n"));
-      goto End;
+      goto ErrorEdid;
     }
 
     if (Converter == ADV7535) {
@@ -492,6 +492,14 @@ End:
   LcdDumpDisplayTiming(0, &PreferredTiming);
 
   return Status;
+
+ErrorEdid:
+  FreePool(Edid);
+  VideoModesCnt++;
+  DEBUG((DEBUG_ERROR, "Selected default resolution %dx%d pclk=%d Hz\n",
+       PreferredTiming.HActive, PreferredTiming.VActive, PreferredTiming.PixelClock));
+  LcdDumpDisplayTiming(0, &PreferredTiming);
+  return EFI_SUCCESS;
 }
 
 /**

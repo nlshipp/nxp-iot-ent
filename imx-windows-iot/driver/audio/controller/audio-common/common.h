@@ -1,4 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
+   Copyright 2023 NXP
    Licensed under the MIT License.
 
 Abstract:
@@ -105,6 +106,7 @@ typedef enum
 {
     eSpeakerHpDevice = 0,
     eMicInDevice,
+    eHdmiRenderDevice,
     eMaxDeviceType
 } eDeviceType;
 
@@ -200,6 +202,17 @@ typedef struct _ENDPOINT_MINIPAIR
 } ENDPOINT_MINIPAIR;
 
 class CMiniportWaveRTStream;
+
+// Event callback definition.
+typedef VOID(*PFNEVENTNOTIFICATION)(
+    _In_opt_    PVOID   Context
+    );
+// To support event notification.
+struct EventCallback
+{
+    PFNEVENTNOTIFICATION    Handler;
+    PVOID                   Context;
+};
 
 //=============================================================================
 // Defines
@@ -349,6 +362,25 @@ DECLARE_INTERFACE_(IAdapterCommon, IUnknown)
         _In_        CMiniportWaveRTStream* Stream,
                     eDeviceType DeviceType
     );
+
+    STDMETHOD_(NTSTATUS, FreeBuffer)
+    (
+        THIS_
+        _In_        CMiniportWaveRTStream *Stream,
+                    eDeviceType            DeviceType,
+        _In_        PMDL                   Mdl,
+        _In_        ULONG                  Size
+    );
+
+    STDMETHOD_(NTSTATUS, AllocBuffer)
+    (
+        THIS_
+        _In_        CMiniportWaveRTStream *Stream,
+                    eDeviceType            DeviceType,
+        _In_        ULONG                  Size,
+        _Out_       PMDL                  *pMdl,
+        _Out_       MEMORY_CACHING_TYPE   *CacheType
+    );
     
     STDMETHOD_(NTSTATUS,        StartDma)
     (
@@ -366,6 +398,30 @@ DECLARE_INTERFACE_(IAdapterCommon, IUnknown)
     (
         THIS_
         _In_        CMiniportWaveRTStream* Stream
+    );
+
+    STDMETHOD_(VOID, SetConnectionStatusHandler)
+    (
+        THIS_
+        _In_opt_    PFNEVENTNOTIFICATION    EventHandler,
+        _In_opt_    PVOID                   EventHandlerContext
+    );
+
+    STDMETHOD_(BOOL, GetConnectionStatus)
+        (VOID);
+
+    STDMETHOD_(VOID, GetContainerId)
+    (
+        THIS_
+        _In_        ULONG                   nPinId,
+        _Out_       GUID*                   ContainerId
+    );
+
+    STDMETHOD_(VOID, UpdateSinkInfo)
+    (
+        THIS_
+        _In_        ULONG                       nPinId,
+        _Out_       PKSJACK_SINK_INFORMATION    SinkInfo
     );
 };
 

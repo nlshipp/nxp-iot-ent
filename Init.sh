@@ -60,3 +60,6 @@ do
         git commit -m "NXP i.MX BSP support patch" 2>/dev/null || echo "Failed to commit patch to your local copy of $module. Fix errors and commit patch to $module submodule manually. Shell command: pushd $module; git commit -m \"NXP i.MX BSP support patch\"; popd;"
     popd;
 done
+
+git config --unset-all user.name
+git config --unset-all user.email

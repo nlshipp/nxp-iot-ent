@@ -90,19 +90,22 @@ GcKmImx8mnDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
 
 NTSTATUS
 GcKmImx8mnDisplay::HwStop(
-    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo)
+    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo,
+    BOOLEAN DoCommitFwFb)
 {
     struct lcdif_plane_state plane_state;
     NTSTATUS ret = STATUS_SUCCESS;
 
-    /* page-flip back to firmware framebuffer */
-    if (m_CurSourceModes[0].Format.Graphics.Stride != m_Pitch) {
-        HwCommitVidPn(&m_CurSourceModes[0], &m_CurTargetModes[0], NULL);
-    }
-    else {
-        plane_state.fb_addr = m_FbPhysicalAddr.LowPart;
-        plane_state.mode_change = false;
-        lcdif_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
+    if (DoCommitFwFb) {
+        /* page-flip back to firmware framebuffer */
+        if (m_CurSourceModes[0].Format.Graphics.Stride != m_Pitch) {
+            HwCommitVidPn(&m_CurSourceModes[0], &m_CurTargetModes[0], NULL);
+        }
+        else {
+            plane_state.fb_addr = m_FbPhysicalAddr.LowPart;
+            plane_state.mode_change = false;
+            lcdif_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
+        }
     }
 
     /* To full stop the hardware, disable display controller: lcdif_crtc_atomic_disable(&lcdif_crtc_pdev); */
@@ -116,7 +119,9 @@ GcKmImx8mnDisplay::HwStop(
     imx_lcdif_remove(&lcdif_pdev);
     board_deinit(&lcdif_pdev);
 
-    /* To full stop the hardware, stop remaining clocks: clk_stop_imx8mn(clk_tree); */
+    if (!DoCommitFwFb) {
+        clk_stop_imx8mn(clk_tree);
+    }
     clk_deinit_imx8mn(clk_tree);
 
     return ret;
@@ -135,7 +140,7 @@ GcKmImx8mnDisplay::HwSetPowerState(
 
 void
 GcKmImx8mnDisplay::HwStopScanning(
-    IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
+    D3DDDI_VIDEO_PRESENT_TARGET_ID  TargetId)
 {
     sec_mipi_dsim_bridge_disable(&m_DsiTransmitter.dsi_pdev);
     imx_sec_dsim_encoder_helper_disable(&m_DsiTransmitter.dsi_pdev);
@@ -187,6 +192,9 @@ GcKmImx8mnDisplay::HwCommitVidPn(
     UINT FrameBufferPhysicalAddress = 0;
     UINT TileMode = 0;
     DXGI_FORMAT ColorFormat;
+
+    m_CurSourceModes[0] = { 0 };
+    m_CurTargetModes[0] = { 0 };
 
     if ((GcKmdGlobal::s_DriverMode == FullDriver) && pCommitVidPn)
     {
@@ -298,6 +306,11 @@ GcKmImx8mnDisplay::HwCommitVidPn(
         adv7511_bridge_enable(&m_DsiTransmitter.m_i2c_main);
     }
 
+    m_CurSourceModes[0] = *pSourceMode;
+    m_CurTargetModes[0] = *pTargetMode;
+
+    m_bNotifyVSync = true;
+
     return STATUS_SUCCESS;
 }
 
@@ -388,11 +401,17 @@ GcKmImx8mnDisplay::InterruptRoutine(UINT MessageNumber)
         m_InterruptData.CrtcVsync.PhysicalAdapterMask = 1;
         m_InterruptData.Flags.ValidPhysicalAdapterMask = TRUE;
 
-        m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle, &m_InterruptData);
+        if (m_bNotifyVSync)
+        {
+            m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle, &m_InterruptData);
+        }
 
         lcdif_clear_vblank(&lcdif_crtc_pdev);
 
-        m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+        if (m_bNotifyVSync)
+        {
+            m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+        }
 
         handled |= TRUE;
     }

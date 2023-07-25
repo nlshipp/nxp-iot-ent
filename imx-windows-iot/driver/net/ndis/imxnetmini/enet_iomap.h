@@ -476,7 +476,6 @@ typedef struct {
 } CSP_ENET_REGS, *PCSP_ENET_REGS;
 
 #pragma pack(push, 1)
-#define ENET_ENHANCED_BD 1U
 #ifndef ENET_ENHANCED_BD
 // The buffer descriptor structure for the ENET Legacy Buffer Descriptor
 typedef struct  _ENET_BD {

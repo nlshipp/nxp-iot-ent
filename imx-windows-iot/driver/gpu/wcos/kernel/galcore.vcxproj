@@ -164,18 +164,30 @@
   </ItemGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\umdcommon.dll" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\umd11.dll" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\umd9.dll" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\vulkan.dll" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\libGLSLC.dll" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\libVSC.dll" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\spvconverter.dll" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\libGAL.dll" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\umdcommon_32.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\umd9_32.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\umd11_32.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\vulkan_32.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\libGLSLC_32.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\libVSC_32.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\spvconverter_32.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\libGAL_32.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\umdcommon_X86.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\umd9_X86.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\umd11_X86.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\vulkan_X86.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\libGLSLC_X86.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\libVSC_X86.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\spvconverter_X86.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
+    <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\libGAL_X86.dll" Condition="'$(ConfigurationType)'=='Driver' and '$(Platform)'=='ARM64'" />
     <FilesToPackage Include="$(SolutionDir)..\..\..\components\Galcore\NOTICE" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
     <FilesToPackage Include="$(SolutionDir)Build\ARM64\$(Configuration)\dispctrl\dispctrl.dll" Condition="'$(ConfigurationType)'=='Driver' or '$(ConfigurationType)'=='DynamicLibrary'" />
     <Inf Include="galcore.inf">

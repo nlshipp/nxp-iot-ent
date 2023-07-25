@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 Avionic Design GmbH
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -190,6 +190,80 @@ ssize_t hdmi_drm_infoframe_pack(struct hdmi_drm_infoframe *frame, void *buffer,
 	size_t size);
 ssize_t hdmi_drm_infoframe_pack_only(const struct hdmi_drm_infoframe *frame,
 	void *buffer, size_t size);
+
+enum hdmi_audio_coding_type {
+	HDMI_AUDIO_CODING_TYPE_STREAM,
+	HDMI_AUDIO_CODING_TYPE_PCM,
+	HDMI_AUDIO_CODING_TYPE_AC3,
+	HDMI_AUDIO_CODING_TYPE_MPEG1,
+	HDMI_AUDIO_CODING_TYPE_MP3,
+	HDMI_AUDIO_CODING_TYPE_MPEG2,
+	HDMI_AUDIO_CODING_TYPE_AAC_LC,
+	HDMI_AUDIO_CODING_TYPE_DTS,
+	HDMI_AUDIO_CODING_TYPE_ATRAC,
+	HDMI_AUDIO_CODING_TYPE_DSD,
+	HDMI_AUDIO_CODING_TYPE_EAC3,
+	HDMI_AUDIO_CODING_TYPE_DTS_HD,
+	HDMI_AUDIO_CODING_TYPE_MLP,
+	HDMI_AUDIO_CODING_TYPE_DST,
+	HDMI_AUDIO_CODING_TYPE_WMA_PRO,
+	HDMI_AUDIO_CODING_TYPE_CXT,
+};
+
+enum hdmi_audio_sample_size {
+	HDMI_AUDIO_SAMPLE_SIZE_STREAM,
+	HDMI_AUDIO_SAMPLE_SIZE_16,
+	HDMI_AUDIO_SAMPLE_SIZE_20,
+	HDMI_AUDIO_SAMPLE_SIZE_24,
+};
+
+enum hdmi_audio_sample_frequency {
+	HDMI_AUDIO_SAMPLE_FREQUENCY_STREAM,
+	HDMI_AUDIO_SAMPLE_FREQUENCY_32000,
+	HDMI_AUDIO_SAMPLE_FREQUENCY_44100,
+	HDMI_AUDIO_SAMPLE_FREQUENCY_48000,
+	HDMI_AUDIO_SAMPLE_FREQUENCY_88200,
+	HDMI_AUDIO_SAMPLE_FREQUENCY_96000,
+	HDMI_AUDIO_SAMPLE_FREQUENCY_176400,
+	HDMI_AUDIO_SAMPLE_FREQUENCY_192000,
+};
+
+enum hdmi_audio_coding_type_ext {
+	/* Refer to Audio Coding Type (CT) field in Data Byte 1 */
+	HDMI_AUDIO_CODING_TYPE_EXT_CT,
+
+	/*
+	 * The next three CXT values are defined in CEA-861-E only.
+	 * They do not exist in older versions, and in CEA-861-F they are
+	 * defined as 'Not in use'.
+	 */
+	HDMI_AUDIO_CODING_TYPE_EXT_HE_AAC,
+	HDMI_AUDIO_CODING_TYPE_EXT_HE_AAC_V2,
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG_SURROUND,
+
+	/* The following CXT values are only defined in CEA-861-F. */
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_HE_AAC,
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_HE_AAC_V2,
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_AAC_LC,
+	HDMI_AUDIO_CODING_TYPE_EXT_DRA,
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_HE_AAC_SURROUND,
+	HDMI_AUDIO_CODING_TYPE_EXT_MPEG4_AAC_LC_SURROUND = 10,
+};
+
+struct hdmi_audio_infoframe {
+	enum hdmi_infoframe_type type;
+	unsigned char version;
+	unsigned char length;
+	unsigned char channels;
+	enum hdmi_audio_coding_type coding_type;
+	enum hdmi_audio_sample_size sample_size;
+	enum hdmi_audio_sample_frequency sample_frequency;
+	enum hdmi_audio_coding_type_ext coding_type_ext;
+	unsigned char channel_allocation;
+	unsigned char level_shift_value;
+	bool downmix_inhibit;
+
+};
 
 enum hdmi_3d_structure {
 	HDMI_3D_STRUCTURE_INVALID = -1,

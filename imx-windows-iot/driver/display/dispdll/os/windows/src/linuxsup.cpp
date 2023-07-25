@@ -658,19 +658,29 @@ void __warn_printfmt(const char* file, const char* func, int line, const char* f
 // spinlock
 //
 
-void _raw_spin_lock_init(raw_spinlock_t* lock)
+void wspin_lock_init(spinlock_t* lock)
 {
     KeInitializeSpinLock(lock);
 }
 
-void _raw_spin_lock_irqsave(raw_spinlock_t *lock, unsigned char* flags)
+void wspin_lock_irqsave(spinlock_t* lock, PKIRQL flags)
 {
-    (void)flags;
+    KIRQL fl;
+
+    KeAcquireSpinLock(lock, &fl);
+    if (flags) {
+        *flags = fl;
+    }
 }
 
-void _raw_spin_unlock_irqrestore(raw_spinlock_t *lock, unsigned char flags)
+void wspin_unlock_irqrestore(spinlock_t* lock, PKIRQL flags)
 {
-    (void)flags;
+    KIRQL fl = 0;
+
+    if (flags) {
+        fl = *flags;
+    }
+    KeReleaseSpinLock(lock, fl);
 }
 
 //

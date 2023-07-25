@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
-   Copyright 2022 NXP
+   Copyright 2022-2023 NXP
    Licensed under the MIT License.
 
 Module Name:
@@ -981,41 +981,15 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
         },
         1,                              // SDMA instance 2
     },
-    // (87) SDMA_REQ_SAI6_TX -> SDMA instance 2 Event 13
+    // (87) SDMA_REQ_UART7_RX
     {
-        imx7_mcu_2_sai_ADDR,            // Script address
-        SDMA_REQ_SAI7_TX,               // DMA request ID
-        DMA_WIDTH_32BIT,                // Transfer width
-        0,                              // Owner channel
-        SDMA_DEVICE_FLAG_FIXED_ADDRESS, // Flags
-        0,                              // Peripheral 2 address
-        IMX_WL_SCALE_DEFAULT_TX,        // Watermark level scale (percent)
-        1,                              // Number of DMA events to follow
-        {
-            {
-                IMX8MP_SDMA2_EVENT_SAI7_TX,
-                DMA_EVENT_EXCLUSIVE
-            },
-        },
-        1,                              // SDMA instance 2
+        SDMA_UNSUPPORTED_REQUEST_ID, // Not supported
+        SDMA_REQ_UART7_RX
     },
-    // (88) SDMA_REQ_SAI6_RX -> SDMA instance 2 Event 12
+    // (88) SDMA_REQ_UART7_TX
     {
-        imx7_sai_2_mcu_ADDR,            // Script address
-        SDMA_REQ_SAI7_RX,               // DMA request ID
-        DMA_WIDTH_32BIT,                // Transfer width
-        0,                              // Owner channel
-        SDMA_DEVICE_FLAG_FIXED_ADDRESS, // Flags
-        0,                              // Peripheral 2 address
-        IMX_WL_SCALE_DEFAULT_TX,        // Watermark level scale (percent)
-        1,                              // Number of DMA events to follow
-        {
-            {
-                IMX8MP_SDMA2_EVENT_SAI7_RX,
-                DMA_EVENT_EXCLUSIVE
-            },
-        },
-        1,                              // SDMA instance 2
+        SDMA_UNSUPPORTED_REQUEST_ID, // Not supported
+        SDMA_REQ_UART7_TX
     },
     // Timer SDMA events (GPTx) can be used for triggering any 
     // channel. We configure it for 32bit memory to memory transfers.
@@ -1137,6 +1111,60 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     {
         SDMA_UNSUPPORTED_REQUEST_ID, // Not supported
         SDMA_REQ_EXT4
+    },
+    // (100) SDMA_REQ_SAI7_TX -> SDMA instance 2 Event 13
+    {
+        imx7_mcu_2_sai_ADDR,            // Script address
+        SDMA_REQ_SAI7_TX,               // DMA request ID
+        DMA_WIDTH_32BIT,                // Transfer width
+        0,                              // Owner channel
+        SDMA_DEVICE_FLAG_FIXED_ADDRESS, // Flags
+        0,                              // Peripheral 2 address
+        IMX_WL_SCALE_DEFAULT_TX,        // Watermark level scale (percent)
+        1,                              // Number of DMA events to follow
+        {
+            {
+                IMX8MP_SDMA2_EVENT_SAI7_TX,
+                DMA_EVENT_EXCLUSIVE
+            },
+        },
+        1,                              // SDMA instance 2
+    },
+    // (101) SDMA_REQ_SAI7_RX -> SDMA instance 2 Event 12
+    {
+        imx7_sai_2_mcu_ADDR,            // Script address
+        SDMA_REQ_SAI7_RX,               // DMA request ID
+        DMA_WIDTH_32BIT,                // Transfer width
+        0,                              // Owner channel
+        SDMA_DEVICE_FLAG_FIXED_ADDRESS, // Flags
+        0,                              // Peripheral 2 address
+        IMX_WL_SCALE_DEFAULT_TX,        // Watermark level scale (percent)
+        1,                              // Number of DMA events to follow
+        {
+            {
+                IMX8MP_SDMA2_EVENT_SAI7_RX,
+                DMA_EVENT_EXCLUSIVE
+            },
+        },
+        1,                              // SDMA instance 2
+    },
+    // (102) SDMA_REQ_AUD2HTX -> SDMA instance 2 Event 26
+    {
+        imx7_mcu_2_shp_ADDR,            // Script address
+        SDMA_REQ_AUD2HTX,               // DMA request ID
+        DMA_WIDTH_32BIT,                // Transfer width
+        0,                              // Owner channel
+        SDMA_DEVICE_FLAG_FIXED_ADDRESS, // Flags
+        0,                              // Peripheral 2 address
+        IMX_WL_SCALE_DEFAULT_TX,        // Watermark level scale (percent)
+        1,                              // Number of DMA events to follow
+        {
+            {
+                IMX8MP_SDMA2_EVENT_AUD2HTX,
+                DMA_EVENT_EXCLUSIVE
+            },
+        },
+        1,                              // SDMA instance 2
     },
 };
 

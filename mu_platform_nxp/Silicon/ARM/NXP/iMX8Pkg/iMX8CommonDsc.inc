@@ -1,7 +1,7 @@
 #
 #  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
 #  Copyright (c) 2011-2018, ARM Limited. All rights reserved.
-#  Copyright 2019,2022 NXP
+#  Copyright 2019, 2022-2023 NXP
 #
 #  This program and the accompanying materials
 #  are licensed and made available under the terms and conditions of the BSD License
@@ -17,8 +17,8 @@
   INCLUDE_TFTP_COMMAND  = FALSE
 
   # Firmware update related settings
-  DEFINE CAPSULE_ENABLE = FALSE
-  FIRMWARE_VER = 2020-06-07
+  DEFINE CAPSULE_ENABLE = TRUE
+  FIRMWARE_VER = 2023-05-01
   FIRMWARE_VER_LOWEST_SUPPORTED = 2020-01-01
   DEFINE FMP_IMX_DEVICE = 806AB34B-EC97-4fA3-9928-FFF95E768b7D
 
@@ -182,7 +182,12 @@
   iMXIoMuxLib|iMX8Pkg/Library/iMX8IoMuxLib/iMX8IoMuxLib.inf
 
   # ARM Real Time Clock
-  RealTimeClockLib|EmbeddedPkg/Library/VirtualRealTimeClockLib/VirtualRealTimeClockLib.inf
+  !if ( $(IMX_FAMILY) == IMX8MQ ) OR ( $(IMX_FAMILY) == IMX8MM ) OR ( $(IMX_FAMILY) == IMX8MP ) OR ( $(IMX_FAMILY) == IMX8MN )
+    RealTimeClockLib|iMXPlatformPkg/Library/iMXRealTimeClockLib/iMXRealTimeClockLib.inf
+  !else
+    RealTimeClockLib|EmbeddedPkg/Library/VirtualRealTimeClockLib/VirtualRealTimeClockLib.inf
+  !endif
+
 #  EmbeddedPkg/RealTimeClockRuntimeDxe/RealTimeClockRuntimeDxe.inf
   TimeBaseLib|EmbeddedPkg/Library/TimeBaseLib/TimeBaseLib.inf
   TimerLib|ArmPkg/Library/ArmArchTimerLib/ArmArchTimerLib.inf
@@ -457,11 +462,7 @@
   gEfiMdePkgTokenSpaceGuid.PcdPostCodePropertyMask|0
   gEfiMdePkgTokenSpaceGuid.PcdUefiLibMaxPrintBufferSize|320
 
-!if $(CONFIG_USB) == TRUE
-  gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|3
-!else
   gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut|0
-!endif
 
   # DEBUG_ASSERT_ENABLED       0x01
   # DEBUG_PRINT_ENABLED        0x02

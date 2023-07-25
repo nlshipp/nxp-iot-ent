@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -152,8 +152,8 @@ struct imx8mp_clk_device {
 typedef struct imx8mp_clk_device imx8mp_clk_device_t;
 
 imx8mp_clk_device_t *clk_init_imx8mp(imx_display_interface disp);
-int clk_stop_imx8mp(imx8mp_clk_device_t *dev);
-int clk_deinit_imx8mp(imx8mp_clk_device_t *dev);
+int clk_stop_imx8mp(imx8mp_clk_device_t *dev, imx_display_interface stop_disp);
+int clk_deinit_imx8mp(imx8mp_clk_device_t *dev, imx_display_interface stop_disp);
 void clk_dump_clock_tree_imx8mp(const imx8mp_clk_device_t *dev);
 imx_clk_t *clk_get_item_imx8mp(int index);
 

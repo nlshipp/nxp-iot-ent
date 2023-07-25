@@ -213,6 +213,10 @@
   # i.MX8M Nano
   gArmPlatformTokenSpaceGuid.PcdCoreCount|4
   gArmPlatformTokenSpaceGuid.PcdClusterCount|1
+  gArmPlatformTokenSpaceGuid.PcdPowerButtonEnabled|TRUE
+
+  # Enable Overdrive on Nano when passive cooling or thermal management is in place (CPU 1.2GHz->1.4GHz, GPU 400 MHz->600 MHz)
+  giMX8TokenSpaceGuid.PcdPmicOverDriveEnable|FALSE
 
   gArmTokenSpaceGuid.PcdVFPEnabled|1
 

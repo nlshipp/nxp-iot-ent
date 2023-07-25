@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright 2020,2022 NXP
+ * Copyright 2020,2022-2023 NXP
  *
  * Programe Video/Audio Interface between LCDIF and HDMI Ctrl in HDMIMIX
  *
@@ -30,8 +30,15 @@
 #define HTX_PAI_CTRL        0x800
 #define HTX_PAI_CTRL_EXT    0x804
 #define HTX_PAI_FIELD_CTRL  0x808
+#define HTX_PAI_STAT        0x80C
+#define HTX_PAI_IRQ_NOMASK  0x810
+#define HTX_PAI_IRQ_MASKED  0x814
+#define HTX_PAI_IRQ_MASK    0x818
 
 #define HTX_PAI_CTRL_ENABLE 1
+
+#define HTX_PAI_IRQ_FLG_OVF 1
+#define HTX_PAI_IRQ_FLG_UND 2
 
 
 static struct imx8mp_hdmi_pavi *gpavi;
@@ -202,4 +209,8 @@ void imx8mp_hdmi_pavi_dumpreg(void)
 	debug_print("HTX_PAI_CTRL         = 0x%08X\n", HTX_PAI_CTRL);
 	debug_print("HTX_PAI_CTRL_EXT     = 0x%08X\n", HTX_PAI_CTRL_EXT);
 	debug_print("HTX_PAI_FIELD_CTRL   = 0x%08X\n", HTX_PAI_FIELD_CTRL);
+	debug_print("HTX_PAI_STAT         = 0x%08X\n", HTX_PAI_STAT);
+	debug_print("HTX_PAI_IRQ_NOMASK   = 0x%08X\n", HTX_PAI_IRQ_NOMASK);
+	debug_print("HTX_PAI_IRQ_MASKED   = 0x%08X\n", HTX_PAI_IRQ_MASKED);
+	debug_print("HTX_PAI_IRQ_MASK     = 0x%08X\n", HTX_PAI_IRQ_MASK);
 }

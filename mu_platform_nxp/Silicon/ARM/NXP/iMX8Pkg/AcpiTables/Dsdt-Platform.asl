@@ -104,3 +104,37 @@ Device (PEP0)
   }
 }
 
+#if FixedPcdGet32(PcdPowerButtonEnabled)
+
+// Power button device description, see PWRB in ACPI 6.x Manual
+Device(PWRB) {
+    Name(_HID, EISAID("PNP0C0C"))
+    Name(_UID, 0)
+    Method (_STA, 0x0, NotSerialized) {
+        Return (0xF)
+    }
+    Name(_PRW, Package(){0, 0x4})
+}
+
+// Generic Event Device - for power button interrupt 4 (=36)
+// See iMX Reference Manual: The interrupt 4 (GSIV = 36 = 32 + 4) comes from 
+// SNVS_LP/HP_WRAPPER OR ON-OFF button press shorter than 5 secs (pulse event)
+Device (GED1)
+{
+    Name(_HID,"ACPI0013")
+    Name(_CRS, ResourceTemplate ()
+    {
+        Interrupt(ResourceConsumer, Level, ActiveHigh, ExclusiveAndWake) {36}
+    })
+
+    Method (_EVT,1) { // Handle all ACPI Events signaled by the Generic Event Device(GED1)
+        Switch (Arg0) // Arg0 = GSIV of the interrupt
+        {
+            Case (36) { // interrupt 36
+                Notify(\_SB.PWRB, 0x80) // Notify OS of event
+            }
+        }
+    }
+} //End of Scope
+
+#endif //PcdPowerButtonEnabled

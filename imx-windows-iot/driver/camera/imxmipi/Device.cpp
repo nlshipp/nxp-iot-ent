@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -297,11 +297,11 @@ NTSTATUS Resources_t::AcpiReadInt(ULONG MethodNameUlong, UINT32 &Val)
  */
 {
     NTSTATUS status;
-    PACPI_EVAL_OUTPUT_BUFFER buff;
+    PACPI_EVAL_OUTPUT_BUFFER buffPtr;
 
-    status = m_DsdRes.EvalMethodSync(MethodNameUlong, &buff);
+    status = m_DsdRes.EvalMethodSync(MethodNameUlong, &buffPtr);
     if (NT_SUCCESS(status)) {
-        auto *argument = buff->Argument;
+        auto *argument = buffPtr->Argument;
 
         if (argument->Type != ACPI_METHOD_ARGUMENT_INTEGER) {
             status = STATUS_ACPI_INVALID_ARGTYPE;
@@ -323,7 +323,7 @@ NTSTATUS Resources_t::AcpiReadInt(ULONG MethodNameUlong, UINT32 &Val)
                 status = STATUS_ACPI_INVALID_DATA;
             }
         }
-        ExFreePool(buff);
+        ExFreePool(buffPtr);
     }
     return status;
 }
@@ -351,7 +351,7 @@ NTSTATUS Resources_t::AcpiWriteInt(ULONG MethodNameUlong, UINT32 Val)
  */
 {
     NTSTATUS status;
-    PACPI_EVAL_OUTPUT_BUFFER buff;
+    PACPI_EVAL_OUTPUT_BUFFER buffPtr;
     ACPI_EVAL_INPUT_BUFFER_SIMPLE_INTEGER_V1 inputBuffer;
 
     RtlZeroMemory(&inputBuffer, sizeof(inputBuffer));
@@ -359,7 +359,10 @@ NTSTATUS Resources_t::AcpiWriteInt(ULONG MethodNameUlong, UINT32 Val)
     inputBuffer.MethodNameAsUlong = MethodNameUlong; // Has to be spelled backwards because of endianity or something
     inputBuffer.IntegerArgument = Val;
 
-    status = m_DsdRes.EvalMethodSync((ACPI_EVAL_INPUT_BUFFER *)(&inputBuffer), sizeof(inputBuffer), &buff);
+    status = m_DsdRes.EvalMethodSync((ACPI_EVAL_INPUT_BUFFER *)(&inputBuffer), sizeof(inputBuffer), &buffPtr);
+    if (buffPtr != NULL) {
+        ExFreePool(buffPtr);
+    }
     return status;
 }
 

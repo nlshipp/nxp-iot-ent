@@ -116,7 +116,7 @@ GcKmBaseDisplay::Stop()
         return STATUS_SUCCESS;
     }
 
-    HwStop(&m_PreviousPostDisplayInfo);
+    HwStop(&m_PreviousPostDisplayInfo, TRUE);
 
     if (DisplayOnly == GcKmdGlobal::s_DriverMode)
     {
@@ -178,6 +178,12 @@ GcKmBaseDisplay::QueryAdapterInfo(
     }
 
     return STATUS_SUCCESS;
+}
+
+NTSTATUS GcKmBaseDisplay::QueryInterface(
+    IN_PQUERY_INTERFACE QueryInterface)
+{
+    return STATUS_NOT_SUPPORTED;
 }
 
 NTSTATUS
@@ -337,6 +343,8 @@ GcKmBaseDisplay::CommitVidPn(
 
     if (pPath)
     {
+        m_TargetId = 0;
+
         do
         {
             Status = VidPnInterface->pfnAcquireSourceModeSet(
@@ -380,15 +388,13 @@ GcKmBaseDisplay::CommitVidPn(
         if (pSourceMode && pTargetMode)
         {
             Status = HwCommitVidPn(pSourceMode, pTargetMode, pCommitVidPn);
-
-            if (STATUS_SUCCESS == Status)
+            if (NT_SUCCESS(Status))
             {
-                m_CurSourceModes[0] = *pSourceMode;
-                m_CurTargetModes[0] = *pTargetMode;
+                m_TargetId = pPath->VidPnTargetId;
             }
         }
     } else {
-        HwStopScanning(pCommitVidPn);
+        HwStopScanning(m_TargetId);
     }
 
     if (pPath)
@@ -403,11 +409,25 @@ GcKmBaseDisplay::CommitVidPn(
             pSourceMode);
     }
 
+    if (hSourceModeSet)
+    {
+        VidPnInterface->pfnReleaseSourceModeSet(
+            pCommitVidPn->hFunctionalVidPn,
+            hSourceModeSet);
+    }
+
     if (pTargetMode)
     {
         TargetModeSetInterface->pfnReleaseModeInfo(
             hTargetModeSet,
             pTargetMode);
+    }
+
+    if (hTargetModeSet)
+    {
+        VidPnInterface->pfnReleaseTargetModeSet(
+            pCommitVidPn->hFunctionalVidPn,
+            hTargetModeSet);
     }
 
     return Status;
