@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
-*  Copyright 2019-2020,2022 NXP
+*  Copyright 2019-2020,2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -152,9 +152,14 @@ VOID PcieInit ()
   GPIO4_DR &= ~(0x01 << 21);                    // Set the pad to the low level
   GPIO4_GDIR |= (0x01 << 21);                   // Set output direction
   // Configure GPIO1_IO05 to control PCIe nDISABLE PAD
-  IOMUXC_SW_MUX_CTL_PAD_GPIO1_IO05 = IOMUXC_MUX_ALT5;
+  IOMUXC_SW_MUX_CTL_PAD_GPIO1_IO05 = IOMUXC_MUX_ALT0;
   GPIO1_DR |= (0x01 << 5);                      // Set the pad to the high level
   GPIO1_GDIR |= (0x01 << 5);                    // Set output direction
+  // Configure I2C4_SCL to control PCIE nCLKREQ PAD
+  IOMUXC_SW_MUX_CTL_PAD_I2C4_SCL = IOMUXC_MUX_ALT5;
+  GPIO5_DR &= ~(0x01 << 20);                    // Set the pad to the low level
+  GPIO5_GDIR |= (0x01 << 20);                   // Set output direction
+  IOMUXC_SW_PAD_CTL_PAD_I2C4_SCL = IOMUXC_PAD_ODE_ENABLED;
 }
 #endif
 

@@ -4,7 +4,7 @@
 #  ACPI table data and ASL sources required to boot the platform.
 #
 #  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
-#  Copyright 2019-2020,2022 NXP
+#  Copyright 2019-2020,2022-2023 NXP
 #
 #  This program and the accompanying materials
 #  are licensed and made available under the terms and conditions of the BSD License
@@ -54,6 +54,7 @@
 
 [FixedPcd]
   gArmPlatformTokenSpaceGuid.PcdCoreCount
+  gArmPlatformTokenSpaceGuid.PcdPowerButtonEnabled
   gArmTokenSpaceGuid.PcdGicDistributorBase
   gArmTokenSpaceGuid.PcdGicRedistributorsBase
 

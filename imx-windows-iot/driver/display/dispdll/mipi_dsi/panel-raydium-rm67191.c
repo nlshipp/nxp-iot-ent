@@ -280,13 +280,15 @@ static int rm67191_enable(struct rad_panel *panel)
 		goto fail;
 	}
 
-	usleep_range(5000, 7000);
+	usleep_range(15000, 17000);
 
 	ret = mipi_dsi_dcs_set_display_on(dsi);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set display ON (%d)\n", ret);
 		goto fail;
 	}
+
+	usleep_range(15000, 17000);
 
 	panel->enabled = true;
 

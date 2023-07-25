@@ -199,6 +199,7 @@
   # i.MX8M Mini
   gArmPlatformTokenSpaceGuid.PcdCoreCount|4
   gArmPlatformTokenSpaceGuid.PcdClusterCount|1
+  gArmPlatformTokenSpaceGuid.PcdPowerButtonEnabled|TRUE
 
   gArmTokenSpaceGuid.PcdVFPEnabled|1
   # i.MX8M Nano Display configuration

@@ -199,3 +199,10 @@ ReadDwordRegistryValue(
     UNICODE_STRING* pRegistryPath,
     WCHAR* pRegKeyName,
     DWORD* pData);
+
+void
+ReadDwordRegistryValue2(
+    HANDLE* phRegKey,
+    WCHAR*  pRegValueName,
+    DWORD*  pData);
+

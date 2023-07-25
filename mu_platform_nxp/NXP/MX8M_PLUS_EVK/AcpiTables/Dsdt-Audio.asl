@@ -2,7 +2,7 @@
 * Description: iMX8M Plus Synchronous Audio Interface (SAI)
 *
 *  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
-*  Copyright 2022 NXP
+*  Copyright 2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -126,4 +126,31 @@ Device (SAI7)
     })
     Return(RBUF)
   }
+}
+
+Device (AHTX)
+{
+  Name (_HID, "NXP0130")
+  Name (_UID, 0x1)
+
+  Method (_STA)
+  {
+    Return(0xF)
+  }
+
+  Method (_CRS, 0x0, NotSerialized) {
+    Name (RBUF, ResourceTemplate () {
+      MEMORY32FIXED(ReadWrite, 0x30CB0000, 0x100, )  /* AUD2HTX - HDMI TX AUDLNK MSTR */
+      Interrupt(ResourceConsumer, Level, ActiveHigh, Shared) { 162 }
+    })
+    Return(RBUF)
+  }
+  Name (_DSD, Package () {
+    ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+        Package (2) {"TX_DMA_REQUEST", SDMA_REQ_AUD2HTX},
+        Package (2) {"TX_DMA_CHNL", 3},
+        Package (2) {"TX_DMA_INSTANCE", 1}
+      }
+  })
 }

@@ -106,17 +106,20 @@ GcKmImx8qxpDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
 
 NTSTATUS
 GcKmImx8qxpDisplay::HwStop(
-    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo)
+    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo,
+    BOOLEAN DoCommitFwFb)
 {
     // Free resources and flip framebuffer to the linear mode
     // but keep display running so when the display/GPU driver
     // is disabled/uninstalled, the desktop should continue to work
     // (with Basic Display Driver).
-    SetupFramebuffer(nullptr,
-        m_PreviousPostDisplayInfo.PhysicAddress.LowPart,
-        GetDrmTileFromHwTile(Linear));
-    dpu_plane_atomic_page_flip(&m_crtc.plane[0]->base, &m_old_plane_state);
-    dpu_crtc_atomic_flush(&m_crtc.base, m_crtc.base.state);
+    if (DoCommitFwFb) {
+        SetupFramebuffer(nullptr,
+            m_PreviousPostDisplayInfo.PhysicAddress.LowPart,
+            GetDrmTileFromHwTile(Linear));
+        dpu_plane_atomic_page_flip(&m_crtc.plane[0]->base, &m_old_plane_state);
+        dpu_crtc_atomic_flush(&m_crtc.base, m_crtc.base.state);
+    }
 
     m_LvdsTransmitter.Stop();
 
@@ -158,7 +161,7 @@ GcKmImx8qxpDisplay::HwSetPowerState(
 
 void
 GcKmImx8qxpDisplay::HwStopScanning(
-    IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
+    D3DDDI_VIDEO_PRESENT_TARGET_ID  TargetId)
 {
     struct drm_encoder* enc = m_LvdsTransmitter.GetEncoder(0);
     NT_ASSERT(enc);
@@ -365,6 +368,9 @@ GcKmImx8qxpDisplay::HwCommitVidPn(
     UINT FrameBufferPhysicalAddress = 0;
     UINT TileMode = 0;
 
+    m_CurSourceModes[0] = { 0 };
+    m_CurTargetModes[0] = { 0 };
+
     if (GcKmdGlobal::s_DriverMode == FullDriver)
     {
         GcKmAllocation* pPrimaryAllocation = (GcKmAllocation*)pCommitVidPn->hPrimaryAllocation;
@@ -406,7 +412,18 @@ GcKmImx8qxpDisplay::HwCommitVidPn(
         return Status;
     }
 
-    return HwAtomicCommit(&vm);
+    Status = HwAtomicCommit(&vm);
+    if (!NT_SUCCESS(Status))
+    {
+        return Status;
+    }
+
+    m_CurSourceModes[0] = *pSourceMode;
+    m_CurTargetModes[0] = *pTargetMode;
+
+    m_bNotifyVSync = true;
+
+    return Status;
 }
 
 NTSTATUS
@@ -524,10 +541,13 @@ GcKmImx8qxpDisplay::HandleVsyncInterrupt(UINT Disp)
     m_InterruptData.CrtcVsync.PhysicalAdapterMask = 1;
     m_InterruptData.Flags.ValidPhysicalAdapterMask = TRUE;
 
-    m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle,
-        &m_InterruptData);
+    if (m_bNotifyVSync)
+    {
+        m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle,
+            &m_InterruptData);
 
-    m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+        m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+    }
 }
 
 BOOLEAN

@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
-   Copyright 2022 NXP
+   Copyright 2022-2023 NXP
    Licensed under the MIT License.
 
 Module Name:
@@ -205,18 +205,10 @@ typedef enum _SDMA_REQ_LINE_ID {
     SDMA_REQ_EXT4 = 99,
     SDMA_REQ_SAI7_TX = 100,
     SDMA_REQ_SAI7_RX = 101,
+    SDMA_REQ_AUD2HTX = 102,
     SDMA_REQ__MAX,
 
 } SDMA_REQ_LINE_ID;
-
-// 
-// The iMX8M SOC has two SDMA controllers so the request line ids must
-// be partitioned across the two controllers. The lower 10 bits encode
-// the request line id
-//
-
-#define SDMA_REQ_LINE_ID_MASK 0x3FF
-#define SDMA_INSTANCE_ID_SHIFT 10
 
 //
 // Unsupported request ID

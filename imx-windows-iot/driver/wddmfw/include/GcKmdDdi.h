@@ -332,6 +332,8 @@ public: // PAGED
 
     static DXGKDDI_UPDATEMONITORLINKINFO DdiUpdateMonitorLinkInfo;
 
+    static DXGKDDI_GET_CHILD_CONTAINER_ID DdiGetChildContainerId;
+
 private: // PAGED
 
 };

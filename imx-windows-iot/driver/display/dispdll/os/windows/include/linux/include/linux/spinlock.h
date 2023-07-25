@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Modifications Copyright 2022 NXP
+ * Modifications Copyright 2022-2023 NXP
  */
 #ifndef __LINUX_SPINLOCK_H
 #define __LINUX_SPINLOCK_H
@@ -8,46 +8,9 @@
 /*
  * include/linux/spinlock.h - generic spinlock/rwlock declarations
  *
- * here's the role of the various spinlock/rwlock related include files:
- *
- * on SMP builds:
- *
- *  asm/spinlock_types.h: contains the arch_spinlock_t/arch_rwlock_t and the
- *                        initializers
- *
  *  linux/spinlock_types.h:
  *                        defines the generic type and initializers
  *
- *  asm/spinlock.h:       contains the arch_spin_*()/etc. lowlevel
- *                        implementations, mostly inline assembly code
- *
- *   (also included on UP-debug builds:)
- *
- *  linux/spinlock_api_smp.h:
- *                        contains the prototypes for the _spin_*() APIs.
- *
- *  linux/spinlock.h:     builds the final spin_*() APIs.
- *
- * on UP builds:
- *
- *  linux/spinlock_type_up.h:
- *                        contains the generic, simplified UP spinlock type.
- *                        (which is an empty structure on non-debug builds)
- *
- *  linux/spinlock_types.h:
- *                        defines the generic type and initializers
- *
- *  linux/spinlock_up.h:
- *                        contains the arch_spin_*()/etc. version of UP
- *                        builds. (which are NOPs on non-debug, non-preempt
- *                        builds)
- *
- *   (included on UP-non-debug builds:)
- *
- *  linux/spinlock_api_up.h:
- *                        builds the _spin_*() APIs.
- *
- *  linux/spinlock.h:     builds the final spin_*() APIs.
  */
 
 #include <linux/compiler.h>
@@ -106,5 +69,15 @@ inline void spin_unlock_irqrestore(spinlock_t *lock,
 	unsigned long flags)
 {
 }
+
+/* Following API is implemented using
+ * KeInitializeSpinLock, KeAcquireSpinLock, KeReleaseSpinLock.
+ * API differs from that above on purpose, because spinlocks from linux code
+ * may be called in different context (irq), so their usage in display driver
+ * must be thoroughly reviewed on a case by case basis:
+ * https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/introduction-to-spin-locks */
+void wspin_lock_init(spinlock_t* lock);
+void wspin_lock_irqsave(spinlock_t* lock, PKIRQL flags);
+void wspin_unlock_irqrestore(spinlock_t* lock, PKIRQL flags);
 
 #endif /* __LINUX_SPINLOCK_H */

@@ -214,6 +214,7 @@
   # i.MX8M Plus
   gArmPlatformTokenSpaceGuid.PcdCoreCount|4
   gArmPlatformTokenSpaceGuid.PcdClusterCount|1
+  gArmPlatformTokenSpaceGuid.PcdPowerButtonEnabled|FALSE
 
   giMX8TokenSpaceGuid.PcdPmicOverDriveEnable|TRUE
 

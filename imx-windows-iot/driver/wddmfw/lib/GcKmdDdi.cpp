@@ -486,8 +486,6 @@ GcKmdDdi::DdiEscape(
 }
 
 
-#if 0
-
 NTSTATUS
 GcKmdDdi::DdiQueryInterface(
     IN_CONST_PVOID          MiniportDeviceContext,
@@ -500,7 +498,6 @@ GcKmdDdi::DdiQueryInterface(
     return pGcKmdAdapter->QueryInterface(QueryInterface);
 }
 
-#endif
 
 NTSTATUS
 GcKmdDdi::DdiQueryChildRelations(
@@ -994,6 +991,20 @@ NTSTATUS GcKmdDisplayDdi::DdiUpdateMonitorLinkInfo(
 
     return GcKmAdapter::Cast(MiniportDeviceContextPtr)->UpdateMonitorLinkInfo(
             UpdateMonitorLinkInfoPtr);
+}
+
+NTSTATUS GcKmdDisplayDdi::DdiGetChildContainerId(
+    VOID* const MiniportDeviceContextPtr,
+    ULONG ChildUid,
+    DXGK_CHILD_CONTAINER_ID* ContainerIdPtr
+    )
+{
+    PAGED_CODE();
+    GC_ASSERT_MAX_IRQL(PASSIVE_LEVEL);
+
+    return GcKmAdapter::Cast(MiniportDeviceContextPtr)->GetChildContainerId(
+            ChildUid,
+            ContainerIdPtr);
 }
 
 GC_PAGED_SEGMENT_END; //=====================================================

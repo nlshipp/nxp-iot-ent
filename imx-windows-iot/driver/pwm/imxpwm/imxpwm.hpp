@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright 2023 NXP
 // Licensed under the MIT License.
 //
 // Module Name:
@@ -148,6 +149,17 @@ struct IMXPWM_DEVICE_CONTEXT {
     // Tracks the active/idle state of the component
     //
     BOOLEAN IsActive;
+	//
+	//Specify if we restore PWM activity after entering D0 power state
+	//
+    BOOLEAN RestorePwmState; 
+	//
+	//Values to restore to PWM controller after enter the D0 state
+	//
+    PWM_PERIOD RestoreDesiredPeriod;
+    PWM_POLARITY RestorePolarity;
+    PWM_PERCENTAGE RestoreActiveDutyCycle;
+
 
 }; // struct IMXPWM_DEVICE_CONTEXT
 

@@ -2,7 +2,7 @@
 *
 *  Copyright (c) 2013-2015, ARM Limited. All rights reserved.
 *  Copyright (c) Microsoft Corporation. All rights reserved.
-*  Copyright 2022 NXP
+*  Copyright 2022, 2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -33,9 +33,45 @@
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/IoLib.h>
 #include <Library/PrintLib.h>
+#include <Library/UefiBootManagerLib.h>
 
 // 7E374E25-8E01-4FEE-87F2-390C23C606CD is the global GUID for the AcpiTable.  
 STATIC CONST EFI_GUID mImx8AcpiTableFile = { 0x7E374E25, 0x8E01, 0x4FEE, {0x87, 0xF2, 0x39, 0x0C, 0x23, 0xC6, 0x06, 0xCD} };
+
+#define DP_NODE_LEN(Type) { (UINT8)sizeof (Type), (UINT8)(sizeof (Type) >> 8) }
+
+#pragma pack (1)
+typedef struct {
+  USB_CLASS_DEVICE_PATH    Keyboard;
+  EFI_DEVICE_PATH_PROTOCOL End;
+} PLATFORM_USB_KEYBOARD;
+#pragma pack ()
+
+STATIC PLATFORM_USB_KEYBOARD mUsbKeyboard = {
+  //
+  // USB_CLASS_DEVICE_PATH Keyboard
+  //
+  {
+    {
+      MESSAGING_DEVICE_PATH, MSG_USB_CLASS_DP,
+      DP_NODE_LEN (USB_CLASS_DEVICE_PATH)
+    },
+    0xFFFF, // VendorId: any
+    0xFFFF, // ProductId: any
+    3,      // DeviceClass: HID
+    1,      // DeviceSubClass: boot
+    1       // DeviceProtocol: keyboard
+  },
+
+  //
+  // EFI_DEVICE_PATH_PROTOCOL End
+  //
+  {
+    END_DEVICE_PATH_TYPE, END_ENTIRE_DEVICE_PATH_SUBTYPE,
+    DP_NODE_LEN (EFI_DEVICE_PATH_PROTOCOL)
+  }
+};
+
 
 EFI_STATUS
 EFIAPI
@@ -46,6 +82,9 @@ iMX8EntryPoint (
 {
   EFI_STATUS            Status;
   EFI_PHYSICAL_ADDRESS  HypBase;
+
+  // NXP BugFix: ConIn variable must be initialized before USB stack is started else Boot Manager application will not be able to detect "ESC" key from USB keyboard
+  EfiBootManagerUpdateConsoleVariable (ConIn, (EFI_DEVICE_PATH_PROTOCOL *)&mUsbKeyboard, NULL);
 
   //
   // Register the EHCI controllers as non-coherent
@@ -59,6 +98,18 @@ iMX8EntryPoint (
              NULL,
              1,
              FixedPcdGet64 (PcdUsb1EhciBaseAddress),
+             SIZE_1MB
+             );
+  ASSERT_EFI_ERROR (Status);
+  #endif
+  #if FixedPcdGet64 (PcdUsb2EhciBaseAddress)
+  Status = RegisterNonDiscoverableMmioDevice (
+             NonDiscoverableDeviceTypeEhci,
+             NonDiscoverableDeviceDmaTypeNonCoherent,
+             NULL,
+             NULL,
+             1,
+             FixedPcdGet64 (PcdUsb2EhciBaseAddress),
              SIZE_1MB
              );
   ASSERT_EFI_ERROR (Status);

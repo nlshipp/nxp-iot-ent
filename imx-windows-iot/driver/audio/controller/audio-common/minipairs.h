@@ -13,6 +13,11 @@ Abstract:
 #include "speakerhpwavtable.h"
 #include "micinhptopotable.h"
 
+#include "hdmitopo.h"
+#include "hdmitoptable.h"
+#include "hdmiwavtable.h"
+
+
 NTSTATUS
 CreateMiniportWaveRTIMXWAV
 ( 
@@ -84,7 +89,7 @@ ENDPOINT_MINIPAIR SpeakerHpMiniports =
 // Render miniport pairs.
 //
 static
-PENDPOINT_MINIPAIR  g_RenderEndpoints[] = 
+PENDPOINT_MINIPAIR  g_RenderEndpoints[] =
 {
     &SpeakerHpMiniports,
 };
@@ -139,3 +144,50 @@ PENDPOINT_MINIPAIR  g_CaptureEndpoints[] =
 #define g_MaxMiniports  ((g_cRenderEndpoints + g_cCaptureEndpoints) * 2)
 
 
+/*********************************************************************
+* Topology/Wave bridge connection for HDMI audio                     *
+*                                                                    *
+*              +------+                +------+                      *
+*              | Wave |                | Topo |                      *
+*              |      |                |      |                      *
+* System   --->|0    1|--------------->|0    1|---> Line Out         *
+*              |      |                |      |                      *
+*              |      |                |      |                      *
+*              +------+                +------+                      *
+*********************************************************************/
+static
+PHYSICALCONNECTIONTABLE HdmiTopologyPhysicalConnections[] =
+{
+    {
+        KSPIN_TOPO_WAVEOUT_SOURCE,  // TopologyIn
+        KSPIN_WAVE_RENDER_SOURCE,  // WaveOut
+        CONNECTIONTYPE_WAVE_OUTPUT
+    }
+};
+
+static
+ENDPOINT_MINIPAIR HdmiMiniports =
+{
+    eHdmiRenderDevice,
+    L"TopologyHdmi",                        // make sure this or the template name matches with KSNAME_TopologyHdmi in the inf's [Strings] section
+    CreateHdmiMiniportTopology,
+    &HdmiTopoMiniportFilterDescriptor,
+    L"WaveHdmi",                            // make sure this or the template name matches with KSNAME_WaveHdmi in the inf's [Strings] section
+    CreateMiniportWaveRTIMXWAV,
+    &HdmiWaveMiniportFilterDescriptor,
+    HDMI_DEVICE_MAX_CHANNELS,
+    HdmiPinDeviceFormatsAndModes,
+    SIZEOF_ARRAY(HdmiPinDeviceFormatsAndModes),
+    HdmiTopologyPhysicalConnections,
+    SIZEOF_ARRAY(HdmiTopologyPhysicalConnections),
+    ENDPOINT_NO_FLAGS,
+};
+
+PENDPOINT_MINIPAIR  g_HdmiEndpoints[] =
+{
+    &HdmiMiniports,
+};
+
+#define g_cHdmiEndpoints  (SIZEOF_ARRAY(g_HdmiEndpoints))
+
+#define g_MaxHdmiMiniports  (g_cHdmiEndpoints * 2)

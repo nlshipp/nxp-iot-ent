@@ -33,7 +33,7 @@
  Provider               = %NXP_VER_VENDOR_NAME_STR%
  CatalogFile            = mrvlpcie8897.cat
  PnpLockDown            = 1
-DriverVer = 10/11/2022,14.52.53.914
+DriverVer = 06/22/2023,14.50.44.327
 
 [ControlFlags]
 ;Exclude all PNP adapters from user selection
@@ -678,7 +678,7 @@ HKR,,ActiveLTR,0x00010001, 0xFFFFFFFF
 ;    Value in us (1024ns), up to 1s
 ;    1000: Enable 1000*1024ns
 ;----------------------------------------------------------------------------
-HKR,,ActiveLTR,0x00010001, 1000
+HKR,,ActiveLTR,0x00010001, 0xFFFFFFFF
 
 [mv15x.services.P2P_ChDef.reg]
 ;----------------------------------------------------------------------------
@@ -699,7 +699,7 @@ HKR,,ActiveLTR,0x00010001, 1000
 ;Note: This setting will have last but second preference in self Operating channel selection
 ;      i.e. higher preference than FW default.
 ;----------------------------------------------------------------------------
- HKR,,OperatingChannel,0x00010001, 0x06
+ HKR,,OperatingChannel,0x00010001, 0xFF
 
 [mv15x_del.services.reg]
 ;----------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 #
 #  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
 #  Copyright (c) 2013-2018, ARM Limited. All rights reserved.
-#  Copyright 2019 NXP
+#  Copyright 2019, 2023 NXP
 #
 #  This program and the accompanying materials
 #  are licensed and made available under the terms and conditions of the BSD License
@@ -20,6 +20,7 @@
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = ArmPlatformLib
   DEFINE BOARD_LIB_COMMON_DIR    = iMX8Pkg/Library/iMX8BoardLib
+  DEFINE I2C_DRIVER_DIR          = iMXPlatformPkg/Library/iMXI2cLib
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -40,6 +41,7 @@
   iMX8ClkPwrLib
   iMXIoMuxLib
   ArmSmcLib
+  iMXI2cLib
 
 [Sources.common]
   iMX8Mem.c
@@ -57,6 +59,8 @@
 
   giMX8TokenSpaceGuid.PcdBank1MemoryBase
   giMX8TokenSpaceGuid.PcdBank1MemorySize
+
+  giMX8TokenSpaceGuid.PcdPmicOverDriveEnable
 
   giMXPlatformTokenSpaceGuid.PcdGlobalDataBaseAddress
   giMXPlatformTokenSpaceGuid.PcdGlobalDataSize

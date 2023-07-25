@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
-   Copyright 2022 NXP
+   Copyright 2022-2023 NXP
    Licensed under the MIT License.
 
 Abstract:
@@ -47,8 +47,10 @@ class CAdapterCommon :
         DWORD                   m_dwIdleRequests;
 
         CM_PARTIAL_RESOURCE_DESCRIPTOR   m_InterruptDescriptor;
+        EventCallback           m_ConnectionStatusCallback;
 
     public:
+
         //=====================================================================
         // Default CUnknown
         DECLARE_STD_UNKNOWN();
@@ -174,6 +176,23 @@ class CAdapterCommon :
                         eDeviceType DeviceType
         );
 
+        STDMETHODIMP_(NTSTATUS) FreeBuffer
+        (
+            _In_        CMiniportWaveRTStream* Stream,
+            eDeviceType                        DeviceType,
+            _In_        PMDL                   Mdl,
+            _In_        ULONG                  Size
+        );
+
+        STDMETHODIMP_(NTSTATUS) AllocBuffer
+        (
+            _In_        CMiniportWaveRTStream* Stream,
+            eDeviceType                        DeviceType,
+            _In_        ULONG                  Size,
+            _Out_       PMDL* pMdl,
+            _Out_       MEMORY_CACHING_TYPE* CacheType
+        );
+
         STDMETHODIMP_(NTSTATUS) StartDma
         (
             _In_        CMiniportWaveRTStream* Stream
@@ -189,7 +208,38 @@ class CAdapterCommon :
             _In_        CMiniportWaveRTStream* Stream
         );
 
+        STDMETHODIMP_(VOID) SetConnectionStatusHandler
+        (
+            _In_opt_    PFNEVENTNOTIFICATION    EventHandler,
+            _In_opt_    PVOID                   EventHandlerContext
+        );
 
+        STDMETHODIMP_(BOOL) GetConnectionStatus(VOID)
+        {
+            return TRUE;
+        }
+
+        STDMETHOD_(VOID, GetContainerId)
+        (
+            THIS_
+            _In_        ULONG                   nPinId,
+            _Out_       GUID*                   ContainerId
+        )
+        {
+            UNREFERENCED_PARAMETER(nPinId);
+            UNREFERENCED_PARAMETER(ContainerId);
+        }
+
+        STDMETHOD_(VOID, UpdateSinkInfo)
+        (
+            THIS_
+            _In_        ULONG                       nPinId,
+            _Out_       PKSJACK_SINK_INFORMATION    SinkInfo
+        )
+        {
+            UNREFERENCED_PARAMETER(nPinId);
+            UNREFERENCED_PARAMETER(SinkInfo);
+        }
         //=====================================================================
         // friends
         friend NTSTATUS         NewAdapterCommon
@@ -2212,6 +2262,41 @@ CAdapterCommon::UnregisterStream
 }
 
 NTSTATUS
+CAdapterCommon::FreeBuffer
+(
+    _In_        CMiniportWaveRTStream* Stream,
+    eDeviceType                        DeviceType,
+    _In_        PMDL                   Mdl,
+    _In_        ULONG                  Size
+)
+{
+    (void)Stream;
+    (void)Mdl;
+    (void)Size;
+    (void)DeviceType;
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+NTSTATUS
+CAdapterCommon::AllocBuffer
+(
+    _In_        CMiniportWaveRTStream* Stream,
+    eDeviceType                        DeviceType,
+    _In_        ULONG                  Size,
+    _Out_       PMDL*                  pMdl,
+    _Out_       MEMORY_CACHING_TYPE* CacheType
+)
+{
+    (void)Stream;
+    (void)Size;
+    (void)pMdl;
+    (void)CacheType;
+    (void)DeviceType;
+
+    return STATUS_NOT_IMPLEMENTED;
+}
+
+NTSTATUS
 CAdapterCommon::StartDma
 (
     _In_        CMiniportWaveRTStream* Stream
@@ -2236,6 +2321,20 @@ CAdapterCommon::PauseDma
 )
 {
     return m_Soc.PauseDma(Stream);    
+}
+
+VOID
+CAdapterCommon::SetConnectionStatusHandler
+(
+    _In_opt_    PFNEVENTNOTIFICATION    EventHandler,
+    _In_opt_    PVOID                   EventHandlerContext
+)
+{
+    PAGED_CODE();
+    DPF_ENTER(("[CAdapterCommon::SetConnectionStatusHandler]"));
+
+    m_ConnectionStatusCallback.Handler = EventHandler; // weak ref.
+    m_ConnectionStatusCallback.Context = EventHandlerContext;
 }
 
 

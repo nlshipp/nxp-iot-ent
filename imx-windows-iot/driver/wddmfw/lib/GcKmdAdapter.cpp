@@ -110,6 +110,12 @@ GcKmAdapter::Start(
 NTSTATUS
 GcKmAdapter::Stop()
 {
+    if (m_hGdiRegKey)
+    {
+        ZwClose(m_hGdiRegKey);
+        m_hGdiRegKey = NULL;
+    }
+
     return STATUS_SUCCESS;
 }
 
@@ -340,24 +346,46 @@ GcKmAdapter::GetStandardAllocationDriverData(
                     break;
                 }
 
+                if (NULL == m_hGdiRegKey)
+                {
+                    UNICODE_STRING      GdiRegPath;
+                    OBJECT_ATTRIBUTES   Attr;
+
+                    RtlInitUnicodeString(&GdiRegPath, L"\\REGISTRY\\MACHINE\\SOFTWARE\\VSI\\GPU\\GdiRedirSurf");
+
+                    InitializeObjectAttributes(
+                        &Attr,
+                        &GdiRegPath,
+                        OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
+                        NULL,
+                        NULL);
+                
+                    Status = ZwOpenKey(&m_hGdiRegKey, KEY_QUERY_VALUE, &Attr);
+                }
+                
+                if (NULL == m_hGdiRegKey)
+                {
+                    break;
+                }
+
+                DWORD   bAllowRedirSurface = 1;
+
+                ReadDwordRegistryValue2(&m_hGdiRegKey, pImagePath->Buffer, &bAllowRedirSurface);
+                if (0 == bAllowRedirSurface)
+                {
+                    return STATUS_NOT_SUPPORTED;
+                }
+
                 WCHAR*  pImageName;
 
                 pImageName = wcsrchr(pImagePath->Buffer, L'\\');
                 pImageName++;
 
-                bool    bRet;
-                DWORD   GdiAccLevel = 2;
-
-                bRet = ReadDwordRegistryValue(
-                        &m_DeviceInfo.DeviceRegistryPath,
-                        pImageName,
-                        &GdiAccLevel);
-
-                if ((true == bRet) && (0 == GdiAccLevel))
+                ReadDwordRegistryValue2(&m_hGdiRegKey, pImageName, &bAllowRedirSurface);
+                if (0 == bAllowRedirSurface)
                 {
                     return STATUS_NOT_SUPPORTED;
                 }
-
             } while (false);
 
             if (pImagePath)
@@ -805,6 +833,18 @@ void GcKmAdapter::DpcRoutine(void)
     // dp nothing other than calling back into dxgk
 
     m_DxgkInterface.DxgkCbNotifyDpc(m_DxgkInterface.DeviceHandle);
+}
+
+NTSTATUS
+GcKmAdapter::QueryInterface(
+    IN_PQUERY_INTERFACE QueryInterface)
+{
+    if (NULL == m_pDisplay)
+    {
+        return STATUS_NOT_SUPPORTED;
+    }
+
+    return m_pDisplay->QueryInterface(QueryInterface);
 }
 
 NTSTATUS

@@ -1,5 +1,6 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
    Licensed under the MIT License.
+   Copyright 2023 NXP
 
 Module Name:
 
@@ -30,7 +31,14 @@ Revision History:
 //
 // -------------------------------------------- Constants and Macro Definitions
 //
+// 
+// The iMX8M SOC has two SDMA controllers so the request line ids must
+// be partitioned across the two controllers. The lower 10 bits encode
+// the request line id
+//
 
+#define SDMA_REQ_LINE_ID_MASK 0x3FF
+#define SDMA_INSTANCE_ID_SHIFT 10
 
 //
 // Max scatter-gather list size

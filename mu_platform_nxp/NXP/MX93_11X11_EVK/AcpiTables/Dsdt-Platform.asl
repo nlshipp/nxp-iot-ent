@@ -18,22 +18,22 @@ OperationRegion(FUSE,SystemMemory,0x47518000,0x1000)
 Field(FUSE, AnyAcc, Nolock, Preserve)
 {
   Offset(0x4EC),
-  MC15, 8,          // 0x660 NET1 MAC address bytes 5,
-  MC14, 8,          // 0x661 NET1 MAC address bytes 4,
-  MC13, 8,          // 0x662 NET1 MAC address bytes 3,
-  MC12, 8,          // 0x663 NET1 MAC address bytes 2,
+  MC15, 8,          // NET1 MAC address bytes
+  MC14, 8,          // NET1 MAC address bytes
+  MC13, 8,          // NET1 MAC address bytes
+  MC12, 8,          // NET1 MAC address bytes
 
   Offset(0x4F0),
-  MC11, 8,          // 0x650 NET1 MAC address bytes 1
-  MC10, 8,          // 0x651 NET1 MAC address bytes 0
-  MC25, 8,          // 0x652 NET2 MAC address bytes 5
-  MC24, 8,          // 0x653 NET2 MAC address bytes 4
+  MC11, 8,          // NET1 MAC address bytes
+  MC10, 8,          // NET1 MAC address bytes
+  MC21, 8,          // NET2 MAC address bytes
+  MC20, 8,          // NET2 MAC address bytes
 
   Offset(0x4F4),
-  MC23, 8,          // 0x640 NET2 MAC address bytes 3
-  MC22, 8,          // 0x641 NET2 MAC address bytes 2
-  MC21, 8,          // 0x642 NET2 MAC address bytes 1
-  MC20, 8,          // 0x643 NET2 MAC address bytes 0
+  MC25, 8,          // NET2 MAC address bytes,
+  MC24, 8,          // NET2 MAC address bytes,
+  MC23, 8,          // NET2 MAC address bytes,
+  MC22, 8,          // NET2 MAC address bytes,
 }
 
 //

@@ -1,5 +1,5 @@
 /*
-* Copyright 2019 NXP
+* Copyright 2019, 2023 NXP
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -92,6 +92,7 @@ VOID MDIOBus_Main(_In_ MP_MDIO_BUS *pMDIOBus)
     MP_MDIO_FRAME*          pActiveFrame, Frame;
     volatile CSP_ENET_REGS* MDIORegs = pMDIOBus->MDIOBus_pRegBase;
     NTSTATUS                Status;
+    MMFR_t                  tmpMMFR;
     PVOID                   MII_Events[MDIO_Events_Count];
     LARGE_INTEGER           DueTime = { .QuadPart = -MDIO_TransferTimeout_ms * (10 * 1000) };
 
@@ -120,28 +121,38 @@ VOID MDIOBus_Main(_In_ MP_MDIO_BUS *pMDIOBus)
                 if ((pMDIODev = pMDIOBus->MDIOBus_pActiveDevice) != NULL) {                                   // Is there a device waiting for transfer end?
                     Frame.MIIFunction = NULL;                                                                 
                     NdisAcquireSpinLock(&pMDIODev->MDIODev_DeviceSpinLock);                                   // Yes, acquire MDIO device frame list spin lock.
+                    tmpMMFR = MDIORegs->MMFR;
                     if ((pActiveFrame = pMDIODev->MDIODev_pPendingFrameListHead) != NULL) {                   // Is there a frame waiting for transfer end?
                         DBG_MDIO_DEV_CMD_PRINT_TRACE("Transfer done. Frame: 0x%p.", pActiveFrame);
                         pMDIODev->MDIODev_pPendingFrameListHead = pActiveFrame->MDIOFrm_pNextFrame;           // Update pending frame list head.
                         pActiveFrame->MDIOFrm_pNextFrame = pMDIODev->MDIODev_pFreeFrameListHead;              // Return frame to the free frame list.
                         pMDIODev->MDIODev_pFreeFrameListHead = pActiveFrame;                                  
                         Frame = *pActiveFrame;                                                                // Create local copy of active frame.
+                        if (pMDIODev->MDIODev_MMFR.U & (1 << (ENET_MMFR_ST_SHIFT + 1))) {                     // Read modify write (RMW) operation?
+                            if (pActiveFrame->MDIOFrm_MMFRRegVal & (1 << (ENET_MMFR_OP_SHIFT + 1))) {         // Read part of RMW operation done?
+                                DBG_MDIO_DEV_CMD_PRINT_TRACE("Read part of RWM done. Return data: 0x%04X Bit to clear: 0x%04X", tmpMMFR.U & 0xFFFF, pActiveFrame->MDIOFrm_MMFRRegVal & 0xFFFF);
+                                pMDIODev->MDIODev_MMFR.U = tmpMMFR.U & ~(pActiveFrame->MDIOFrm_MMFRRegVal);   // Clear requested bits and save this value for write part of RMW operation
+                            }
+                            pMDIODev->MDIODev_MMFR.U &= 0xFFFF;                                               // Preserve only data part of MMFR register
+                        }
                     } else {
                         DBG_MDIO_DEV_CMD_PRINT_TRACE("Transfer done. No frame is active.");
                     }
                     pMDIOBus->MDIOBus_TransferInProgress = FALSE;                                             // Remember that no transfer is pending now.
                     NdisReleaseSpinLock(&pMDIODev->MDIODev_DeviceSpinLock);                                   // Release MDIO device spin lock.
-                    DBG_MDIO_DEV_CMD_PRINT_INFO("Frame done. MMFR: 0x%08X (ST=%d, OP=%s, PHYADR=%d, REG=0x%02X)", MDIORegs->MMFR.U, \
-                        (MDIORegs->MMFR.U >> 30) & 0x03, \
-                        (((MDIORegs->MMFR.U >> 28) & 0x03)==1)?"WRITE":((((MDIORegs->MMFR.U >> 28) & 0x03)==2)?"READ":"UNKNOWN"), \
-                        (MDIORegs->MMFR.U >> 23) & 0x1F, \
-                        (MDIORegs->MMFR.U >> 18) & 0x1F);
+                    DBG_MDIO_DEV_CMD_PRINT_INFO("MMFR: 0x%08X (ST=%d, OP=%s, PHY=%d, REG=0x%02X, DATA=0x%04X)", tmpMMFR.U, \
+                        (tmpMMFR.U >> 30) & 0x03, \
+                        (((tmpMMFR.U >> 28) & 0x03) == 1) ? "WR" : ((((tmpMMFR.U >> 28) & 0x03) == 2) ? "RD" : "UNKNOWN"), \
+                        (tmpMMFR.U >> 23) & 0x1F, \
+                        (tmpMMFR.U >> 18) & 0x1F, \
+                        (tmpMMFR.U & 0xFFFF));
+                    DBG_MDIO_DEV_CMD_PRINT_TRACE("Frame done. MMFR: 0x%08X", tmpMMFR.U);
                     if (pMDIODev->MDIODev_MIIFrameDoneCallback) {
-                        (pMDIODev->MDIODev_MIIFrameDoneCallback)((MDIORegs->MMFR.U & ENET_MMFR_RA_MASK) >> ENET_MMFR_RA_SHIFT, (UINT16)MDIORegs->MMFR.U, pMDIODev->MDIODev_Context);
+                        (pMDIODev->MDIODev_MIIFrameDoneCallback)((tmpMMFR.U & ENET_MMFR_RA_MASK) >> ENET_MMFR_RA_SHIFT, (UINT16)tmpMMFR.U, pMDIODev->MDIODev_Context);
                     }                    
                     if (Frame.MIIFunction) {                                                                  // Callback required?
                         DBG_MDIO_DEV_CMD_PRINT_TRACE("Invoking callback. Frame: 0x%p", pActiveFrame);
-                        (*Frame.MIIFunction)(MDIORegs->MMFR.U, (NDIS_HANDLE)pMDIODev->MDIODev_Context);       // Yes, call the callback.
+                        (*Frame.MIIFunction)(tmpMMFR.U, (NDIS_HANDLE)pMDIODev->MDIODev_Context);              // Yes, call the callback.
                     }
                     pMDIOBus->MDIOBus_pActiveDevice = pMDIOBus->MDIOBus_pActiveDevice->MDIODev_pNextDevice;   // Mark next device in the list as a candiadte to send new frame.
                 } else {
@@ -157,7 +168,17 @@ VOID MDIOBus_Main(_In_ MP_MDIO_BUS *pMDIOBus)
                     do {
                         NdisAcquireSpinLock(&pMDIODev->MDIODev_DeviceSpinLock);                               // Acquire MDIO device spin lock.
                         if ((pActiveFrame = pMDIODev->MDIODev_pPendingFrameListHead) != NULL) {               // Get new frame from pending frame list.
-                            DBG_MDIO_DEV_CMD_PRINT_TRACE("Starting new frame 0x%p.", pActiveFrame);
+                            if (pActiveFrame->MDIOFrm_MMFRRegVal & (1 << (ENET_MMFR_ST_SHIFT + 1))) {         // Read modify write (RMW) operation?
+                                if (pActiveFrame->MDIOFrm_MMFRRegVal & (1 << (ENET_MMFR_OP_SHIFT + 1))) {     // Read part of RMW operation?
+                                    DBG_MDIO_DEV_CMD_PRINT_TRACE("Starting Read part of RWM. Bit to clear: 0x%04X", pActiveFrame->MDIOFrm_MMFRRegVal & 0xFFFF);
+                                    pMDIODev->MDIODev_MMFR.U = pActiveFrame->MDIOFrm_MMFRRegVal;              // Remember what bit of data to clear (Data part of register)
+                                } else {
+                                    DBG_MDIO_DEV_CMD_PRINT_TRACE("Starting Write part of RWM. Bit to set: 0x%04X", pActiveFrame->MDIOFrm_MMFRRegVal);
+                                    pActiveFrame->MDIOFrm_MMFRRegVal |= pMDIODev->MDIODev_MMFR.U;            // Write part of RWM operation, add "Bits to set"
+                                }
+                                pActiveFrame->MDIOFrm_MMFRRegVal &= ~(1 << (ENET_MMFR_ST_SHIFT + 1));         // Clear MMFR bit 31 (This bit is used to mark RMW operation in ACPI)
+                            }
+                            DBG_MDIO_DEV_CMD_PRINT_TRACE("Starting new frame 0x%p. MMFR: 0x%08X", pActiveFrame, pActiveFrame->MDIOFrm_MMFRRegVal);
                             pMDIOBus->MDIOBus_pRegBase->MMFR.U = pActiveFrame->MDIOFrm_MMFRRegVal;            // Write frame register.
                             pMDIOBus->MDIOBus_pRegBase->MSCR.U = pMDIODev->MDIODev_MSCR.U;                    // Write speed and control register.
                             pMDIOBus->MDIOBus_pActiveDevice = pMDIODev;                                       // Mark current device as active device.

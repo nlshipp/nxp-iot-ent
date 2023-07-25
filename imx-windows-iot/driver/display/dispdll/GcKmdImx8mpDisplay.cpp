@@ -89,25 +89,28 @@ GcKmImx8mpDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
 
 NTSTATUS
 GcKmImx8mpDisplay::HwStop(
-    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo)
+    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo,
+    BOOLEAN DoCommitFwFb)
 {
     struct lcdifv3_plane_state plane_state;
     NTSTATUS ret = STATUS_SUCCESS;
 
-    /* page-flip back to firmware framebuffer */
-    if (m_CurSourceModes[0].Format.Graphics.Stride != m_Pitch) {
-        plane_state.format = D3DDDIFMT_A8R8G8B8;
-        plane_state.pitch = m_CurSourceModes[0].Format.Graphics.Stride;
-        plane_state.src_w = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cx;
-        plane_state.src_h = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cy;
-        plane_state.mode_change = true;
+    if (DoCommitFwFb) {
+        /* page-flip back to firmware framebuffer */
+        if (m_CurSourceModes[0].Format.Graphics.Stride != m_Pitch) {
+            plane_state.format = TranslateD3dDdiToDrmFormat(m_CurSourceModes[0].Format.Graphics.PixelFormat);
+            plane_state.pitch = m_CurSourceModes[0].Format.Graphics.Stride;
+            plane_state.src_w = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cx;
+            plane_state.src_h = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cy;
+            plane_state.mode_change = true;
+        }
+        else {
+            plane_state.mode_change = false;
+        }
+        plane_state.fb_addr = m_FbPhysicalAddr.LowPart;
+        lcdifv3_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
+        lcdifv3_crtc_atomic_flush(&lcdif_crtc_pdev);
     }
-    else {
-        plane_state.mode_change = false;
-    }
-    plane_state.fb_addr = m_FbPhysicalAddr.LowPart;
-    lcdifv3_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
-    lcdifv3_crtc_atomic_flush(&lcdif_crtc_pdev);
 
     /* To full stop the hardware, disable display controller: lcdifv3_crtc_atomic_disable(&lcdif_crtc_pdev); */
 
@@ -119,13 +122,13 @@ GcKmImx8mpDisplay::HwStop(
     imx_lcdifv3_remove(&lcdif_pdev);
     board_deinit(&lcdif_pdev);
 
-    /* To full stop the hardware, stop remaining clocks: clk_stop_imx8mp(clk_tree); */
-    clk_deinit_imx8mp(clk_tree);
+    if (!DoCommitFwFb) {
+        clk_stop_imx8mp(clk_tree, imx_lvds);
+    }
+    clk_deinit_imx8mp(clk_tree, imx_lvds);
 
     return ret;
 }
-
-
 
 void
 GcKmImx8mpDisplay::HwSetPowerState(
@@ -138,7 +141,7 @@ GcKmImx8mpDisplay::HwSetPowerState(
 
 void
 GcKmImx8mpDisplay::HwStopScanning(
-    IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
+    D3DDDI_VIDEO_PRESENT_TARGET_ID  TargetId)
 {
     imx8mp_ldb_encoder_disable(&m_LvdsTransmitter.lvds_pdev);
     lcdifv3_crtc_atomic_disable(&lcdif_crtc_pdev);
@@ -189,6 +192,9 @@ GcKmImx8mpDisplay::HwCommitVidPn(
     UINT FrameBufferPhysicalAddress = 0;
     UINT TileMode = 0;
     DXGI_FORMAT ColorFormat;
+
+    m_CurSourceModes[0] = { 0 };
+    m_CurTargetModes[0] = { 0 };
 
     if (GcKmdGlobal::s_DriverMode == FullDriver)
     {
@@ -283,6 +289,11 @@ GcKmImx8mpDisplay::HwCommitVidPn(
         it6263_bridge_enable(&m_LvdsTransmitter.m_i2c_hdmi);
     }
 
+    m_CurSourceModes[0] = *pSourceMode;
+    m_CurTargetModes[0] = *pTargetMode;
+
+    m_bNotifyVSync = true;
+
     return STATUS_SUCCESS;
 }
 
@@ -370,11 +381,17 @@ GcKmImx8mpDisplay::InterruptRoutine(UINT MessageNumber)
         m_InterruptData.CrtcVsync.PhysicalAdapterMask = 1;
         m_InterruptData.Flags.ValidPhysicalAdapterMask = TRUE;
 
-        m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle, &m_InterruptData);
+        if (m_bNotifyVSync)
+        {
+            m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle, &m_InterruptData);
+        }
 
         lcdifv3_clear_vblank(&lcdif_crtc_pdev);
 
-        m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+        if (m_bNotifyVSync)
+        {
+            m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+        }
 
         return TRUE;
     }

@@ -409,9 +409,6 @@
     <ClCompile Include="dpu\dpu-fetchlayer.c">
       <Filter>Source Files\dpu</Filter>
     </ClCompile>
-    <ClCompile Include="os\windows\src\i2c_comm.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="dpu\dpu-framegen.c">
       <Filter>Source Files\dpu</Filter>
     </ClCompile>
@@ -482,6 +479,15 @@
       <Filter>Source Files\mipi_dsi</Filter>
     </ClCompile>
     <ClCompile Include="os\windows\src\comm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="bridge\synopsys\dw-hdmi-gp-audio.c">
+      <Filter>Source Files\bridge\synopsys</Filter>
+    </ClCompile>
+    <ClCompile Include="GcKmdBaseDisplayController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GcKmdImx8mpDisplayController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -937,6 +943,15 @@
       <Filter>Header Files\linux</Filter>
     </ClInclude>
     <ClInclude Include="os\windows\src\comm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GcKmdBaseDisplayController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GcKmdImx8mpDisplayController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GcKmdImx8Display.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

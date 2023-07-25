@@ -544,6 +544,7 @@ NTSTATUS XRpiCamMipi_t::Configure(camera_config_t *aConfigPtr)
         TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "Unsupported resolution requested");
         status = STATUS_INVALID_PARAMETER;
     }
+    DelayMs(50); /* ISP AP1302 requires some delay between START/STOP operation */
 
     return status;
 }
@@ -566,6 +567,8 @@ NTSTATUS XRpiCamMipi_t::Stop()
     if (Status) {
         TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE, "Error while stopping the ISP, Status=0x%08X", Status);
     }
+    DelayMs(50); /* ISP AP1302 requires some delay between START/STOP operation */
+
     return Status;
 }
 

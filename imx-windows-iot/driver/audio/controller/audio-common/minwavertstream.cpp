@@ -1,4 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
+   Copyright 2023 NXP
    Licensed under the MIT License. */
 
 //4127: conditional expression is constant
@@ -246,6 +247,8 @@ CMiniportWaveRTStream::AllocateBufferCommon
 )
 {
     NTSTATUS ntStatus;
+    PMDL pBufferMdl;
+    BOOL allocSupported = true;
 
     PAGED_CODE();
 
@@ -256,49 +259,64 @@ CMiniportWaveRTStream::AllocateBufferCommon
 
     RequestedSize -= RequestedSize % (m_pWfExt->Format.nBlockAlign);
 
-    PHYSICAL_ADDRESS highAddress;
-    highAddress.HighPart = 0;
-    highAddress.LowPart = MAXULONG;
+    ntStatus = m_pAdapterCommon->AllocBuffer(this, m_pMiniport->GetDeviceType(), RequestedSize, &pBufferMdl, CacheType);
 
-    PMDL pBufferMdl = m_pPortStream->AllocatePagesForMdl (highAddress, RequestedSize);
+    if (ntStatus == STATUS_NOT_IMPLEMENTED) {
+        allocSupported = false;
+        // this is fallback in case Adapter does not support DMA
+        PHYSICAL_ADDRESS highAddress;
+        highAddress.HighPart = 0;
+        highAddress.LowPart = MAXULONG;
 
-    if (NULL == pBufferMdl)
-    {
-        return STATUS_UNSUCCESSFUL;
-    }
+        pBufferMdl = m_pPortStream->AllocatePagesForMdl(highAddress, RequestedSize);
 
-    m_DataBuffer = (ULONG*)m_pPortStream->MapAllocatedPages(pBufferMdl, MmCached);
-    if (m_DataBuffer)
-    {
-        m_ulNotificationsPerBuffer = NotificationCount;
-        m_ulDmaBufferSize = RequestedSize;
-
-        ntStatus = m_pAdapterCommon->RegisterStream(this, m_pMiniport->GetDeviceType());
-
-        if (NT_SUCCESS(ntStatus))
+        if (NULL == pBufferMdl)
         {
-            *AudioBufferMdl = pBufferMdl;
-            *ActualSize = RequestedSize;
-            *OffsetFromFirstPage = 0;
-            *CacheType = MmCached;
+            return STATUS_UNSUCCESSFUL;
         }
-        else
+
+        m_DataBuffer = (ULONG*)m_pPortStream->MapAllocatedPages(pBufferMdl, MmCached);
+        if (!m_DataBuffer)
         {
             m_pPortStream->FreePagesFromMdl(pBufferMdl);
-            m_ulDmaBufferSize = 0;
-            m_DataBuffer = NULL;
-            DPF(D_ERROR, ("[CMiniportWaveRTStream::AllocateBufferWithNotification] failed to register stream with CSoc class."));
+            DPF(D_ERROR, ("[CMiniportWaveRTStream::AllocateBufferWithNotification] Could not allocate buffer for audio (FALLBACK)"));
+            return STATUS_INSUFFICIENT_RESOURCES;
         }
-
+        *CacheType = MmCached;
     }
-    else
-    {
-        DPF(D_ERROR, ("[CMiniportWaveRTStream::AllocateBufferWithNotification] Could not allocate buffer for audio."));
+    else if (!NT_SUCCESS(ntStatus)) {
+        DPF(D_ERROR, ("[CMiniportWaveRTStream::AllocateBufferWithNotification] Could not allocate buffer for audio (DMA)"));
         return STATUS_INSUFFICIENT_RESOURCES;
     }
 
-    return ntStatus;
+    m_ulNotificationsPerBuffer = NotificationCount;
+    m_ulDmaBufferSize = RequestedSize;
+    m_DataBufferMdl = pBufferMdl;
 
+    ntStatus = m_pAdapterCommon->RegisterStream(this, m_pMiniport->GetDeviceType());
+
+    if (NT_SUCCESS(ntStatus))
+    {
+        *AudioBufferMdl = pBufferMdl;
+        *ActualSize = RequestedSize;
+        *OffsetFromFirstPage = 0;
+    
+    }
+    else
+    {
+        if (allocSupported) {
+            m_pAdapterCommon->FreeBuffer(this, m_pMiniport->GetDeviceType(), pBufferMdl, RequestedSize);
+        }
+        else {
+            m_pPortStream->UnmapAllocatedPages(m_DataBuffer, pBufferMdl);
+            m_pPortStream->FreePagesFromMdl(pBufferMdl);
+        }
+        m_ulDmaBufferSize = 0;
+        m_DataBuffer = NULL;
+        m_DataBufferMdl = NULL;
+        DPF(D_ERROR, ("[CMiniportWaveRTStream::AllocateBufferWithNotification] failed to register stream with CSoc class."));
+    }
+    return ntStatus;
 }
 
 //=============================================================================
@@ -382,22 +400,27 @@ Return Value:
 
 --*/
 {
-    PAGED_CODE();
+    NTSTATUS ntStatus;
 
+    PAGED_CODE();
     UNREFERENCED_PARAMETER(Size);
 
     m_pAdapterCommon->UnregisterStream(this, m_pMiniport->GetDeviceType());
+    ntStatus = m_pAdapterCommon->FreeBuffer(this, m_pMiniport->GetDeviceType(), Mdl, Size);
 
-    if (Mdl != NULL)
-    {
-        if (m_DataBuffer != NULL)
+    if (ntStatus == STATUS_NOT_IMPLEMENTED) {
+        // Fallback
+        if (Mdl != NULL)
         {
-            m_pPortStream->UnmapAllocatedPages(m_DataBuffer, Mdl);
-            m_DataBuffer = NULL;
+            if (m_DataBuffer != NULL)
+            {
+                m_pPortStream->UnmapAllocatedPages(m_DataBuffer, Mdl);
+                m_DataBuffer = NULL;
+            }
+
+            m_pPortStream->FreePagesFromMdl(Mdl);
+            Mdl = NULL;
         }
-        
-        m_pPortStream->FreePagesFromMdl(Mdl);
-        Mdl = NULL;
     }
 
     m_ulNotificationsPerBuffer = 0;
@@ -947,9 +970,6 @@ Return Value:
 
 --*/
 {
-    DPF_ENTER(("[CMiniportWaveRTStream::UpdateVirtualPositionRegisters]"));
-
-
     ULONG oldPosition, newPosition;
     BOOLEAN updateClients = FALSE;
 

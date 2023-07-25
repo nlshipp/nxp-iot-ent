@@ -26,6 +26,8 @@
 #include "GcKmdEmuAdapter.h"
 #include "GcKmd7LUtil.h"
 #include "GcKmdContext.h"
+#include "GcKmdGlobal.h"
+#include "GcKmdUtil.h"
 
 
 void* GcKmEmuAdapter::operator new(size_t size)
@@ -106,6 +108,33 @@ GcKmEmuAdapter::QueryAdapterInfo(
     case DXGKQAITYPE_DISPLAY_DRIVERCAPS_EXTENSION:
     case DXGKQAITYPE_DISPLAYID_DESCRIPTOR:
         return STATUS_NOT_SUPPORTED;
+
+    case DXGKQAITYPE_DRIVERCAPS:
+    {
+        NTSTATUS Status = GcKmAdapter::QueryAdapterInfo(pQueryAdapterInfo);
+
+        // Set these to make emulator a high-performance discrete hybrid GPU
+        if (NT_SUCCESS(Status))
+        {
+            DWORD FeatureEnabled = 0;
+            bool EnableHybridAdapter = false;
+            if (ReadDwordRegistryValue(&m_DeviceInfo.DeviceRegistryPath, L"D3D9Hybrid", &FeatureEnabled))
+            {
+                EnableHybridAdapter = FeatureEnabled == 1;
+            }
+
+            if (EnableHybridAdapter)
+            {
+                DXGK_DRIVERCAPS* pDriverCaps = (DXGK_DRIVERCAPS*)pQueryAdapterInfo->pOutputData;
+
+                pDriverCaps->HybridDiscrete = TRUE;
+                pDriverCaps->MiscCaps.Detachable = 1;
+                pDriverCaps->MemoryManagementCaps.CrossAdapterResource = 1;
+            }
+        }
+
+        return Status;
+    }
 
     default:
         return GcKmAdapter::QueryAdapterInfo(pQueryAdapterInfo);

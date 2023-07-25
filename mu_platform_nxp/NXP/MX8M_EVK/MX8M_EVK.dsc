@@ -215,6 +215,7 @@
   # i.MX8M Quad
   gArmPlatformTokenSpaceGuid.PcdCoreCount|4
   gArmPlatformTokenSpaceGuid.PcdClusterCount|1
+  gArmPlatformTokenSpaceGuid.PcdPowerButtonEnabled|TRUE
 
   gArmTokenSpaceGuid.PcdVFPEnabled|1
 

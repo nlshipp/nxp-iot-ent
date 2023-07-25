@@ -71,6 +71,7 @@ static const struct imx_pll_rate_table videopll_tab_24m_mipi[] = {
     PLL_RATE(135000000U,540000000U, 180, 2, 2, 0, 27000000U), /* 135 MHz pixel clock */
     PLL_RATE(67500000U, 540000000U, 180, 2, 2, 0, 27000000U), /* 67.5 MHz pixel clock */
     PLL_RATE(106500000U,426000000U, 284, 2, 3, 0, 28400000U), /* 106.50 MHz pixel clock */
+    PLL_RATE(71000000U, 426000000U, 284, 2, 3, 0, 28400000U), /* 71.00 MHz pixel clock */
     PLL_RATE(121750000U,365250000U, 487, 2, 4, 0, 24350000U), /* 121.75 MHz pixel clock */
     PLL_RATE(78800000U, 394000000U, 394, 3, 3, 0, 19700000U), /* 78.8 MHz pixel clock */
     PLL_RATE(146250000U,292500000U, 390, 2, 4, 0, 22500000U), /* 146.25 MHz pixel clock */
@@ -95,6 +96,7 @@ static const struct imx_pll_rate_table videopll_tab_24m_lvds[] = {
     PLL_RATE(106500000U,745500000U, 497, 4, 2, 0, 0), /* 106.50 MHz pixel clock */
     PLL_RATE(101000000U,707000000U, 707, 6, 2, 0, 0), /* 101 MHz pixel clock */
     PLL_RATE(74250000U, 519750000U, 693, 8, 2, 0, 0), /* 74.25 MHz pixel clock */
+    PLL_RATE(71000000U, 497000000U, 497, 6, 2, 0, 0), /* 71 MHz pixel clock */
     PLL_RATE(67500000U, 472500000U, 315, 4, 2, 0, 0), /* 67.5 MHz pixel clock */
     PLL_RATE(65000000U, 455000000U, 455, 6, 2, 0, 0), /* 65 MHz pixel clock */
     PLL_RATE(49500000U, 346500000U, 231, 2, 3, 0, 0), /* 49.5 MHz pixel clock */

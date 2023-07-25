@@ -690,7 +690,8 @@ void IMX_PEP::executePlatformIdleArmOff (PEP_PPM_IDLE_EXECUTE_V2* ArgsPtr)
 
     this->updateGpcInterruptController();
 
-    BOOLEAN usePsci = IMX_CPU_TYPE(cpuRevision) != IMX_CPU_MX8QXP;
+    //BOOLEAN usePsci = IMX_CPU_TYPE(cpuRevision) != IMX_CPU_MX8QXP;
+    BOOLEAN usePsci = FALSE; // Needs more integration and testing with imx_atf subsystem before imx_atf can be used
 
     if (usePsci) {
         PSCI_CPU_SUSPEND_POWER_STATE state = {};

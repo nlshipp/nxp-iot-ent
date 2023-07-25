@@ -16,6 +16,9 @@
 
 #include "edidparser.h"
 
+#include <initguid.h>
+#include "imx8mpHdmiDevint.hpp"
+
 extern "C" {
 #include "linux/interrupt.h"
 #include "boot/dts/freescale/board.h"
@@ -104,25 +107,28 @@ GcKmImx8mpHdmiDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
 
 NTSTATUS
 GcKmImx8mpHdmiDisplay::HwStop(
-    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo)
+    DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo,
+    BOOLEAN DoCommitFwFb)
 {
     struct lcdifv3_plane_state plane_state;
     NTSTATUS ret = STATUS_SUCCESS;
 
-    /* page-flip back to firmware framebuffer */
-    if (m_CurSourceModes[0].Format.Graphics.Stride != m_Pitch) {
-        plane_state.format = D3DDDIFMT_A8R8G8B8;
-        plane_state.pitch = m_CurSourceModes[0].Format.Graphics.Stride;
-        plane_state.src_w = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cx;
-        plane_state.src_h = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cy;
-        plane_state.mode_change = true;
+    if (DoCommitFwFb) {
+        /* page-flip back to firmware framebuffer */
+        if (m_CurSourceModes[0].Format.Graphics.Stride != m_Pitch) {
+            plane_state.format = TranslateD3dDdiToDrmFormat(m_CurSourceModes[0].Format.Graphics.PixelFormat);
+            plane_state.pitch = m_CurSourceModes[0].Format.Graphics.Stride;
+            plane_state.src_w = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cx;
+            plane_state.src_h = m_CurSourceModes[0].Format.Graphics.VisibleRegionSize.cy;
+            plane_state.mode_change = true;
+        }
+        else {
+            plane_state.mode_change = false;
+        }
+        plane_state.fb_addr = m_FbPhysicalAddr.LowPart;
+        lcdifv3_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
+        lcdifv3_crtc_atomic_flush(&lcdif_crtc_pdev);
     }
-    else {
-        plane_state.mode_change = false;
-    }
-    plane_state.fb_addr = m_FbPhysicalAddr.LowPart;
-    lcdifv3_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
-    lcdifv3_crtc_atomic_flush(&lcdif_crtc_pdev);
 
     /* To full stop the hardware, disable display controller: lcdifv3_crtc_atomic_disable(&lcdif_crtc_pdev); */
 
@@ -135,8 +141,10 @@ GcKmImx8mpHdmiDisplay::HwStop(
     imx_irqsteer_remove(&irqsteer_pdev);
     board_deinit(&lcdif_pdev);
 
-    /* To full stop the hardware, stop remaining clocks: clk_stop_imx8mp(clk_tree); */
-    clk_deinit_imx8mp(clk_tree);
+    if (!DoCommitFwFb) {
+        clk_stop_imx8mp(clk_tree, imx_hdmi);
+    }
+    clk_deinit_imx8mp(clk_tree, imx_hdmi);
 
     printk_debug("GcKmImx8mpHdmiDisplay::HwStop returned %s\n", (ret == STATUS_SUCCESS) ? "STATUS_SUCCESS" : "ERROR");
     return ret;
@@ -153,10 +161,76 @@ GcKmImx8mpHdmiDisplay::HwSetPowerState(
 
 void
 GcKmImx8mpHdmiDisplay::HwStopScanning(
-    IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
+    D3DDDI_VIDEO_PRESENT_TARGET_ID  TargetId)
 {
     dw_hdmi_bridge_atomic_disable(&m_DwHdmiTransmitter.hdmi_pdev);
     lcdifv3_crtc_atomic_disable(&lcdif_crtc_pdev);
+}
+
+VOID DeviceInterfaceReference(_In_ PVOID Context)
+{
+    UNREFERENCED_PARAMETER(Context);
+}
+
+VOID DeviceInterfaceDereference(_In_ PVOID Context)
+{
+    UNREFERENCED_PARAMETER(Context);
+}
+
+int GcKmImx8mpHdmiDisplay::AudioSetHwParams(
+    IN GcKmImx8mpHdmiDisplay* pThis,
+    IN struct imx8mp_hdmi_audio_params* pAudioParams)
+{
+    return audio_hw_params(&pThis->m_DwHdmiTransmitter.hdmi_pdev, pAudioParams);
+}
+
+int GcKmImx8mpHdmiDisplay::AudioMuteStream(
+    IN GcKmImx8mpHdmiDisplay* pThis,
+    IN BOOLEAN  Enable)
+{
+    return audio_mute_stream(&pThis->m_DwHdmiTransmitter.hdmi_pdev, Enable);
+}
+
+int GcKmImx8mpHdmiDisplay::AudioGetContainerId(
+    IN GcKmImx8mpHdmiDisplay* pThis,
+    OUT DXGK_CHILD_CONTAINER_ID* pContainerId)
+{
+    *pContainerId = pThis->m_ContainerId;
+
+    return 0;
+}
+
+NTSTATUS
+GcKmImx8mpHdmiDisplay::QueryInterface(
+    IN_PQUERY_INTERFACE pQueryInterface)
+{
+    if (RtlEqualMemory(
+        pQueryInterface->InterfaceType,
+        &GUID_DEVINTERFACE_IMX8_PLUS_HDMI_AUDIO,
+        sizeof(GUID)) &&
+        (pQueryInterface->Version == IMX8_PLUS_HDMI_AUDIO_INTERFACE_VERSION) &&
+        (pQueryInterface->Size == sizeof(Imx8mpHdmiAudioInterface)) &&
+        audio_is_supported(&m_DwHdmiTransmitter.hdmi_pdev))
+    {
+        Imx8mpHdmiAudioInterface* pIfHdmiAudio = (Imx8mpHdmiAudioInterface*)pQueryInterface->Interface;
+
+        NT_ASSERT(pQueryInterface->DeviceUid == BaseTransmitter::HDMI_CHILD_UID);
+
+        pIfHdmiAudio->Size = sizeof(Imx8mpHdmiAudioInterface);
+        pIfHdmiAudio->Version = IMX8_PLUS_HDMI_AUDIO_INTERFACE_VERSION;
+        pIfHdmiAudio->InterfaceReference = (PINTERFACE_REFERENCE)&DeviceInterfaceReference;
+        pIfHdmiAudio->InterfaceDereference = (PINTERFACE_DEREFERENCE)&DeviceInterfaceDereference;
+        pIfHdmiAudio->Context = this;
+        pIfHdmiAudio->AudioSetHwParams = (PAUDIO_SET_HW_PARAMS)&AudioSetHwParams;
+        pIfHdmiAudio->AudioMuteStream = (PAUDIO_MUTE_STREAM)&AudioMuteStream;
+        pIfHdmiAudio->AudioGetContainerId = (PAUDIO_GET_CONTAINER_ID)&AudioGetContainerId;
+
+        printk_debug("GcKmImx8mpHdmiDisplay::QueryInterface: interface GUID_DEVINTERFACE_IMX8_PLUS_HDMI_AUDIO successfult queried.\n");
+
+        return STATUS_SUCCESS;
+    }
+
+    return STATUS_NOT_SUPPORTED;
 }
 
 GC_PAGED_SEGMENT_END; //========================================================
@@ -204,6 +278,9 @@ GcKmImx8mpHdmiDisplay::HwCommitVidPn(
     UINT FrameBufferPhysicalAddress = 0;
     UINT TileMode = 0;
     DXGI_FORMAT ColorFormat;
+
+    m_CurSourceModes[0] = { 0 };
+    m_CurTargetModes[0] = { 0 };
 
     if (GcKmdGlobal::s_DriverMode == FullDriver)
     {
@@ -287,7 +364,64 @@ GcKmImx8mpHdmiDisplay::HwCommitVidPn(
     lcdifv3_crtc_atomic_enable(&lcdif_crtc_pdev);
     dw_hdmi_bridge_atomic_enable(&m_DwHdmiTransmitter.hdmi_pdev);
 
+    m_CurSourceModes[0] = *pSourceMode;
+    m_CurTargetModes[0] = *pTargetMode;
+
+    m_bNotifyVSync = true;
+
     return STATUS_SUCCESS;
+}
+
+NTSTATUS
+GcKmImx8mpHdmiDisplay::RecommendMonitorModes(
+    IN_CONST_PDXGKARG_RECOMMENDMONITORMODES_CONST   pRecommendMonitorMode)
+{
+    NTSTATUS Status;
+
+    Status = GcKmBaseDisplay::RecommendMonitorModes(pRecommendMonitorMode);
+    if (!NT_SUCCESS(Status))
+    {
+        return Status;
+    }
+
+    if ((!m_bNativeMonitorModeSet) ||
+        (m_NativeMonitorMode.VideoSignalInfo.ActiveSize.cx < 1280) ||
+        (m_NativeMonitorMode.VideoSignalInfo.ActiveSize.cy <= 800))
+    {
+        return STATUS_SUCCESS;
+    }
+
+    auto hModeSet = pRecommendMonitorMode->hMonitorSourceModeSet;
+    auto Interface = pRecommendMonitorMode->pMonitorSourceModeSetInterface;
+    D3DKMDT_MONITOR_SOURCE_MODE* pMode12X8 = NULL;
+
+    Status = Interface->pfnCreateNewModeInfo(hModeSet, &pMode12X8);
+    if (!NT_SUCCESS(Status))
+    {
+        return Status;
+    }
+
+    // D3DKMDT_MONITOR_SOURCE_MODE::Id is set by pfnCreateNewModeInfo()
+
+    pMode12X8->VideoSignalInfo.VideoStandard = D3DKMDT_VSS_OTHER;
+
+    // See g_StandardModeTimings for details of 1280x800x60 mode
+    //
+    pMode12X8->VideoSignalInfo.TotalSize = { 1440, 823 };
+    pMode12X8->VideoSignalInfo.ActiveSize = { 1280, 800 };
+    pMode12X8->VideoSignalInfo.VSyncFreq = { 71000000, 1440*823 };
+    pMode12X8->VideoSignalInfo.HSyncFreq = { 71000000, 1440 };
+    pMode12X8->VideoSignalInfo.PixelRate = 71000000;
+    pMode12X8->VideoSignalInfo.ScanLineOrdering = D3DDDI_VSSLO_PROGRESSIVE;
+
+    pMode12X8->ColorBasis = D3DKMDT_CB_SRGB;
+
+    pMode12X8->ColorCoeffDynamicRanges = { 8, 8, 8, 0 };
+
+    pMode12X8->Origin = D3DKMDT_MCO_DRIVER;
+    pMode12X8->Preference = D3DKMDT_MP_NOTPREFERRED;
+
+    return Interface->pfnAddMode(hModeSet, pMode12X8);
 }
 
 NTSTATUS
@@ -386,11 +520,17 @@ GcKmImx8mpHdmiDisplay::InterruptRoutine(UINT MessageNumber)
         m_InterruptData.CrtcVsync.PhysicalAdapterMask = 1;
         m_InterruptData.Flags.ValidPhysicalAdapterMask = TRUE;
 
-        m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle, &m_InterruptData);
+        if (m_bNotifyVSync)
+        {
+            m_pDxgkInterface->DxgkCbNotifyInterrupt(m_pDxgkInterface->DeviceHandle, &m_InterruptData);
+        }
 
         lcdifv3_clear_vblank(&lcdif_crtc_pdev);
 
-        m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+        if (m_bNotifyVSync)
+        {
+            m_pDxgkInterface->DxgkCbQueueDpc(m_pDxgkInterface->DeviceHandle);
+        }
 
         ret = TRUE;
     }

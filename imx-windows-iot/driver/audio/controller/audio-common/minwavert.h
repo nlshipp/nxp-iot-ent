@@ -294,7 +294,8 @@ protected:
     {
         PAGED_CODE();
 
-        return (m_DeviceType == eSpeakerHpDevice) ? TRUE : FALSE;
+        return ((m_DeviceType == eSpeakerHpDevice) ||
+                (m_DeviceType == eHdmiRenderDevice)) ? TRUE : FALSE;
     }
 
     BOOL IsSystemCapturePin(ULONG nPinId)

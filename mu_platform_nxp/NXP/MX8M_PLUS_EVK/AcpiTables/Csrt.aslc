@@ -53,7 +53,7 @@ typedef struct {
 // SDMA controller group descriptor
 typedef struct {
   EFI_ACPI_5_0_CSRT_RESOURCE_GROUP_HEADER Header;
-  RD_SDMA Sdma[1];
+  RD_SDMA Sdma[2];
 } RG_SDMA;
 
 // CSRT structure for this platform
@@ -108,6 +108,20 @@ EFI_ACPI_CSRT_TABLE Csrt =
         IOMUXC_GPR_BASE_ADDRESS,              // IoMuxGPR0 physical address
         SDMA1_IRQ,                            // IRQ number
         IMX_SDMA_CORE_CLOCK_TWICE_CORE_FREQ,  // DMA/SDMA Core Clock Ratio
+      },
+      // SDMA controller (SDMA2)
+      {
+        {
+          sizeof (RD_SDMA),                           // Resource Descriptor Length
+          EFI_ACPI_CSRT_RD_TYPE_DMA,                  // Resource Type
+          EFI_ACPI_CSRT_RD_SUBTYPE_DMA_CONTROLLER,    // Resource Subtype
+          1,                                          // UID
+        },
+        0,                                    // IMX_CHIP_TYPE (not used)
+        SDMA2_BASE_ADDRESS,                   // SDMA registers base physical address
+        IOMUXC_GPR_BASE_ADDRESS,              // IoMuxGPR0 physical address
+        SDMA2_IRQ,                            // IRQ number
+        IMX_SDMA_CORE_CLOCK_EQUALS_CORE_FREQ, // DMA/SDMA Core Clock Ratio
       },
     }
   }

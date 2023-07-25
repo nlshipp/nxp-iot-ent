@@ -214,7 +214,7 @@
   giMX8TokenSpaceGuid.PcdDisplayEnable|TRUE
   giMX8TokenSpaceGuid.PcdDisplayInterface|1
   giMX8TokenSpaceGuid.PcdDisplayI2CBaseAddr|0x44340000
-  giMX8TokenSpaceGuid.PcdDisplayReadEDID|FALSE
+  giMX8TokenSpaceGuid.PcdDisplayReadEDID|TRUE
   giMX8TokenSpaceGuid.PcdDisplayForceConverterMaxResolution|TRUE
 
   #
@@ -300,6 +300,7 @@
   # USB
   #
   giMX8TokenSpaceGuid.PcdUsb1EhciBaseAddress|0x4C100100
+  giMX8TokenSpaceGuid.PcdUsb2EhciBaseAddress|0x4C200100
 
 [PcdsPatchableInModule]
   # Use system default resolution
