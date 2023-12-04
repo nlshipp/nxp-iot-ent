@@ -76,3 +76,49 @@ Device (PEP0)
   }
 }
 
+// Power button device description, see PWRB in ACPI 6.x Manual
+Device(PWRB) {
+    Name(_HID, EISAID("PNP0C0C"))
+    Name(_UID, 0)
+    Method (_STA, 0x0, NotSerialized) {
+        Return (0xF)
+    }
+    Name(_PRW, Package(){0, 0x4})
+    
+    // BBNSM = 93's Battery Back Non-Secure Module (replacement for SNVS module in M-Scales)
+    OperationRegion (BBNS, SystemMemory, 0x44440000, 0x10000)
+    Field (BBNS, DWordAcc, NoLock, Preserve)
+    {
+        Offset(0x0014),
+        BBEV, 32, // BBNSM Events Register 
+    }
+}
+
+// Generic Event Device - for power button interrupt 73 (73+32=105)
+// See iMX Reference Manual: The interrupt 73 (GSIV = 105 = 32 + 73) comes from 
+// BBNSM ON-OFF button press shorter than 5 secs (pulse event)
+Device (GED1)
+{
+    Name(_HID,"ACPI0013")
+    Name(_CRS, ResourceTemplate ()
+    {
+        Interrupt(ResourceConsumer, Level, ActiveHigh, ExclusiveAndWake) {105}
+    })
+
+    Method (_EVT,1) { // Handle all ACPI Events signaled by the Generic Event Device(GED1)
+        Switch (Arg0) // Arg0 = GSIV of the interrupt
+        {
+            Case (105) {
+                If (\_SB.PWRB.BBEV & 0x00000020) // Bit 5  ... Set Power Off Event = power button was pressed
+                {
+                    Local0 = \_SB.PWRB.BBEV
+                    \_SB.PWRB.BBEV = Local0  // Writing to the SPO bit will clear the set_pwr_off_irq interrupt 
+                                             // (also in GIC GICD_ICPENDR1 offset 0x284)
+                    Local1 = \_SB.PWRB.BBEV  // Read back to verify that the bit was cleared
+                    Notify(\_SB.PWRB, 0x80)  // Notify OS of event
+                }
+            }
+        }
+    }
+} // End of Scope
+

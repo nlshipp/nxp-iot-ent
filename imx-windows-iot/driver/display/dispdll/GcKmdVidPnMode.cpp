@@ -102,7 +102,10 @@ GcKmBaseDisplay::ProcessSourceModeSet(
 
     if (bModeSetNeedsUpdate)
     {
-        Status = AddNewSourceModeSet(pVidPnInterface, pEnumCofuncModality->hConstrainingVidPn, pVidPnPath->VidPnSourceId, SupportStandardModes());
+        const D3DDDIFORMAT* pFormatList;
+        UINT NumFormats = GetFormatList(&pFormatList);
+
+        Status = AddNewSourceModeSet(pVidPnInterface, pEnumCofuncModality->hConstrainingVidPn, pVidPnPath->VidPnSourceId, SupportStandardModes(), pFormatList, NumFormats);
         RETURN_ON_FAILURE(Status);
     }
 
@@ -168,7 +171,9 @@ GcKmBaseDisplay::AddNewSourceModeSet(
     const DXGK_VIDPN_INTERFACE* pVidPnInterface,
     D3DKMDT_HVIDPN hVidPn,
     D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId,
-    bool bSupportStandardModes)
+    bool bSupportStandardModes,
+    const D3DDDIFORMAT* pFormatList,
+    UINT NumFormats)
 {
     // Create a new source mode set.
     D3DKMDT_HVIDPNSOURCEMODESET hSourceModeSet = 0;
@@ -186,7 +191,7 @@ GcKmBaseDisplay::AddNewSourceModeSet(
             DEBUG_CHECK(Status);
         });
 
-    Status = AddNewSourceModeInfo(hSourceModeSet, pSourceModeSetInterface, bSupportStandardModes);
+    Status = AddNewSourceModeInfo(hSourceModeSet, pSourceModeSetInterface, bSupportStandardModes, pFormatList, NumFormats);
     RETURN_ON_FAILURE(Status);
 
     Status = pVidPnInterface->pfnAssignSourceModeSet(
@@ -239,7 +244,9 @@ NTSTATUS
 GcKmBaseDisplay::AddNewSourceModeInfo(
     D3DKMDT_HVIDPNSOURCEMODESET hSourceModeSet,
     const DXGK_VIDPNSOURCEMODESET_INTERFACE* pSourceModeSetInterface,
-    bool bSupportStandardModes)
+    bool bSupportStandardModes,
+    const D3DDDIFORMAT* pFormatList,
+    UINT NumFormats)
 {
     D3DKMDT_VIDPN_SOURCE_MODE* pSourceModeInfo = NULL;
     auto Status = pSourceModeSetInterface->pfnCreateNewModeInfo(hSourceModeSet, &pSourceModeInfo);
@@ -267,21 +274,18 @@ GcKmBaseDisplay::AddNewSourceModeInfo(
 
     ModeInfoGuard.Deactivate();
 
-    if (!bSupportStandardModes)
-    {
-        return STATUS_SUCCESS;
-    }
-
     const D3DKMDT_2DREGION BaseModeSize = BaseSourceModeInfo.Format.Graphics.PrimSurfSize;
 
     int i = g_NumStandardModeTimings - 1;
 
     do
     {
+        UINT FormatStart = 0;
+
         if ((g_StandardModeTimings[i].hactive == BaseModeSize.cx) &&
             (g_StandardModeTimings[i].vactive == BaseModeSize.cy))
         {
-            continue;
+            FormatStart = 1;
         }
 
         if ((g_StandardModeTimings[i].hactive > BaseModeSize.cx) ||
@@ -290,16 +294,10 @@ GcKmBaseDisplay::AddNewSourceModeInfo(
             continue;
         }
 
-        D3DKMDT_VIDPN_SOURCE_MODE* pSourceModeInfo = NULL;
-        auto Status = pSourceModeSetInterface->pfnCreateNewModeInfo(hSourceModeSet, &pSourceModeInfo);
-        if (STATUS_SUCCESS != Status)
-        {
-            break;
-        }
+        D3DKMDT_VIDPN_SOURCE_MODE SourceMode;
+        auto& Graphics = SourceMode.Format.Graphics;
 
-        auto& Graphics = pSourceModeInfo->Format.Graphics;
-
-        pSourceModeInfo->Type = BaseSourceModeInfo.Type;
+        SourceMode.Type = BaseSourceModeInfo.Type;
         Graphics = BaseSourceModeInfo.Format.Graphics;
 
         Graphics.PrimSurfSize.cx = g_StandardModeTimings[i].hactive;
@@ -307,12 +305,39 @@ GcKmBaseDisplay::AddNewSourceModeInfo(
 
         Graphics.VisibleRegionSize = Graphics.PrimSurfSize;
 
-        Graphics.Stride = Graphics.PrimSurfSize.cx * 4;
+        Graphics.Stride = Graphics.PrimSurfSize.cx*4;
 
-        Status = pSourceModeSetInterface->pfnAddMode(hSourceModeSet, pSourceModeInfo);
+        D3DKMDT_VIDPN_SOURCE_MODE* pSourceModeInfo = NULL;
+
+        for (UINT j = FormatStart; j < NumFormats; j++)
+        {
+            Status = pSourceModeSetInterface->pfnCreateNewModeInfo(hSourceModeSet, &pSourceModeInfo);
+            if (STATUS_SUCCESS != Status)
+            {
+                break;
+            }
+
+            auto Id = pSourceModeInfo->Id;
+            *pSourceModeInfo = SourceMode;
+            pSourceModeInfo->Id = Id;
+
+            pSourceModeInfo->Format.Graphics.PixelFormat = pFormatList[j];
+
+            Status = pSourceModeSetInterface->pfnAddMode(hSourceModeSet, pSourceModeInfo);
+            if (STATUS_SUCCESS != Status)
+            {
+                pSourceModeSetInterface->pfnReleaseModeInfo(hSourceModeSet, pSourceModeInfo);
+                break;
+            }
+        }
+
         if (STATUS_SUCCESS != Status)
         {
-            pSourceModeSetInterface->pfnReleaseModeInfo(hSourceModeSet, pSourceModeInfo);
+            break;
+        }
+
+        if ((FormatStart > 0) && (!bSupportStandardModes))
+        {
             break;
         }
     } while (--i >= 0);

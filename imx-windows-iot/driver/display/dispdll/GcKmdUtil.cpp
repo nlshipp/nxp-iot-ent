@@ -40,11 +40,12 @@ operator delete(
 
 GC_NONPAGED_SEGMENT_END; //================================================
 
-_Use_decl_annotations_
+//_Use_decl_annotations_
 UINT32 TranslateDxgiToDrmFormat(DXGI_FORMAT format)
 {
     switch (format) {
     case DXGI_FORMAT_B8G8R8A8_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
         return DRM_FORMAT_ARGB8888;
     case DXGI_FORMAT_B8G8R8X8_UNORM:
         return DRM_FORMAT_XRGB8888;
@@ -53,13 +54,14 @@ UINT32 TranslateDxgiToDrmFormat(DXGI_FORMAT format)
     case DXGI_FORMAT_B5G5R5A1_UNORM:
         return DRM_FORMAT_ARGB1555;
     case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
         return DRM_FORMAT_ABGR8888;
     default:
         return DRM_FORMAT_INVALID;
     }
 }
 
-_Use_decl_annotations_
+//_Use_decl_annotations_
 UINT32 TranslateD3dDdiToDrmFormat(D3DDDIFORMAT Format)
 {
     switch (Format) {
@@ -78,7 +80,7 @@ UINT32 TranslateD3dDdiToDrmFormat(D3DDDIFORMAT Format)
     }
 }
 
-_Use_decl_annotations_
+//_Use_decl_annotations_
 DXGI_FORMAT
 TranslateD3dDdiToDxgiFormat(
     D3DDDIFORMAT Format)
@@ -167,7 +169,7 @@ TranslateD3dDdiToDxgiFormat(
     }
 }
 
-_Use_decl_annotations_
+//_Use_decl_annotations_
 UINT64 GetDrmTileFromHwTile(Gc7LHwTileMode TileMode)
 {
     switch (TileMode) {

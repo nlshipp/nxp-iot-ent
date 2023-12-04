@@ -2,6 +2,7 @@
 
   Copyright (c) 2006 - 2008, Intel Corporation
   Copyright (c) 2018 Microsoft Corporation. All rights reserved.
+  Copyright 2023 NXP
 
   All rights reserved. This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -16,7 +17,11 @@
 #include <Library/BaseLib.h>
 #include <Library/IoLib.h>
 #include <Library/SerialPortLib.h>
+#include <Uefi/UefiSpec.h>
+#include <Library/UefiRuntimeLib.h>
 #include <iMXUart.h>
+
+static MX6UART_REGISTERS *UartBase = NULL;
 
 /**
   Initialize the serial device hardware.
@@ -35,7 +40,6 @@ SerialPortInitialize (
   VOID
   )
 {
-  MX6UART_REGISTERS   *UartBase;
   UINT32              Data;
 
   UartBase = (MX6UART_REGISTERS*)FixedPcdGet32 (PcdSerialRegisterBase);
@@ -46,6 +50,25 @@ SerialPortInitialize (
   }
 
   return RETURN_SUCCESS;
+}
+
+
+/**
+  Remap the pointers to virtual addresses.
+
+  @retval RETURN_SUCCESS        The pointer conversion success.
+  @retval RETURN_DEVICE_ERROR   The pointer conversion failed.
+
+**/
+RETURN_STATUS
+EFIAPI
+SerialPortLibAddressChangeEvent (
+  VOID
+  )
+{
+  EFI_STATUS Status;
+  Status = EfiConvertPointer (0, (VOID **) &UartBase);
+  return Status;
 }
 
 /**
@@ -73,10 +96,13 @@ SerialPortWrite (
   IN  UINTN   NumberOfBytes
   )
 {
-  MX6UART_REGISTERS   *UartBase;
   UINTN               BytesSent;
 
-  UartBase = (MX6UART_REGISTERS*)FixedPcdGet32 (PcdSerialRegisterBase);
+  if (UartBase == NULL) {
+      //In an early exception the SerialPortInitialize might not be called
+      UartBase = (MX6UART_REGISTERS*)FixedPcdGet32 (PcdSerialRegisterBase);
+  }
+
   BytesSent = 0;
   while (BytesSent < NumberOfBytes) {
     // Check if FIFO is full and wait if it is.

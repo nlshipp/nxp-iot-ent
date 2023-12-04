@@ -32,6 +32,7 @@ public:
     (
         _In_ PCM_PARTIAL_RESOURCE_DESCRIPTOR registersDescriptor,
         _In_ PCM_PARTIAL_RESOURCE_DESCRIPTOR interruptDescriptor,
+        _In_ PCM_PARTIAL_RESOURCE_DESCRIPTOR txDmaResourcePtr,
         _In_ PDEVICE_OBJECT PDO
     ) = 0;
 
@@ -66,7 +67,7 @@ public:
     (
         _In_        CMiniportWaveRTStream* Stream,
         eDeviceType                        DeviceType,
-        _In_        ULONG                  Size,
+        _Inout_     PULONG                 Size,
         _Out_       PMDL*                  pMdl,
         _Out_       MEMORY_CACHING_TYPE*   CacheType
     ) = 0;

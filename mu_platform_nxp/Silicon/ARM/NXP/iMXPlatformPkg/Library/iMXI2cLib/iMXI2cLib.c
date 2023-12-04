@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) 2018 Microsoft Corporation. All rights reserved.
-*  Copyright 2020, 2022 NXP
+*  Copyright 2020, 2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -193,11 +193,11 @@ iMXI2cSetupController (
     Divider = I2cContext->ReferenceFrequency / I2cContext->TargetFrequency;
     for (DividerCount = 0; DividerCount < ARRAY_SIZE(mDividerValue); ++DividerCount) {
       if (mDividerValue[DividerCount].Divider >= Divider) {
-        DEBUG ((DEBUG_INFO,
+        /*DEBUG ((DEBUG_INFO,
                 "%a: Divider %d I2cClockRate 0x%02x\n",
                 __FUNCTION__,
                 mDividerValue[DividerCount].Divider,
-                mDividerValue[DividerCount].I2cClockRate));
+                mDividerValue[DividerCount].I2cClockRate));*/
         DividerData.IC = mDividerValue[DividerCount].I2cClockRate;
         break;
       }

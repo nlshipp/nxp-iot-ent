@@ -319,7 +319,7 @@
   # Camera
   #
   # Configuration of camera type connected to CSI1 and CSI2 port
-  giMX8TokenSpaceGuid.PcdCsi1CameraOv5640|0x1
+  giMX8TokenSpaceGuid.PcdCsi1CameraOv5640|0x0
   giMX8TokenSpaceGuid.PcdCsi1CameraOv10635|0x0
 
   #

@@ -80,8 +80,9 @@ public:
 private:
 
     void SetupFramebuffer(
-        const D3DKMDT_VIDPN_SOURCE_MODE* pSourceMode,
         UINT FrameBufferPhysicalAddress,
+        UINT Pitch,
+        UINT DrmFormat,
         UINT64 TileMode);
 
     void SetupPlaneState(
@@ -93,6 +94,7 @@ private:
         const D3DKMDT_VIDPN_TARGET_MODE* pTargetMode,
         struct videomode* vm,
         UINT FrameBufferPhysicalAddress,
+        UINT Pitch,
         UINT TileMode);
 
     void HwAtomicCommit(struct videomode* vm);

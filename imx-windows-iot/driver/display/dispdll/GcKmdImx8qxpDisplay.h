@@ -21,11 +21,24 @@ extern "C" {
 
 }
 
+struct Imx8qxpDisplayPDEVs {
+    struct platform_device *p_prg_pdev;
+    struct platform_device *p_dprc_pdev;
+    struct platform_device *p_dpu_pdev;
+    struct platform_device *p_client_devices;
+    struct platform_device *p_irqsteer_pdev;
+    UINT* p_refCount;
+};
+
+static const INT PRG_CNT = 9;
+static const INT DPRC_CNT = 6;
+static const INT CLIENT_DEVICE_CNT = 3;
+
 class GcKmImx8qxpDisplay : public GcKmBaseDisplay
 {
 public:
 
-    GcKmImx8qxpDisplay()
+    GcKmImx8qxpDisplay(struct DisplayInterface *di, struct Imx8qxpDisplayPDEVs *pdevs)
     {
         m_FrontBufferSegmentOffset.QuadPart = 0L;
         m_OldFbPhysicalAddress = 0L;
@@ -45,8 +58,28 @@ public:
         m_old_plane_state.fb = &m_old_fb;
         m_irqsteer_pdev = {};
         m_clk_tree = nullptr;
-        m_ipc_id = {};
-        m_DispctrlIsEnabled = TRUE;
+        RtlCopyMemory(&m_di, di, sizeof(struct DisplayInterface));
+        //For now just assign plane 0 to LVDS0 (dpu stream 0), plane 1 for LVDS1 (dpi stream 1)
+        m_PlaneId = m_di.DisplayInterfaceIndex;
+        if (pdevs) {
+            /* Multi display - use provided pdev objects*/
+            m_p_dpu_pdev = pdevs->p_dpu_pdev;
+            m_p_irqsteer_pdev = pdevs->p_irqsteer_pdev;
+            m_p_prg_pdev = pdevs->p_prg_pdev;
+            m_p_dprc_pdev = pdevs->p_dprc_pdev;
+            m_p_client_devices = pdevs->p_client_devices;
+            m_p_refCount = pdevs->p_refCount;
+        }
+        else {
+            /* Single display - use local pdev objects*/
+            m_p_dpu_pdev = &m_dpu_pdev;
+            m_p_irqsteer_pdev = &m_irqsteer_pdev;
+            m_p_prg_pdev = m_prg_pdev;
+            m_p_dprc_pdev = m_dprc_pdev;
+            m_p_client_devices = m_client_devices;
+            m_p_refCount = &m_refCount;
+            m_refCount = 0;
+        }
     }
 
     virtual NTSTATUS HwStart(DXGKRNL_INTERFACE* pDxgkInterface) override;
@@ -83,8 +116,9 @@ public:
 private:
 
     void SetupFramebuffer(
-        const D3DKMDT_VIDPN_SOURCE_MODE* pSourceMode,
         UINT FrameBufferPhysicalAddress,
+        UINT Pitch,
+        UINT DrmFormat,
         UINT64 TileMode);
 
     void SetupPlaneState(
@@ -96,6 +130,7 @@ private:
         const D3DKMDT_VIDPN_TARGET_MODE* pTargetMode,
         struct videomode* vm,
         UINT FrameBufferPhysicalAddress,
+        UINT Pitch,
         UINT TileMode);
 
     NTSTATUS HwAtomicCommit(struct videomode* vm);
@@ -107,8 +142,6 @@ private:
         ULONG I2CId,
         LARGE_INTEGER* pI2CConnectionId);
 
-    bool m_DispctrlIsEnabled;
-
     QxpLvdsTransmitter m_LvdsTransmitter;
 
     DXGKARGCB_NOTIFY_INTERRUPT_DATA m_InterruptData;
@@ -117,17 +150,18 @@ private:
 
     ULONG m_OldFbPhysicalAddress;
 
-    static const INT PRG_CNT = 9;
     struct platform_device m_prg_pdev[PRG_CNT];
+    struct platform_device *m_p_prg_pdev;
 
-    static const INT DPRC_CNT = 6;
     struct platform_device m_dprc_pdev[DPRC_CNT];
+    struct platform_device *m_p_dprc_pdev;
 
     struct platform_device m_dpu_pdev;
+    struct platform_device *m_p_dpu_pdev;
     struct dpu_soc *m_dpu;
 
-    static const INT CLIENT_DEVICE_CNT = 3;
     struct platform_device m_client_devices[CLIENT_DEVICE_CNT];
+    struct platform_device *m_p_client_devices;
 
     struct dpu_crtc m_crtc;
     struct dpu_crtc_state m_crtc_state;
@@ -140,9 +174,13 @@ private:
     struct drm_framebuffer m_old_fb;
 
     struct platform_device m_irqsteer_pdev;
+    struct platform_device *m_p_irqsteer_pdev;
 
     struct imx8qxp_clk_device *m_clk_tree;
 
-    sc_ipc_id_struct_t m_ipc_id;
+    struct DisplayInterface m_di;
+    UINT m_PlaneId;
+    UINT m_refCount; //reference count to display objects
+    UINT *m_p_refCount;
 };
 

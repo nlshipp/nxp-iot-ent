@@ -45,11 +45,18 @@ typedef union _D3dKmGetAdapterCaps
     UINT                AdapterCaps;
 } D3dKmGetAdapterCaps, D3dKmAdapterCaps;
 
+typedef struct _D3dKmCheckDirectFlip
+{
+    D3DKMT_HANDLE       hAllocation;
+    BOOL                bSupported;
+} D3dKmCheckDirectFlip;
+
 typedef enum _D3dKmEscapeType
 {
     D3D_KM_ESCAPE_UPDATE_IMAGE_INFO = 'UImI',
     D3D_KM_ESCAPE_GET_TILE_MODE_CAP = 'QTMO',
-    D3D_KM_ESCAPE_GET_ADAPTER_CAPS  = 'GADC'
+    D3D_KM_ESCAPE_GET_ADAPTER_CAPS  = 'GADC',
+    D3D_KM_ESCAPE_CHECK_DIRECT_FLIP = 'CDFL'
 } D3dKmEscapeType;
 
 typedef struct _D3dKmEscape
@@ -62,6 +69,7 @@ typedef struct _D3dKmEscape
         D3dKmUpdateImageInfo    UpdateImageInfo;
         D3dKmGetTileModeCap     GetTileModeCap;
         D3dKmGetAdapterCaps     GetAdapterCaps;
+        D3dKmCheckDirectFlip    CheckDirectFlip;
     };
 } D3dKmEscape;
 

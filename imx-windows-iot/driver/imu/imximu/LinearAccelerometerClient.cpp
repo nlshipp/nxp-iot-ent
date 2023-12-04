@@ -257,6 +257,11 @@ LinearAccelerometerDevice::Initialize(
 
         m_DataRate = GetDataRateFromReportInterval(LinearAccelerometerDevice_DefaultDataRate);
 
+        m_fifo_enabled = false;
+        m_batch_latency = DEFAULT_BATCH_LATENCY;
+        m_fifo_size = DEFAULT_BATCH_SAMPLE_COUNT;
+        m_max_fifo_samples = SENSOR_FIFORESERVEDSIZE_SAMPLES_ACC;
+
         SENSOR_COLLECTION_LIST_INIT(m_pSensorProperties, Size);
         m_pSensorProperties->Count = SENSOR_PROPERTY_COUNT;
 
@@ -280,6 +285,18 @@ LinearAccelerometerDevice::Initialize(
         m_pSensorProperties->List[SENSOR_PROPERTY_TYPE].Key = PKEY_Sensor_Type;
         InitPropVariantFromCLSID(GUID_SensorType_LinearAccelerometer,
                                      &(m_pSensorProperties->List[SENSOR_PROPERTY_TYPE].Value));
+
+        m_pSensorProperties->List[SENSOR_PROPERTY_FIFORESERVEDSIZE_SAMPLES].Key = PKEY_Sensor_FifoReservedSize_Samples;
+        InitPropVariantFromUInt32(SENSOR_FIFORESERVEDSIZE_SAMPLES_ACC,
+            &(m_pSensorProperties->List[SENSOR_PROPERTY_FIFORESERVEDSIZE_SAMPLES].Value));
+
+        m_pSensorProperties->List[SENSOR_PROPERTY_FIFO_MAXSIZE_SAMPLES].Key = PKEY_Sensor_FifoMaxSize_Samples;
+        InitPropVariantFromUInt32(SENSOR_FIFO_MAXSIZE_SAMPLES,
+            &(m_pSensorProperties->List[SENSOR_PROPERTY_FIFO_MAXSIZE_SAMPLES].Value));
+
+        m_pSensorProperties->List[SENSOR_PROPERTY_WAKE_CAPABLE].Key = PKEY_Sensor_WakeCapable;
+        InitPropVariantFromBoolean(SENSOR_WAKE_CAPABLE,
+            &(m_pSensorProperties->List[SENSOR_PROPERTY_WAKE_CAPABLE].Value));
     }
 
     //
@@ -392,67 +409,89 @@ LinearAccelerometerDevice::GetData(
     )
 {
     BOOLEAN DataReady = FALSE;
-    FILETIME TimeStamp = {0};
     NTSTATUS Status = STATUS_SUCCESS;
 
     SENSOR_FunctionEnter();
 
     // Read the device data
     BYTE DataBuffer[LSM6DSOX_DATA_REPORT_SIZE_BYTES]; // Burst-read mode 2x amount of data
-    WdfWaitLockAcquire(m_I2CWaitLock, NULL);
-    Status = I2CSensorReadRegister(m_I2CIoTarget, LSM6DSOX_OUTX_L_A, &DataBuffer[0], sizeof(DataBuffer));
-    WdfWaitLockRelease(m_I2CWaitLock);
-    if (!NT_SUCCESS(Status))
+
+    FILETIME Timestamp = { 0 };
+    ULARGE_INTEGER ulTimestamp;
+    const DWORD sampleInterval = 10000 * m_DataRate.DataRateInterval; //Time between samples in FIFO stack in nanoseconds
+    GetSystemTimePreciseAsFileTime(&Timestamp);
+
+    //Since first sample in FIFO buffer is the oldest one, we calculate its correct timestamp by subtracting time interval between samples multiplied by size of FIFO buffer from current timestamp
+    ulTimestamp.LowPart = Timestamp.dwLowDateTime;
+    ulTimestamp.HighPart = Timestamp.dwHighDateTime;
+    ulTimestamp.QuadPart = ulTimestamp.QuadPart - (ULONGLONG)sampleInterval * (m_fifo_size - 1);
+    Timestamp.dwLowDateTime = ulTimestamp.LowPart;
+    Timestamp.dwHighDateTime = ulTimestamp.HighPart;
+
+    UCHAR regAddress = m_fifo_enabled ? LSM6DSOX_FIFO_DATA_OUT_X_L : LSM6DSOX_OUTX_L_A;
+
+    for (ULONG i = 0; i < m_fifo_size; i++)
     {
-        TraceError("IMU %!FUNC! I2CSensorReadRegister from 0x%02x failed! %!STATUS!", LSM6DSOX_OUTX_L_A, Status);
-    }
-    else
-    {
-        // Perform data conversion
-        SHORT xRaw = static_cast<SHORT>(((DataBuffer[1] << 8) | DataBuffer[0]));
-        SHORT yRaw = static_cast<SHORT>(((DataBuffer[3] << 8) | DataBuffer[2]));
-        SHORT zRaw = static_cast<SHORT>(((DataBuffer[5] << 8) | DataBuffer[4]));
-
-        const float ScaleFactor = LinearAccelerometerDevice_Resolution;
-        VEC3D Sample = {};
-        Sample.X = static_cast<float>(xRaw * ScaleFactor);
-        Sample.Y = static_cast<float>(yRaw * ScaleFactor);
-        Sample.Z = static_cast<float>(zRaw * ScaleFactor);
-
-        // Set data ready if this is the first sample or we have exceeded the thresholds
-        if (m_FirstSample)
+        WdfWaitLockAcquire(m_I2CWaitLock, NULL);
+        Status = I2CSensorReadRegister(m_I2CIoTarget, regAddress, &DataBuffer[0], sizeof(DataBuffer));
+        WdfWaitLockRelease(m_I2CWaitLock);
+        if (!NT_SUCCESS(Status))
         {
-            m_FirstSample = false;
-            DataReady = true;
-        }
-        else if ((fabsf(Sample.X - m_LastSample.Axis.X) >= m_CachedThresholds.Axis.X) ||
-                 (fabsf(Sample.Y - m_LastSample.Axis.Y) >= m_CachedThresholds.Axis.Y) ||
-                 (fabsf(Sample.Z - m_LastSample.Axis.Z) >= m_CachedThresholds.Axis.Z))
-        {
-            DataReady = true;
-        }
-
-        if (DataReady)
-        {
-            // Update values for SW thresholding and send data to class extension
-            m_LastSample.Axis.X = Sample.X;
-            m_LastSample.Axis.Y = Sample.Y;
-            m_LastSample.Axis.Z = Sample.Z;
-
-            // Save the data in the context
-            InitPropVariantFromFloat(Sample.X, &(m_pSensorData->List[LINEAR_ACCELEROMETER_DATA_X].Value));
-            InitPropVariantFromFloat(Sample.Y, &(m_pSensorData->List[LINEAR_ACCELEROMETER_DATA_Y].Value));
-            InitPropVariantFromFloat(Sample.Z, &(m_pSensorData->List[LINEAR_ACCELEROMETER_DATA_Z].Value));
-
-            FILETIME Timestamp = {};
-            GetSystemTimePreciseAsFileTime(&Timestamp);
-            InitPropVariantFromFileTime(&Timestamp, &(m_pSensorData->List[LINEAR_ACCELEROMETER_DATA_TIMESTAMP].Value));
-
-            SensorsCxSensorDataReady(m_SensorInstance, m_pSensorData);
+            TraceError("IMU %!FUNC! I2CSensorReadRegister from 0x%02x failed! %!STATUS!", regAddress, Status);
         }
         else
         {
-            TraceInformation("IMU %!FUNC! Data did NOT meet the threshold");
+            // Perform data conversion
+            SHORT xRaw = static_cast<SHORT>(((DataBuffer[1] << 8) | DataBuffer[0]));
+            SHORT yRaw = static_cast<SHORT>(((DataBuffer[3] << 8) | DataBuffer[2]));
+            SHORT zRaw = static_cast<SHORT>(((DataBuffer[5] << 8) | DataBuffer[4]));
+
+            const float ScaleFactor = LinearAccelerometerDevice_Resolution;
+            VEC3D Sample = {};
+            Sample.X = static_cast<float>(xRaw * ScaleFactor);
+            Sample.Y = static_cast<float>(yRaw * ScaleFactor);
+            Sample.Z = static_cast<float>(zRaw * ScaleFactor);
+
+            // Set data ready if this is the first sample or we have exceeded the thresholds
+            if (m_FirstSample)
+            {
+                m_FirstSample = false;
+                DataReady = true;
+            }
+            else if ((fabsf(Sample.X - m_LastSample.Axis.X) >= m_CachedThresholds.Axis.X) ||
+                     (fabsf(Sample.Y - m_LastSample.Axis.Y) >= m_CachedThresholds.Axis.Y) ||
+                     (fabsf(Sample.Z - m_LastSample.Axis.Z) >= m_CachedThresholds.Axis.Z))
+            {
+                DataReady = true;
+            }
+
+            if (DataReady)
+            {
+                // Update values for SW thresholding and send data to class extension
+                m_LastSample.Axis.X = Sample.X;
+                m_LastSample.Axis.Y = Sample.Y;
+                m_LastSample.Axis.Z = Sample.Z;
+
+                // Save the data in the context
+                InitPropVariantFromFloat(Sample.X, &(m_pSensorData->List[LINEAR_ACCELEROMETER_DATA_X].Value));
+                InitPropVariantFromFloat(Sample.Y, &(m_pSensorData->List[LINEAR_ACCELEROMETER_DATA_Y].Value));
+                InitPropVariantFromFloat(Sample.Z, &(m_pSensorData->List[LINEAR_ACCELEROMETER_DATA_Z].Value));
+
+                InitPropVariantFromFileTime(&Timestamp, &(m_pSensorData->List[LINEAR_ACCELEROMETER_DATA_TIMESTAMP].Value));
+
+                SensorsCxSensorDataReady(m_SensorInstance, m_pSensorData);
+            }
+            else
+            {
+                TraceInformation("IMU %!FUNC! Data did NOT meet the threshold");
+            }
+
+            //Calculate correct timestamp by adding data interval to timestamp of previous sample
+            ulTimestamp.LowPart = Timestamp.dwLowDateTime;
+            ulTimestamp.HighPart = Timestamp.dwHighDateTime;
+            ulTimestamp.QuadPart = ulTimestamp.QuadPart + sampleInterval;
+            Timestamp.dwLowDateTime = ulTimestamp.LowPart;
+            Timestamp.dwHighDateTime = ulTimestamp.HighPart;
         }
     }
 
@@ -560,6 +599,60 @@ LinearAccelerometerDevice::UpdateDataInterval(
             WdfWaitLockRelease(m_I2CWaitLock);
             goto Exit;
         }
+
+        if (m_fifo_enabled)
+        {
+            TraceInformation("SENSOR START FIFO");
+            ULONG desiredSampleCount = m_batch_latency / m_DataRate.DataRateInterval;
+            ULONG sampleCountToSet = min(desiredSampleCount, m_max_fifo_samples);
+            sampleCountToSet = sampleCountToSet;
+
+            //Set watermark threshold in registers LSM6DSOX_FIFO_CTRL1 and LSM6DSOX_FIFO_CTRL2
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL1;
+            RegisterSetting.Value = (uint8_t)sampleCountToSet;//Watermark[7:0]
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL2;
+            RegisterSetting.Value = (uint8_t)(((sampleCountToSet >> 8) & 1));//Watermark[8]
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            //Set fifo poll rate
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL3;
+            RegisterSetting.Value = m_DataRate.RateCode >> LSM6DSOX_FIFO_CTRL3_XL_DATARATE_SHIFT;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL4;
+            RegisterSetting.Value = LSM6DSOX_FIFO_CTRL4_FIFO_MODE_ENABLE;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            m_fifo_size = sampleCountToSet;
+        }
+
     }
 
     if (m_DataRate.DataRateInterval > SENSOR_HIGH_PERFORMANCE_THRESHOLD_INTERVAL)
@@ -577,6 +670,168 @@ LinearAccelerometerDevice::UpdateDataInterval(
 Exit:
     SENSOR_FunctionExit(Status);
     return Status;
+}
+
+NTSTATUS
+LinearAccelerometerDevice::UpdateBatchLatency(
+    _In_ ULONG batchLatencyMs
+    )
+{
+    SENSOR_FunctionEnter();
+
+    NTSTATUS Status = STATUS_SUCCESS;
+    REGISTER_SETTING RegisterSetting = { 0,0 };
+
+    m_FirstSample = true;
+    
+    if (m_Started)
+    {
+        if (batchLatencyMs == 0)
+        {
+            WdfWaitLockAcquire(m_I2CWaitLock, NULL);
+
+            RegisterSetting.Register = LSM6DSOX_INT1_CTRL;
+            RegisterSetting.Value = LSM6DSOX_INT1_CTRL_DRDY_G_ENABLE | LSM6DSOX_INT1_CTRL_DRDY_XL_ENABLE;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL1;
+            RegisterSetting.Value = 0;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL2;
+            RegisterSetting.Value = 0;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL3;
+            RegisterSetting.Value = LSM6DSOX_FIFO_CTRL3_BDR_XL_NOT_BATCHED | LSM6DSOX_FIFO_CTRL3_BDR_GY_NOT_BATCHED;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL4;
+            RegisterSetting.Value = LSM6DSOX_FIFO_CTRL4_FIFO_MODE_DISABLE;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+
+            m_fifo_enabled = false;
+            m_batch_latency = 0;
+            m_fifo_size = DEFAULT_BATCH_SAMPLE_COUNT;
+        }
+        else {
+            ULONG desiredSampleCount = m_batch_latency / m_DataRate.DataRateInterval;
+            ULONG sampleCountToSet = min(desiredSampleCount, m_max_fifo_samples);
+            sampleCountToSet = sampleCountToSet;
+
+            WdfWaitLockAcquire(m_I2CWaitLock, NULL);
+            //Disable data ready interrupts and enable FIFO Interrupts
+            RegisterSetting.Register = LSM6DSOX_INT1_CTRL;
+            RegisterSetting.Value = LSM6DSOX_INT1_CTRL_DRDY_G_ENABLE | LSM6DSOX_INT1_CTRL_FIFO_TH_MASK;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            //Set watermark threshold in registers LSM6DSOX_FIFO_CTRL1 and LSM6DSOX_FIFO_CTRL2
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL1;
+            RegisterSetting.Value = (uint8_t)sampleCountToSet;//Watermark[7:0]
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL2;
+            RegisterSetting.Value = (uint8_t)(((sampleCountToSet >> 8) & 1));//Watermark[8]
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            //Set fifo poll rate
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL3;
+            RegisterSetting.Value = m_DataRate.RateCode >> LSM6DSOX_FIFO_CTRL3_XL_DATARATE_SHIFT;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            RegisterSetting.Register = LSM6DSOX_FIFO_CTRL4;
+            RegisterSetting.Value = LSM6DSOX_FIFO_CTRL4_FIFO_MODE_ENABLE;
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                WdfWaitLockRelease(m_I2CWaitLock);
+                goto Exit;
+            }
+
+            WdfWaitLockRelease(m_I2CWaitLock);
+
+            m_fifo_size = sampleCountToSet;
+            m_batch_latency = batchLatencyMs;
+            m_fifo_enabled = true;
+        }
+    } 
+    else {
+        if (batchLatencyMs == 0)
+        {
+            m_fifo_enabled = false;
+            m_batch_latency = 0;
+            m_fifo_size = DEFAULT_BATCH_SAMPLE_COUNT;
+            
+        }
+        else {
+            m_fifo_enabled = true;
+            m_batch_latency = batchLatencyMs;
+            ULONG desiredSampleCount = batchLatencyMs / m_DataRate.DataRateInterval;
+            m_fifo_size = min(desiredSampleCount, m_max_fifo_samples);
+        }
+    }
+    goto Exit;
+Exit:
+    SENSOR_FunctionExit(Status);
+    return Status;
+
 }
 
 //------------------------------------------------------------------------------
@@ -597,18 +852,85 @@ LinearAccelerometerDevice::StartSensor(
     NTSTATUS Status = STATUS_SUCCESS;
     REGISTER_SETTING RegisterSetting = { 0, 0 };
 
+    
     SENSOR_FunctionEnter();
 
     // Set IMU to active mode
     RegisterSetting = { LSM6DSOX_CTRL1_XL, m_DataRate.RateCode };
     WdfWaitLockAcquire(m_I2CWaitLock, NULL);
     Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
-    WdfWaitLockRelease(m_I2CWaitLock);
     if (!NT_SUCCESS(Status))
     {
         TraceError("IMU %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
         goto Exit;
     }
+
+
+    if (m_fifo_enabled)
+    {
+        ULONG desiredSampleCount = m_batch_latency / m_DataRate.DataRateInterval;
+        ULONG sampleCountToSet = min(desiredSampleCount, m_max_fifo_samples);
+        sampleCountToSet = sampleCountToSet;
+
+        //Disable data ready interrupts and enable FIFO Interrupts
+        RegisterSetting.Register = LSM6DSOX_INT1_CTRL; 
+        RegisterSetting.Value = LSM6DSOX_INT1_CTRL_DRDY_G_ENABLE | LSM6DSOX_INT1_CTRL_FIFO_TH_MASK;
+        Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+        if (!NT_SUCCESS(Status))
+        {
+            TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+            WdfWaitLockRelease(m_I2CWaitLock);
+            goto Exit;
+        }
+
+        //Set watermark threshold in registers LSM6DSOX_FIFO_CTRL1 and LSM6DSOX_FIFO_CTRL2
+
+        RegisterSetting.Register = LSM6DSOX_FIFO_CTRL1;
+        RegisterSetting.Value = (uint8_t)sampleCountToSet;//Watermark[7:0]
+        Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+        if (!NT_SUCCESS(Status))
+        {
+            TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+            WdfWaitLockRelease(m_I2CWaitLock);
+            goto Exit;
+        }
+
+        RegisterSetting.Register = LSM6DSOX_FIFO_CTRL2; 
+        RegisterSetting.Value = (uint8_t)(((sampleCountToSet >> 8) & 1));//Watermark[8]
+        Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+        if (!NT_SUCCESS(Status))
+        {
+            TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+            WdfWaitLockRelease(m_I2CWaitLock);
+            goto Exit;
+        }
+
+        //Set fifo poll rate
+        RegisterSetting.Register = LSM6DSOX_FIFO_CTRL3;
+        RegisterSetting.Value = m_DataRate.RateCode >> LSM6DSOX_FIFO_CTRL3_XL_DATARATE_SHIFT;
+        Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+        if (!NT_SUCCESS(Status))
+        {
+            TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+            WdfWaitLockRelease(m_I2CWaitLock);
+            goto Exit;
+        }
+
+        //Enable fifo
+        RegisterSetting.Register = LSM6DSOX_FIFO_CTRL4;
+        RegisterSetting.Value = LSM6DSOX_FIFO_CTRL4_FIFO_MODE_ENABLE;
+        Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+        if (!NT_SUCCESS(Status))
+        {
+            TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+            WdfWaitLockRelease(m_I2CWaitLock);
+            goto Exit;
+        }
+
+
+        m_fifo_size = sampleCountToSet;
+    }
+    WdfWaitLockRelease(m_I2CWaitLock);
     m_Started = true;
 
 Exit:
@@ -635,17 +957,19 @@ LinearAccelerometerDevice::StopSensor(
     REGISTER_SETTING RegisterSetting = { 0, 0 };
 
     SENSOR_FunctionEnter();
+    WdfWaitLockAcquire(m_I2CWaitLock, NULL);
 
     // Set IMU to power-down mode
     RegisterSetting = { LSM6DSOX_CTRL1_XL, LSM6DSOX_CTRL1_XL_ODR_POWER_DOWN };
-    WdfWaitLockAcquire(m_I2CWaitLock, NULL);
     Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
-    WdfWaitLockRelease(m_I2CWaitLock);
     if (!NT_SUCCESS(Status))
     {
         TraceError("IMU %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+        WdfWaitLockRelease(m_I2CWaitLock);
         goto Exit;
     }
+
+    WdfWaitLockRelease(m_I2CWaitLock);
     m_Started = false;
 
 Exit:

@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) 2018 Microsoft Corporation. All rights reserved.
-*  Copyright 2019 NXP
+*  Copyright 2019, 2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -49,11 +49,19 @@ Device (GPU0)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 38 }
     // HDMI + LCDIF3 interrupt
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 75 }
+    // MIPI-DSI interrupt
+    Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 50 }
     // I2C interface for IMX-LVDS-HDMI converter (IT6263).
     // First must be IT6263 i2c_hdmi connection (bus addr 0x4C). Use "\\_SB.I2C2" for LVDS0, "\\_SB.I2C3" for LVDS1 
     // Second must be IT6263 i2C_lvds connection (bus addr 0x33). Use "\\_SB.I2C2" for LVDS0, "\\_SB.I2C3" for LVDS1 
     I2CSerialBus(0x4C, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C2")
     I2CSerialBus(0x33, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C2")
-
+    // MIPI-DSI I2C interface for the IMX-MIPI-HDMI converter (ADV7535).
+    // First must be main MIPI I2C connection, Second cec MIPI I2C connection, third edid MIPI I2C connection.
+    I2CSerialBus(0x3d, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C2")
+    I2CSerialBus(0x3b, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C2")
+    I2CSerialBus(0x41, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C2")
+    //DSI_EN pin GPIO1_IO8 for IMX-DSI-OLED display reset
+    GpioIO(Exclusive, PullNone, 0, 1, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 8 } // 0 * 32 + 8 DSI_EN
   })
 }

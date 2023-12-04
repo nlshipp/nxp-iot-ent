@@ -10,11 +10,6 @@ Abstract:
 #include "soc_htx.h"
 #include <ImxCpuRev.h>
 #include "HalExtiMXDmaCfg.h"
-extern "C" {
-#include <acpiioct.h>
-#include <initguid.h>
-} // extern "C"
-#include "acpiutil.hpp"
 
 #pragma code_seg()
 
@@ -50,21 +45,21 @@ NTSTATUS CSoc_htx::InitBlock
 (
     _In_ PCM_PARTIAL_RESOURCE_DESCRIPTOR registersDescriptor,
     _In_ PCM_PARTIAL_RESOURCE_DESCRIPTOR interruptDescriptor,
+    _In_ PCM_PARTIAL_RESOURCE_DESCRIPTOR txDmaResourcePtr,
     _In_ PDEVICE_OBJECT PDO
 )
 {
     _DEVICE_DESCRIPTION deviceDescript = { 0 };
     NTSTATUS ntStatus = STATUS_SUCCESS;
     PHYSICAL_ADDRESS writeReg;
-    ACPI_EVAL_OUTPUT_BUFFER* DsdBufferPptr = nullptr;
-    ACPI_METHOD_ARGUMENT UNALIGNED const* DevicePropertiesPkgPptr;
-    UINT i;
 
     PAGED_CODE();
 
     UNREFERENCED_PARAMETER(interruptDescriptor);
 
     DBG_DRV_METHOD_BEG();
+
+    DBG_DRV_PRINT_INFO("Tx dma chnl %u req %u", txDmaResourcePtr->u.DmaV3.Channel, txDmaResourcePtr->u.DmaV3.RequestLine);
 
     ASSERT(m_pRegisters == NULL);
     if (registersDescriptor->u.Memory.Length >= 1/* adjust to real size e.g. sizeof(SaiRegisters) */)
@@ -88,37 +83,24 @@ NTSTATUS CSoc_htx::InitBlock
     m_pPDO = PDO;
     m_pAud2HtxRegisters = (PAUD2HTX_REGISTERS) m_pRegisters;
 
-    ntStatus = AcpiQueryDsd(PDO, &DsdBufferPptr);
-    if (ntStatus != STATUS_SUCCESS) {
-        goto Done;
-    }
-    ntStatus = AcpiParseDsdAsDeviceProperties(DsdBufferPptr, &DevicePropertiesPkgPptr);
-    if (ntStatus != STATUS_SUCCESS) {
-        goto Done;
-    }
-    for (i = 0; i < AUD2HTX_DSD_PROPERTY_MAX; i++) {
-        ntStatus = AcpiDevicePropertiesQueryIntegerValue(DevicePropertiesPkgPptr, aud2htx_dsd_property[i], &m_DsdConfig.Dsd[i]);
-        if (ntStatus == STATUS_SUCCESS) {
-            DBG_DRV_PRINT_VERBOSE("ACPI DSD found %s = %u", aud2htx_dsd_property[i], m_DsdConfig.Dsd[i]);
-        }
-        else {
-            goto Done;
-        }
-    }
+    // Channel number occupies lower 7bits. SDMA instance 7th and 8th bit.
+    ULONG TxDmaInstance = (txDmaResourcePtr->u.DmaV3.Channel >> 7) & 0x3;
+    ULONG TxDmaChannel = txDmaResourcePtr->u.DmaV3.Channel & 0x7F;
+    ULONG TxDmaRequestLine = txDmaResourcePtr->u.DmaV3.RequestLine;
 
-    NT_ASSERT(m_DsdConfig.TxDmaInstance <= 2);
-    NT_ASSERT(m_DsdConfig.TxDmaRequestLine <= SDMA_REQ_LINE_ID_MASK);
+    NT_ASSERT(TxDmaInstance <= 2);
+    NT_ASSERT(TxDmaRequestLine <= SDMA_REQ_LINE_ID_MASK);
 
     // Base address of data register 
     writeReg.QuadPart = m_RegBase.QuadPart + AUD2HTX_DATA_REGISTER_OFFSET;
         
     deviceDescript.Version = DEVICE_DESCRIPTION_VERSION3;
     deviceDescript.DeviceAddress = writeReg;
-    deviceDescript.DmaRequestLine = m_RequestLine = (m_DsdConfig.TxDmaRequestLine & SDMA_REQ_LINE_ID_MASK) | (m_DsdConfig.TxDmaInstance << SDMA_INSTANCE_ID_SHIFT);
+    deviceDescript.DmaRequestLine = m_RequestLine = TxDmaRequestLine | (TxDmaInstance << SDMA_INSTANCE_ID_SHIFT);
     deviceDescript.InterfaceType = ACPIBus;
     deviceDescript.DmaWidth = AUD2HTX_DMA_WIDTH;
     deviceDescript.DmaAddressWidth = 32;
-    deviceDescript.DmaChannel = m_DsdConfig.TxDmaChannel;
+    deviceDescript.DmaChannel = TxDmaChannel;
     deviceDescript.AutoInitialize = true;   
     deviceDescript.ScatterGather = true;
 
@@ -133,9 +115,6 @@ NTSTATUS CSoc_htx::InitBlock
 
 Done:
     // Cleanup
-    if (DsdBufferPptr != nullptr) {
-        ExFreePoolWithTag(DsdBufferPptr, ACPI_TAG_EVAL_OUTPUT_BUFFER);
-    }
     if (ntStatus != STATUS_SUCCESS)
     {
         CleanUp();
@@ -154,8 +133,8 @@ CSoc_htx::FreeBuffer
     _In_        ULONG                  Size
 )
 {
-    (void)Stream;
-    (void)DeviceType;
+    UNREFERENCED_PARAMETER(Stream);
+    UNREFERENCED_PARAMETER(DeviceType);
     DBG_DRV_METHOD_BEG();
 
     NT_ASSERT(Size);
@@ -178,38 +157,47 @@ CSoc_htx::AllocBuffer
 (
     _In_        CMiniportWaveRTStream* Stream,
     eDeviceType            DeviceType,
-    _In_        ULONG                  Size,
+    _Inout_     PULONG                 Size,
     _Out_       PMDL* pMdl,
     _Out_       MEMORY_CACHING_TYPE* CacheType
 )
 {
     PHYSICAL_ADDRESS maxAddr;
+    ULONG RequestedSize, Res;
 
-    (void)Stream;
-    (void)DeviceType;
+    UNREFERENCED_PARAMETER(Stream);
+    UNREFERENCED_PARAMETER(DeviceType);
     DBG_DRV_METHOD_BEG();
 
     NT_ASSERT(m_pDmaAdapter);
     NT_ASSERT(m_BufVirt == NULL);
     NT_ASSERT(m_BufMdl == NULL);
-    
+
+    RequestedSize = *Size;
+    // Round the buffer for DMA to support various sample rates.
+    Res = RequestedSize % 64U;
+    if (Res != 0) {
+        RequestedSize -= Res;
+        RequestedSize += 64U;
+    }
     maxAddr.QuadPart = 0xffffffff;
-    m_BufVirt = m_pDmaAdapter->DmaOperations->AllocateCommonBufferEx(m_pDmaAdapter, &maxAddr, Size, &m_BufLogical, false, 0);
+    m_BufVirt = m_pDmaAdapter->DmaOperations->AllocateCommonBufferEx(m_pDmaAdapter, &maxAddr, RequestedSize, &m_BufLogical, false, 0);
     if (!m_BufVirt) {
         DBG_DRV_PRINT_WARNING("AllocateCommonBufferEx failed");
         return STATUS_INSUFFICIENT_RESOURCES;
     }
-    m_BufMdl = IoAllocateMdl(m_BufVirt, Size, false, false, NULL);
+    m_BufMdl = IoAllocateMdl(m_BufVirt, *Size, false, false, NULL);
     if (!m_BufMdl) {
         DBG_DRV_PRINT_WARNING("IoAllocateMdl failed");
-        m_pDmaAdapter->DmaOperations->FreeCommonBuffer(m_pDmaAdapter, Size, m_BufLogical, m_BufVirt, false);
+        m_pDmaAdapter->DmaOperations->FreeCommonBuffer(m_pDmaAdapter, RequestedSize, m_BufLogical, m_BufVirt, false);
         m_BufVirt = NULL;
         return STATUS_INSUFFICIENT_RESOURCES;
     }
     MmBuildMdlForNonPagedPool(m_BufMdl);
     *pMdl = m_BufMdl;
     *CacheType = MmNonCached;
-    m_BufSize = Size;
+    m_BufSize = RequestedSize;
+    *Size = RequestedSize;
     DBG_DRV_METHOD_END();
     return STATUS_SUCCESS;
 }
@@ -227,7 +215,7 @@ CSoc_htx::RegisterStream
     KIRQL oldIRQL;
 
     DBG_DRV_METHOD_BEG();
-    (void)DeviceType;
+    UNREFERENCED_PARAMETER(DeviceType);
     
     m_pRtStream = Stream;
     m_ulSamplesTransferred = 0;  
@@ -288,8 +276,8 @@ CSoc_htx::UnregisterStream
     NTSTATUS status;
     KIRQL oldIRQL;
 
-    (void)DeviceType;
-    (void)Stream;
+    UNREFERENCED_PARAMETER(DeviceType);
+    UNREFERENCED_PARAMETER(Stream);
     DBG_DRV_METHOD_BEG();
     
     m_pRtStream = NULL;
@@ -363,7 +351,7 @@ CSoc_htx::StartDma
     NT_ASSERT(m_BufMdl);
     NT_ASSERT(m_BufSize);
 
-    (void)Stream;
+    UNREFERENCED_PARAMETER(Stream);
     m_IsrCnt = 0;
     
     if (!m_bIsRenderActive) {
@@ -392,7 +380,7 @@ CSoc_htx::StopDma
 {
     DBG_DRV_METHOD_BEG();
 
-    (void)Stream;
+    UNREFERENCED_PARAMETER(Stream);
 
     if (m_bIsRenderActive) {
         NT_ASSERT(m_bIsRenderPaused);
@@ -416,7 +404,7 @@ CSoc_htx::PauseDma
 )
 {
     DBG_DRV_METHOD_BEG();
-    (void)Stream;
+    UNREFERENCED_PARAMETER(Stream);
 
     m_bIsRenderPaused = TRUE;
     WRITE_REGISTER_ULONG(&m_pAud2HtxRegisters->ControlExt.AsUlong, READ_REGISTER_ULONG(&m_pAud2HtxRegisters->ControlExt.AsUlong) & (~0x1)); //DMA
@@ -433,9 +421,9 @@ void CompletionRoutine(
     DMA_COMPLETION_STATUS Status
 )
 {
-    (void)DmaAdapter;
-    (void)DeviceObject;
-    (void)CompletionContext;
+    UNREFERENCED_PARAMETER(DmaAdapter);
+    UNREFERENCED_PARAMETER(DeviceObject);
+    UNREFERENCED_PARAMETER(CompletionContext);
 
     NT_ASSERT(CompletionContext);
 

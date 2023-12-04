@@ -82,6 +82,9 @@ typedef enum
     SENSOR_PROPERTY_DEFAULT_DATA_INTERVAL,
     SENSOR_PROPERTY_MAX_DATA_FIELD_SIZE,
     SENSOR_PROPERTY_TYPE,
+    SENSOR_PROPERTY_FIFORESERVEDSIZE_SAMPLES,
+    SENSOR_PROPERTY_FIFO_MAXSIZE_SAMPLES,
+    SENSOR_PROPERTY_WAKE_CAPABLE,
     SENSOR_PROPERTY_COUNT
 } SENSOR_PROPERTIES_INDEX;
 
@@ -110,7 +113,7 @@ const REGISTER_SETTING g_ConfigurationSettings[] =
 {
     // Power-dowm mode, 4G , 2000 DPS
     { LSM6DSOX_CTRL1_XL , LSM6DSOX_CTRL1_XL_ODR_POWER_DOWN | LSM6DSOX_CTRL1_XL_FS_MODE_OLD_4G  },
-    { LSM6DSOX_CTRL2_G  , LSM6DSOX_CTRL2_G_ODR_POWER_DOWN  | LSM6DSOX_CTRL2_G_FS_MODE_2000_DPS },
+    { LSM6DSOX_CTRL2_G , LSM6DSOX_CTRL2_G_ODR_POWER_DOWN | LSM6DSOX_CTRL2_G_FS_MODE_2000_DPS },
 
     // Interrupt Active level low, Push/Pull, Auto address increase disabled
     { LSM6DSOX_CTRL3_C , LSM6DSOX_CTRL3_C_BDU_UNTIL_READ | LSM6DSOX_CTRL3_C_H_LACTIVE_ACTIVE_HIGH | LSM6DSOX_CTRL3_C_PP_OD_PUSH_PULL | LSM6DSOX_CTRL3_C_IF_INC_ENABLE },
@@ -130,12 +133,19 @@ const REGISTER_SETTING g_ConfigurationSettings[] =
     // I3C comunication disabled
     { LSM6DSOX_CTRL9_XL , LSM6DSOX_CTRL9_XL_I3C_DISABLE },
 
-    // No FIFO
-    { LSM6DSOX_FIFO_CTRL3 , LSM6DSOX_FIFO_CTRL3_BDR_XL_NOT_BATCHED | LSM6DSOX_FIFO_CTRL3_BDR_GY_NOT_BATCHED },
-    { LSM6DSOX_FIFO_CTRL4 , LSM6DSOX_FIFO_CTRL4_FIFO_MODE_DISABLE },
+    
 
     // Data ready interrupt enabled on INT1 pin
     { LSM6DSOX_INT1_CTRL , LSM6DSOX_INT1_CTRL_DRDY_XL_ENABLE | LSM6DSOX_INT1_CTRL_DRDY_G_ENABLE },
+
+    // FIFO
+    { LSM6DSOX_COUNTER_BDR_REG1 , 0 },
+    { LSM6DSOX_COUNTER_BDR_REG2 , 0 },
+    { LSM6DSOX_FIFO_CTRL1 , 0 },
+    { LSM6DSOX_FIFO_CTRL2 , 0 },
+    { LSM6DSOX_FIFO_CTRL3 , LSM6DSOX_FIFO_CTRL3_BDR_XL_NOT_BATCHED | LSM6DSOX_FIFO_CTRL3_BDR_GY_NOT_BATCHED },
+    { LSM6DSOX_FIFO_CTRL4 , LSM6DSOX_FIFO_CTRL4_FIFO_MODE_DISABLE },
+
    
 };
 
@@ -167,6 +177,15 @@ public:
     DATA_RATE                   m_DataRate;
     BOOLEAN                     m_DataReady{};
     
+    //
+    //FIFO
+    //
+    BOOLEAN                     m_fifo_enabled;
+    ULONG                       m_batch_latency;
+    ULONG                       m_fifo_size;
+    UINT32                      m_max_fifo_samples;
+
+
     SENSOROBJECT                m_SensorInstance{};
 
     //
@@ -201,6 +220,7 @@ public:
     static EVT_SENSOR_DRIVER_CANCEL_HISTORY_RETRIEVAL   OnCancelHistoryRetrieval;
     static EVT_SENSOR_DRIVER_ENABLE_WAKE                OnEnableWake;
     static EVT_SENSOR_DRIVER_DISABLE_WAKE               OnDisableWake;
+    static EVT_SENSOR_DRIVER_SET_BATCH_LATENCY          OnSetBatchLatency;
 
     // Interrupt callbacks
     static EVT_WDF_INTERRUPT_ISR                        OnInterruptIsr;
@@ -218,6 +238,7 @@ public:
 
     virtual NTSTATUS            UpdateCachedThreshold()                                        = NULL;
     virtual NTSTATUS            UpdateDataInterval(_In_ ULONG DataRateMs)                      = NULL;
+    virtual NTSTATUS            UpdateBatchLatency(_In_ ULONG BatchLatencyMs)                  = NULL;
     virtual NTSTATUS            StartSensor()                                                  = NULL;
     virtual NTSTATUS            StopSensor()                                                   = NULL;
     static  NTSTATUS            EnableWake() { return STATUS_NOT_SUPPORTED; }
@@ -266,6 +287,7 @@ public:
     NTSTATUS                    GetData();
     NTSTATUS                    UpdateCachedThreshold();
     NTSTATUS                    UpdateDataInterval(_In_ ULONG DataRateMs);
+    NTSTATUS                    UpdateBatchLatency(_In_ ULONG BatchLatencyMs);
     NTSTATUS                    StartSensor();
     NTSTATUS                    StopSensor();
 
@@ -291,6 +313,7 @@ public:
     NTSTATUS                    GetData();
     NTSTATUS                    UpdateCachedThreshold();
     NTSTATUS                    UpdateDataInterval(_In_ ULONG DataRateMs);
+    NTSTATUS                    UpdateBatchLatency(_In_ ULONG BatchLatencyMs);
     NTSTATUS                    StartSensor();
     NTSTATUS                    StopSensor();
 

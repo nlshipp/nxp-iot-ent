@@ -1519,6 +1519,7 @@ OnError:
     {
         gcmkVERIFY_OK(
             gckOS_Free(Mmu->os, (gctPOINTER) area4K->mapLogical));
+        area4K->mapLogical = gcvNULL;
     }
 
     if (area4K->stlbVideoMem)
@@ -1526,6 +1527,7 @@ OnError:
         gcmkVERIFY_OK(
             gckVIDMEM_NODE_Dereference(kernel,
                                        area4K->stlbVideoMem));
+        area4K->stlbVideoMem = gcvNULL;
     }
 
     return status;

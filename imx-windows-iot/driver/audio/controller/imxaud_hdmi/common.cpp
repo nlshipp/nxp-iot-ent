@@ -196,7 +196,7 @@ class CAdapterCommon :
         (
             _In_        CMiniportWaveRTStream* Stream,
             eDeviceType                        DeviceType,
-            _In_        ULONG                  Size,
+            _Inout_     PULONG                 Size,
             _Out_       PMDL* pMdl,
             _Out_       MEMORY_CACHING_TYPE* CacheType
         );
@@ -265,6 +265,15 @@ class CAdapterCommon :
             SinkInfo->ProductId       = m_HdmiContainerId.EldInfo.ProductCode;
             SinkInfo->PortId.HighPart = m_HdmiContainerId.EldInfo.PortId >> 32;
             SinkInfo->PortId.LowPart  = m_HdmiContainerId.EldInfo.PortId & 0xFFFFFFFF;
+        }
+        STDMETHODIMP_(BOOL) isRenderSupported(VOID)
+        {
+            return TRUE;
+        }
+
+        STDMETHODIMP_(BOOL) isCaptureSupported(VOID)
+        {
+            return FALSE;
         }
         //=====================================================================
         friend NTSTATUS
@@ -620,6 +629,7 @@ Return Value:
 
     NTSTATUS                        ntStatus    = STATUS_SUCCESS;
     PCM_PARTIAL_RESOURCE_DESCRIPTOR registersDescriptor, interruptDescriptor;
+    PCM_PARTIAL_RESOURCE_DESCRIPTOR txDmaResourcePtr = nullptr;
     WCHAR DeviceId[128];
     ULONG ResultLen = 0;
 
@@ -679,6 +689,15 @@ Return Value:
         goto Done;
     }
 
+    txDmaResourcePtr = ResourceList->FindTranslatedEntry(CmResourceTypeDma, 0);
+    ASSERT(txDmaResourcePtr);
+
+    if (txDmaResourcePtr == NULL)
+    {
+        ntStatus = STATUS_INSUFFICIENT_RESOURCES;
+        goto Done;
+    }
+
     //first memory entry (index 0) is assumed to be registrs area for Soc device
     registersDescriptor = ResourceList->FindTranslatedEntry(CmResourceTypeMemory, 0);
     ASSERT(registersDescriptor);
@@ -720,7 +739,7 @@ Return Value:
         goto Done;
     }
 
-    ntStatus = m_Soc->InitBlock(registersDescriptor, interruptDescriptor, m_pPhysicalDeviceObject);
+    ntStatus = m_Soc->InitBlock(registersDescriptor, interruptDescriptor, txDmaResourcePtr, m_pPhysicalDeviceObject);
 
 Done:
 
@@ -2371,7 +2390,7 @@ CAdapterCommon::AllocBuffer
 (
     _In_        CMiniportWaveRTStream* Stream,
     eDeviceType                        DeviceType,
-    _In_        ULONG                  Size,
+    _Inout_     PULONG                 Size,
     _Out_       PMDL* pMdl,
     _Out_       MEMORY_CACHING_TYPE* CacheType
 )

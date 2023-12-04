@@ -114,6 +114,7 @@
   # iMX8M platform driver
   #
   INF iMX8Pkg/Drivers/iMX8Dxe/iMX8Dxe.inf
+  INF iMX8Pkg/Drivers/iMXNorFlashDxe/iMXNorFlashDxe.inf
 
   #
   # Bds

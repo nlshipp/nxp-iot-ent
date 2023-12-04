@@ -377,7 +377,7 @@ DECLARE_INTERFACE_(IAdapterCommon, IUnknown)
         THIS_
         _In_        CMiniportWaveRTStream *Stream,
                     eDeviceType            DeviceType,
-        _In_        ULONG                  Size,
+        _Inout_     PULONG                 Size,
         _Out_       PMDL                  *pMdl,
         _Out_       MEMORY_CACHING_TYPE   *CacheType
     );
@@ -423,6 +423,12 @@ DECLARE_INTERFACE_(IAdapterCommon, IUnknown)
         _In_        ULONG                       nPinId,
         _Out_       PKSJACK_SINK_INFORMATION    SinkInfo
     );
+    STDMETHOD_(BOOL, isRenderSupported)
+        (VOID);
+
+    STDMETHOD_(BOOL, isCaptureSupported)
+        (VOID);
+
 };
 
 typedef IAdapterCommon *PADAPTERCOMMON;

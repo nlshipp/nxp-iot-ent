@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -51,10 +51,10 @@
 /* Fvco = <1600 - 3200 MHz>, Fout <= 650 MHz, Fin = 24 MHz */
 
 /*--------------------------MIPI-DSI---------------------------------------------*/
-/* ref_rate = reference clock for mipi-dsi phy pll */
+/* ref_rate = reference clock for mipi-dsi phy pll <6-300MHz> */
 /* ref_rate - must be produced by integer divider from pll rate. */
 static const struct imx_pll_rate_table videopll_tab_24m_mipi[] = {
-/* rate (must be descending order), m, p, s, k, ref rate */
+/* PCLK, PLL rate (must be descending order), m, p, s, k, ref rate */
     PLL_RATE(65000000U, 650000000U, 325, 3, 2, 0, 26000000U), /* 65 MHz pixel clock */
     PLL_RATE(108000000U,648000000U, 216, 2, 2, 0, 27000000U), /* 108 MHz pixel clock  */
     PLL_RATE(40500000U, 648000000U, 216, 2, 2, 0, 27000000U), /* 40.5 MHz pixel clock  */
@@ -95,7 +95,8 @@ static const struct imx_pll_rate_table videopll_tab_24m_lvds[] = {
     PLL_RATE(108000000U,756000000U, 252, 2, 2, 0, 0), /* 108 MHz pixel clock  */
     PLL_RATE(106500000U,745500000U, 497, 4, 2, 0, 0), /* 106.50 MHz pixel clock */
     PLL_RATE(101000000U,707000000U, 707, 6, 2, 0, 0), /* 101 MHz pixel clock */
-    PLL_RATE(74250000U, 519750000U, 693, 8, 2, 0, 0), /* 74.25 MHz pixel clock */
+    PLL_RATE(85500000U, 598500000U, 798, 8, 2, 0, 0), /* 85.5 MHz pixel clock */
+    PLL_RATE(74250000U, 1039500000U, 693, 8, 1, 0, 0), /* 74.25 MHz pixel clock */
     PLL_RATE(71000000U, 497000000U, 497, 6, 2, 0, 0), /* 71 MHz pixel clock */
     PLL_RATE(67500000U, 472500000U, 315, 4, 2, 0, 0), /* 67.5 MHz pixel clock */
     PLL_RATE(65000000U, 455000000U, 455, 6, 2, 0, 0), /* 65 MHz pixel clock */

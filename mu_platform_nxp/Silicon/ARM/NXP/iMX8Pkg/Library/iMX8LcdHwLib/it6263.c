@@ -1,5 +1,5 @@
 /*
-* Copyright 2022 NXP
+* Copyright 2022-2023 NXP
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -390,6 +390,81 @@ EFI_STATUS It6263SetMode
   CHECK_STATUS_RETURN_ERR(iMXI2cWrite(&I2C_IT6263Config, 0xC1, &i2cData[0], 1), 0xC1);
   i2cData[0] = 0x03; /* Enable general control packet */
   CHECK_STATUS_RETURN_ERR(iMXI2cWrite(&I2C_IT6263Config, 0xC6, &i2cData[0], 1), 0xC6);
+
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS It6263DumpRegister(IN IMX_I2C_CONTEXT *i2cConfig, IN uint8_t reg)
+{
+  uint8_t    i2cData;
+  CHECK_STATUS_RETURN_ERR(iMXI2cRead(i2cConfig, reg, &i2cData, 1), 0xBB);
+  DEBUG((DEBUG_ERROR, "Reg addr=0x%x               = 0x%02X\n", reg, i2cData));
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS It6263Dump(VOID)
+{
+  uint8_t    i2cData;
+  DEBUG((DEBUG_ERROR, "------------------------IT6263-------------------------------------\n"));
+  DEBUG((DEBUG_ERROR, "------------------------HDMI register bank0-------------------------------------\n"));
+  i2cData = 0x00; /* Select register bank 0 */
+  CHECK_STATUS_RETURN_ERR(iMXI2cWrite(&I2C_IT6263Config, 0x0F, &i2cData, 1), 0x0F);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x0F), 0x0F);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x04), 0x04);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x05), 0x05);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x09), 0x09);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x0A), 0x0A);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x0B), 0x0B);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x0C), 0x0C);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x0D), 0x0D);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x0E), 0x0E);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x61), 0x61);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x62), 0x62);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x63), 0x63);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x64), 0x64);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x65), 0x65);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x66), 0x66);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x67), 0x67);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x1D), 0x1D);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x1E), 0x1E);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xC1), 0xC1);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xC4), 0xC4);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xC5), 0xC5);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xC6), 0xC6);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xC9), 0xC9);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xCA), 0xCA);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xCB), 0xCB);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xCC), 0xCC);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xCD), 0xCD);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xCE), 0xCE);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xCF), 0xCF);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xD0), 0xD0);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xE1), 0xE1);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0xF3), 0xF3);
+
+  DEBUG((DEBUG_ERROR, "------------------------HDMI register bank1-------------------------------------\n"));
+  i2cData = 0x01; /* Select register bank 1 */
+  CHECK_STATUS_RETURN_ERR(iMXI2cWrite(&I2C_IT6263Config, 0x0F, &i2cData, 1), 0x0F);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x0F), 0x0F);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x33), 0x33);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x34), 0x34);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x35), 0x35);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x58), 0x58);
+
+  DEBUG((DEBUG_ERROR, "------------------------LVDS register ------------------------------------------\n"));
+  i2cData = 0x01; /* Select register bank 1 */
+  CHECK_STATUS_RETURN_ERR(iMXI2cWrite(&I2C_IT6263Config, 0x0F, &i2cData, 1), 0x0F);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263Config, 0x0F), 0x0F);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x05), 0x05);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x0B), 0x0B);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x2C), 0x2C);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x39), 0x39);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x3C), 0x3C);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x3E), 0x3E);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x3F), 0x3F);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x47), 0x47);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x48), 0x48);
+  CHECK_STATUS_RETURN_ERR(It6263DumpRegister(&I2C_IT6263_LVDSConfig, 0x4F), 0x4F);
 
   return EFI_SUCCESS;
 }

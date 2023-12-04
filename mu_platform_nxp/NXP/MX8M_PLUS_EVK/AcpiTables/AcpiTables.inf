@@ -95,6 +95,7 @@
   giMX8TokenSpaceGuid.PcdGpuEnable
 
   giMX8TokenSpaceGuid.PcdCAN1InsteadOfI2C5
+  giMX8TokenSpaceGuid.PcdCAN2InsteadOfPDMStream3
 
   giMX8TokenSpaceGuid.PcdCAN1XTALEnable
   giMX8TokenSpaceGuid.PcdCAN2XTALEnable

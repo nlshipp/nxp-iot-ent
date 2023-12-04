@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -90,6 +90,7 @@
 struct imx8qxp_clk_device {
     struct clk *clks[IMX8QXP_DC_CLK_END];
     char *lpcg_reg;
+    unsigned int disp_num; /* number of active display interfaces */
 };
 
 struct imx8qxp_clk_device *clk_init_imx8qxp();

@@ -2,6 +2,7 @@
 * Description: iMX8M Synchronous Audio Interface (SAI)
 *
 *  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
+*  Copyright 2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -34,7 +35,7 @@ Device (SAI1)
 
 Device (SAI2)
 {
-  Name (_HID, "NXP0110")
+  Name (_HID, "NXP0112")
   Name (_UID, 0x2)
 
   Method (_STA)
@@ -46,9 +47,21 @@ Device (SAI2)
     Name (RBUF, ResourceTemplate () {
       MEMORY32FIXED(ReadWrite, 0x308B0000, 0x100, )
       Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 128 }
+      // channel 7 of SDMA1
+      FixedDMA (SDMA_REQ_SAI2_RX, 7, Width32Bit, )
+      // channel 8 of SDMA1
+      FixedDMA (SDMA_REQ_SAI2_TX, 8, Width32Bit, )
     })
     Return(RBUF)
   }
+  Name (_DSD, Package () {
+    ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+        Package (2) {"VERSION", 2},
+        // All words masked, capture interface is disabled
+        Package (2) {"RX_WORD_MASK", 0xFFFFFFFF},
+      }
+  })
 }
 
 Device (SAI3)

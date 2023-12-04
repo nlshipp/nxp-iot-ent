@@ -3,7 +3,7 @@
  * Analog Devices ADV7511 HDMI transmitter driver
  *
  * Copyright 2012 Analog Devices Inc.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  */
 
 #include <linux/clk.h>
@@ -44,6 +44,7 @@ static const int valid_clocks[] = {
 	108000,
 	78750,
 	74250,
+	71000,
 	65000,
 	49500,
 	40000,

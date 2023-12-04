@@ -120,11 +120,11 @@ EFI_STATUS iMXInit(IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *SystemTable) 
   
   //if SRTC is not running, then set bogus stat time to init
   if ((LPCR_value & iMX_RTC_ENABLED) != 0x0000001) {
-    DEBUG ((EFI_D_INFO, "iMX8RTC INIT: Setting sample time 1.1.2023 9:00:00 UTC, DST.\n"));
-    DebugPrint(0xffffffff, "iMX8RTC Initialized with sample time 1.1.2023 9:00:00 UTC, DST.\n");
+    DEBUG ((EFI_D_INFO, "iMX8RTC INIT: Setting sample time 1.7.2023 9:00:00 UTC, DST.\n"));
+    DebugPrint(0xffffffff, "iMX8RTC Initialized with sample time 1.7.2023 9:00:00 UTC, DST.\n");
     EFI_TIME * MyTime = &(EFI_TIME) {
       .Year = 2023,
-      .Month = 1,
+      .Month = 7,
       .Day = 1,
       .Hour = 9,
       .Minute = 0,

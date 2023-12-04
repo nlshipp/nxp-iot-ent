@@ -470,16 +470,25 @@ typedef union {
 #define FXOS8700_F_SETUP_F_MODE_MASK   ((uint8_t) 0xC0)
 #define FXOS8700_F_SETUP_F_MODE_SHIFT  ((uint8_t)    6)
 
+/*
+** F_SETUP - Struct members value definitions
+*/
+#define FXOS8700_F_SETUP_F_MODE_FIFO_DISABLE_VAL    ((uint8_t) 0x00)  /*  FIFO is disabled                                     */
+#define FXOS8700_F_SETUP_F_MODE_FIFO_CIRC_VAL       ((uint8_t) 0x01)  /*  FIFO contains the most recent samples when           */
+/*  overflowed (circular buffer). Oldest sample is       */
+/*  discarded to be replaced by new sample               */
+#define FXOS8700_F_SETUP_F_MODE_FIFO_STOP_OVF_VAL   ((uint8_t) 0x02)  /*  FIFO stops accepting new samples when overflowed     */
+#define FXOS8700_F_SETUP_F_MODE_FIFO_TRIGGER_VAL    ((uint8_t) 0x03)  /*  FIFO trigger mode                                    */
 
 /*
 ** F_SETUP - Bit field value definitions
 */
-#define FXOS8700_F_SETUP_F_MODE_FIFO_DISABLE   ((uint8_t) 0x00)  /*  FIFO is disabled                                     */
-#define FXOS8700_F_SETUP_F_MODE_FIFO_CIRC      ((uint8_t) 0x40)  /*  FIFO contains the most recent samples when           */
+#define FXOS8700_F_SETUP_F_MODE_FIFO_DISABLE        ((uint8_t) 0x00)  /*  FIFO is disabled                                     */
+#define FXOS8700_F_SETUP_F_MODE_FIFO_CIRC           ((uint8_t) 0x40)  /*  FIFO contains the most recent samples when           */
 /*  overflowed (circular buffer). Oldest sample is       */
 /*  discarded to be replaced by new sample               */
-#define FXOS8700_F_SETUP_F_MODE_FIFO_STOP_OVF  ((uint8_t) 0x80)  /*  FIFO stops accepting new samples when overflowed     */
-#define FXOS8700_F_SETUP_F_MODE_FIFO_TRIGGER   ((uint8_t) 0xc0)  /*  FIFO trigger mode                                    */
+#define FXOS8700_F_SETUP_F_MODE_FIFO_STOP_OVF       ((uint8_t) 0x80)  /*  FIFO stops accepting new samples when overflowed     */
+#define FXOS8700_F_SETUP_F_MODE_FIFO_TRIGGER        ((uint8_t) 0xc0)  /*  FIFO trigger mode                                    */
 /*------------------------------*/
 
 
@@ -3280,6 +3289,13 @@ const DOUBLE ACCELEROMETER_MAX_ACCELERATION_G = 8;
 const ULONG SENSOR_MIN_REPORT_INTERVAL = 1;
 const ULONG DEFAULT_SENSOR_REPORT_INTERVAL = 10;
 const ULONG CURRENT_REPORT_INTERVAL_NOT_SET = 0;
+
+const ULONG DEFAULT_BATCH_SAMPLE_COUNT = 1;
+const ULONG DEFAULT_BATCH_LATENCY = 0;
+const UINT32 SENSOR_FIFORESERVEDSIZE_SAMPLES_ACC = 32;
+const UINT32 SENSOR_FIFORESERVEDSIZE_SAMPLES_MAG = 0;
+const UINT32 SENSOR_FIFO_MAXSIZE_SAMPLES = 32;
+const BOOL SENSOR_WAKE_CAPABLE = FALSE;
 
 const DATA_RATE SENSOR_SUPPORTED_DATA_RATES_SINGLE[] = { { 640, ((0x07 << FXOS8700_CTRL_REG1_DR_SHIFT) | FXOS8700_CTRL_REG1_ACTIVE_ACTIVE_MODE) },
                                                          { 160, ((0x06 << FXOS8700_CTRL_REG1_DR_SHIFT) | FXOS8700_CTRL_REG1_ACTIVE_ACTIVE_MODE) },

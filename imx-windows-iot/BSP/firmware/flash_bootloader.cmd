@@ -55,10 +55,16 @@ set TEMP_FIRMWARE=
                                             set TARGET_DRIVE_OPT=yes
  ) else ( if /I "%~1" == "/firmware" (  set FIRMWARE=%2& shift
  ) else ( if /I "%~1" == "/secure" (  set /a SECURE_FW=%2& shift
+ ) else ( if /I "%~1" == "/d" ( set DEVICE_TYPE=%2& shift
+ ) else ( if /I "%~1" == "/dir" (   set FIRMWARE_DIR=%2& shift
+ ) else ( if /I "%~1" == "/td" (  set TARGET_DRIVE=%2& shift
+                                            set TARGET_DRIVE_OPT=yes
+ ) else ( if /I "%~1" == "/fw" (  set FIRMWARE=%2& shift
+ ) else ( if /I "%~1" == "/s" (  set /a SECURE_FW=%2& shift
  ) else ( if /I "%~1" == "" (  break
  ) else ( echo Unsupported option: %~1
           exit /b 1
- ))))))))
+ )))))))))))))
  shift
 if not (%1)==() goto GETOPTS
 
@@ -217,13 +223,13 @@ if "%DEVICE_TYPE%" == "MX8M_EVK" (
             ) else (
               echo Error. The /device %DEVICE_TYPE% is not valid.
               exit /b 1
-            )
           )
         )
       )
     )
   )
 )
+
 
 :: Write firmware to a drive plugged into PC using Cfimager. (https://www.nxp.com/webapp/Download?colCode=CF_IMAGER&appType=license&location=null)
 :: Alternatively dd if="!FIRMWARE!" of="\\.\PhysicalDrive%DISK_NUM%" bs=512 seek=%SEEK% skip=0 .
@@ -376,18 +382,18 @@ echo flash_bootloader.cmd /device <NAME> [/target_drive, /directory, /firmware]
 echo.
 echo Flashes a firmware image
 echo Options:
-echo    /device                      {MX8M_EVK, MX8M_MINI_EVK, MX8M_NANO_EVK, MX8M_PLUS_EVK, MX8QXP_MEK, MX93_11X11_EVK} 
+echo    /d(evice)                    {MX8M_EVK, MX8M_MINI_EVK, MX8M_NANO_EVK, MX8M_PLUS_EVK, MX8QXP_MEK, MX93_11X11_EVK} 
 echo                                 OR {8M, 8Mm, 8Mp, 8X, 93}
 echo                                 Specifies the device
 echo.
 echo Optional options:
-echo    /target_drive                Specifies whether the firmware binary should be written to this drive
+echo    /t(arget_)d(rive)            Specifies whether the firmware binary should be written to this drive
 echo                                 instead of internal memory of the development board. Useful for
 echo                                 firmware development.
 echo                                 Caution, do not overwrite your system drive.
-echo.  /directory                    Specifies directory in which firmware.bin is located.
-echo   /firmware                     Specifies absolute or relative path to firmware.
-echo   /secure                       Specifies which firmware will be loaded to onboard memory:
+echo.  /dir(ectory)                  Specifies directory in which firmware.bin is located.
+echo   /f(irm)w(are)                 Specifies absolute or relative path to firmware.
+echo   /s(ecure)                     Specifies which firmware will be loaded to onboard memory:
 echo                                 0 = nonsecure, 1 = secure.
 echo Examples:
 echo.

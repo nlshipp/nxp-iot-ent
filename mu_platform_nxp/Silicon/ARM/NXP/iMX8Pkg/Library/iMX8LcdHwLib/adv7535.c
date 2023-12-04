@@ -49,6 +49,9 @@
 
 #define NUM_DSI_LANES 4U
 
+#define ADV7535_DEBUG_LEVEL DEBUG_INFO
+/* #define ADV7535_DUMP_REGS */
+
 /*
  * Configuration of the I2C device to be used for comunication with external MIPI DSI to HDMI converter ADV7535.
  */
@@ -136,7 +139,7 @@ EFI_STATUS Adv7535ReadEdid
   status = iMXI2cRead(&I2C_ADV7535Config, ADV7535_REG_EDID_ADDR, &i2cData[0], 2);
   CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_EDID_ADDR", End);
   I2C_EdidConfig.SlaveAddress = (i2cData[0] >> 1);
-  DEBUG ((DEBUG_INFO, "ADV7535_REG_EDID_ADDR=0x%02X, status=%d\n", I2C_EdidConfig.SlaveAddress, status));
+  DEBUG ((ADV7535_DEBUG_LEVEL, "ADV7535_REG_EDID_ADDR=0x%02X, status=%d\n", I2C_EdidConfig.SlaveAddress, status));
 
    /* Set segment */
   i2cData[0] = segment;
@@ -207,7 +210,7 @@ EFI_STATUS Adv7535SetMode
   i2cData[0] = IMX_HDMI_CEC_I2C_ADDRESS;
   status = iMXI2cWrite(&I2C_ADV7535Config, ADV7535_REG_DSI_CEC_ADDR, &i2cData[0], 1);
   CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_DSI_CEC_ADDR", End);
-  DEBUG ((DEBUG_INFO, "ADV7535_REG_DSI_CEC_ADDR=0x%02X, status=%d\n", I2C_CecConfig.SlaveAddress, status));
+  DEBUG ((ADV7535_DEBUG_LEVEL, "ADV7535_REG_DSI_CEC_ADDR=0x%02X, status=%d\n", I2C_CecConfig.SlaveAddress, status));
 
   /* Power down */
   i2cData[0] = (ADV7535_REG_PD_RESET__POWER_DOWN | ADV7535_REG_PD_RESET__FIXED);
@@ -244,7 +247,22 @@ EFI_STATUS Adv7535SetMode
   status = iMXI2cWrite(&I2C_ADV7535Config, ADV7535_REG_DSI_CEC_PD, &i2cData[0], 1);
   CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_DSI_CEC_PD", End);
 
+/*  Reset DSI logic - togle register*/
+  i2cData[0] = (ADV7535_REG_DSI_RESET__FIXED | ADV7535_REG_DSI_RESET__RESET);
+  status = iMXI2cWrite(&I2C_CecConfig, ADV7535_REG_DSI_RESET, &i2cData[0], 1);
+  CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_DSI_RESET", End);
+  i2cData[0] = (ADV7535_REG_DSI_RESET__FIXED | ADV7535_REG_DSI_RESET__NOT_RESET);
+  status = iMXI2cWrite(&I2C_CecConfig, ADV7535_REG_DSI_RESET, &i2cData[0], 1);
+  CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_DSI_RESET", End);
+
   /* Fixed init */
+  i2cData[0] = ADV7535_REG_COL_SPACE__FIXED;
+  status = iMXI2cWrite(&I2C_ADV7535Config, ADV7535_REG_COL_SPACE, &i2cData[0], 1);
+  CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_COL_SPACE", End);
+  i2cData[0] = ADV7535_REG_MAIN_FIXED_0X9A__FIXED;
+  status = iMXI2cWrite(&I2C_ADV7535Config, ADV7535_REG_MAIN_FIXED_0X9A, &i2cData[0], 1);
+  CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_MAIN_FIXED_0X9A", End);
+
   i2cData[0] = ADV7535_REG_HDCP_RI__FIXED;
   status = iMXI2cWrite(&I2C_ADV7535Config, ADV7535_REG_HDCP_RI, &i2cData[0], 1);
   CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_HDCP_RI", End);
@@ -360,13 +378,18 @@ EFI_STATUS Adv7535SetMode
   CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_PATTERN_GEN", End);
 
   /* Clear status - togle to 0 and back to 1 */
-  i2cData[0] = 0;
+  i2cData[0] = ADV7535_REG_DSI_STATUS__TURN_ON_PKT_CLR;
   status = iMXI2cWrite(&I2C_CecConfig, ADV7535_REG_DSI_STATUS, &i2cData[0], 1);
   CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_DSI_STATUS", End);
 
   i2cData[0] = ADV7535_REG_DSI_STATUS__STATUS_CLR;
   status = iMXI2cWrite(&I2C_CecConfig, ADV7535_REG_DSI_STATUS, &i2cData[0], 1);
   CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_DSI_STATUS", End);
+
+  /* DVI output - apparently works on DVI and also on HDMI monitor - selected by default */
+  i2cData[0] = (ADV7535_REG_HDCP_VOUT_SEL__DVI | ADV7535_REG_HDCP_VOUT_SEL__HDCP_FRM_EN | ADV7535_REG_HDCP_VOUT_SEL__FIXED);
+  status = iMXI2cWrite(&I2C_ADV7535Config, ADV7535_REG_HDCP_VOUT_SEL, &i2cData[0], 1);
+  CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_HDCP_VOUT_SEL", End);
 
   /* AVI Info-frame */
   /* No aspect ratio. It is possible to select 16:9 or 4:3 aspect ratio, but need to be determined from EDID */
@@ -415,8 +438,15 @@ EFI_STATUS Adv7535SetMode
   status = iMXI2cWrite(&I2C_CecConfig, ADV7535_REG_HDMI_LPOSC, &i2cData[0], 1);
   CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_HDMI_LPOSC", End);
 
+    /* ShutDown packet detection */
+  i2cData[0] = (ADV7535_REG_DSI_CONFIG__SHDN_TURNON_DI | ADV7535_REG_DSI_CONFIG__VC_OFFSET_1);
+  status = iMXI2cWrite(&I2C_CecConfig, ADV7535_REG_DSI_CONFIG, &i2cData[0], 1);
+  CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_DSI_CONFIG", End);
+
+#ifdef ADV7535_DUMP_REGS
   /* Post init dump */
   ADV7535Dump();
+#endif
 
 End:
   return status;
@@ -441,7 +471,7 @@ EFI_STATUS Adv7535DumpRegister
 
   status = iMXI2cRead(i2cConfig, reg, &i2cData[0], 2);
   CHECK_I2C_TRANSACTION_STATUS(status, reg_name, End);
-  DEBUG ((DEBUG_INFO, "%a = 0x%02X\n", reg_name, i2cData[0]));
+  DEBUG ((ADV7535_DEBUG_LEVEL, "%a(0x%X) = 0x%02X\n", reg_name, reg, i2cData[0]));
 End:
   return status;
 }
@@ -453,9 +483,7 @@ End:
   @retval EFI_DEVICE_ERROR       ADV7535 device error.
 
 **/
-EFI_STATUS ADV7535Dump
-  (
-  )
+EFI_STATUS ADV7535Dump(VOID)
 {
   EFI_STATUS status;
   uint8_t i2cData[2];
@@ -465,7 +493,7 @@ EFI_STATUS ADV7535Dump
   CHECK_I2C_TRANSACTION_STATUS(status, "ADV7535_REG_DSI_CEC_ADDR", End);
   I2C_CecConfig.SlaveAddress = (i2cData[0] >> 1U);
 
-  DEBUG ((DEBUG_INFO, "------------------------ADV7535 Main Space------------------------\n"));
+  DEBUG ((ADV7535_DEBUG_LEVEL, "------------------------ADV7535 Main Space------------------------\n"));
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_PD_RESET, "ADV7535_REG_PD_RESET");
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_HPD_OVERRIDE, "ADV7535_REG_HPD_OVERRIDE");
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_COL_SPACE, "ADV7535_REG_COL_SPACE");
@@ -474,7 +502,7 @@ EFI_STATUS ADV7535Dump
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_MAIN_FIXED_0XDE, "ADV7535_REG_MAIN_FIXED_0XDE");
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_V1P8, "ADV7535_REG_V1P8");
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_MAIN_FIXED_0XE5, "ADV7535_REG_MAIN_FIXED_0XE5");
-  DEBUG ((DEBUG_INFO, "------------------------ADV7535 CEC_DSI Space------------------------\n"));
+  DEBUG ((ADV7535_DEBUG_LEVEL, "------------------------ADV7535 CEC_DSI Space------------------------\n"));
   Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_CECDSI_FIXED_0X15, "ADV7535_REG_CECDSI_FIXED_0X15");
   Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_CECDSI_FIXED_0X17, "ADV7535_REG_CECDSI_FIXED_0X17");
   Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_CECDSI_FIXED_0X24, "ADV7535_REG_CECDSI_FIXED_0X24");
@@ -500,7 +528,8 @@ EFI_STATUS ADV7535Dump
   Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_TG_VBP_LOW, "ADV7535_REG_TG_VBP_LOW");
   Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_TIMING_GEN, "ADV7535_REG_TIMING_GEN");
   Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_PATTERN_GEN, "ADV7535_REG_PATTERN_GEN");
-  DEBUG ((DEBUG_INFO, "------------------------ADV7535 Main Space------------------------\n"));
+  Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_DSI_STATUS, "ADV7535_REG_DSI_STATUS");
+  DEBUG ((ADV7535_DEBUG_LEVEL, "------------------------ADV7535 Main Space------------------------\n"));
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_HDCP_VOUT_SEL, "ADV7535_REG_HDCP_VOUT_SEL");
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_AVI_INFOFRM_0X55, "ADV7535_REG_AVI_INFOFRM_0X55");
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_AVI_INFOFRM_0X56, "ADV7535_REG_AVI_INFOFRM_0X56");
@@ -510,9 +539,10 @@ EFI_STATUS ADV7535Dump
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_DOWN_DITHER, "ADV7535_REG_DOWN_DITHER");
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_SYNC_POL_DE_EN, "ADV7535_REG_SYNC_POL_DE_EN");
   Adv7535DumpRegister(&I2C_ADV7535Config, ADV7535_REG_INFOFRM_0X4A, "ADV7535_REG_INFOFRM_0X4A");
-  DEBUG ((DEBUG_INFO, "------------------------ADV7535 CEC_DSI Space------------------------\n"));
+  DEBUG ((ADV7535_DEBUG_LEVEL, "------------------------ADV7535 CEC_DSI Space------------------------\n"));
   Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_CEC_CLK_PWR, "ADV7535_REG_CEC_CLK_PWR");
   Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_HDMI_LPOSC, "ADV7535_REG_HDMI_LPOSC");
+  Adv7535DumpRegister(&I2C_CecConfig, ADV7535_REG_DSI_CONFIG, "ADV7535_REG_DSI_CONFIG");
 End:
   return status;
 }

@@ -36,7 +36,4 @@ git config --local core.symlinks false
 @echo Populating source files from git
 git reset --hard
 
-git config --unset-all user.name
-git config --unset-all user.email
-
 pause

@@ -38,6 +38,7 @@ public:
     GcKmBaseDisplayController(
         DXGKRNL_INTERFACE*  pDxgkInterface)
     {
+        m_IsInitialized = TRUE;
     }
 
     virtual ~GcKmBaseDisplayController() {}
@@ -137,6 +138,11 @@ public:
         _In_ ULONG  ChildUid,
         _Inout_ PDXGK_CHILD_CONTAINER_ID    pChildChildContainId);
 
+    virtual BOOLEAN IsInitialized(VOID)
+    {
+        return m_IsInitialized;
+    }
+
 protected:
 
     NTSTATUS RegisterDisplayPipeline(
@@ -157,6 +163,8 @@ protected:
     }
 
 protected:
+
+    BOOLEAN m_IsInitialized;
 
     static const UINT   GC_KM_MAX_PIPELINES = 8;
     static const UINT   GC_KM_MAX_SOURCES   = 16;

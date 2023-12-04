@@ -391,10 +391,14 @@ GcKmBaseDisplay::CommitVidPn(
             if (NT_SUCCESS(Status))
             {
                 m_TargetId = pPath->VidPnTargetId;
+
+                PrepareScanlineEmulation(pTargetMode);
             }
         }
     } else {
         HwStopScanning(m_TargetId);
+
+        PrepareScanlineEmulation(pTargetMode);
     }
 
     if (pPath)
@@ -481,6 +485,20 @@ NTSTATUS
 GcKmBaseDisplay::GetScanLine(
     INOUT_PDXGKARG_GETSCANLINE  pGetScanLine)
 {
+    if ((m_FrameInTick == 0) || (m_ScanlineInTick == 0))
+    {
+        return STATUS_SUCCESS;
+    }
+
+    LARGE_INTEGER   PerfCounter;
+    LONGLONG    Scanlines;
+
+    PerfCounter = KeQueryPerformanceCounter(NULL);
+    Scanlines = PerfCounter.QuadPart%m_FrameInTick;
+
+    pGetScanLine->ScanLine = (UINT)Scanlines/m_ScanlineInTick;
+    pGetScanLine->InVerticalBlank = pGetScanLine->ScanLine > m_VActive ? 1 : 0;
+
     return STATUS_SUCCESS;
 }
 
@@ -641,6 +659,29 @@ NTSTATUS GcKmBaseDisplay::GetFramebufferInfo(DXGKRNL_INTERFACE* pDxgkInterface,
     }
 
     return STATUS_SUCCESS;
+}
+
+void GcKmBaseDisplay::PrepareScanlineEmulation(const D3DKMDT_VIDPN_TARGET_MODE* pTargetMode)
+{
+    if (pTargetMode)
+    {
+        LARGE_INTEGER   PerfFreq;
+
+        KeQueryPerformanceCounter(&PerfFreq);
+
+        auto HTotal = pTargetMode->VideoSignalInfo.TotalSize.cx;
+        auto VTotal = pTargetMode->VideoSignalInfo.TotalSize.cy;
+        auto PixelClock = pTargetMode->VideoSignalInfo.PixelRate;
+
+        m_FrameInTick = (UINT)(PerfFreq.QuadPart*HTotal*VTotal/PixelClock);
+        m_ScanlineInTick = (UINT)(PerfFreq.QuadPart*HTotal/PixelClock);
+        m_VActive = pTargetMode->VideoSignalInfo.ActiveSize.cy;
+    }
+    else
+    {
+        m_FrameInTick = 0;
+        m_ScanlineInTick = 0;
+    }
 }
 
 

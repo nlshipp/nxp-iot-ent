@@ -11,19 +11,29 @@ Abstract:
 #include "imx_audio.h"
 #include "socbase.h"
 #include "imx_aud2htx.h"
-#include "aud2htx_acpi_dsd.h"
 
 #include <ntddk.h>
 
-#define DBG_MSG_DRV_PREFIX "HDMIAUD"
+
 #if DBG
-#define DBG_DRV_METHOD_BEG()                                        DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:+++%s()\n"                    ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__)
-#define DBG_DRV_METHOD_BEG_WITH_PARAMS(_format_str_,...)            DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:+++%s("_format_str_")\n"      ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,__VA_ARGS__)
-#define DBG_DRV_METHOD_END()                                        DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:---%s()\n"                    ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__)
-#define DBG_DRV_METHOD_END_WITH_PARAMS(_format_str_,...)            DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:---%s("_format_str_")\n"      ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,__VA_ARGS__)
-#define DBG_DRV_METHOD_END_WITH_STATUS(_status_)                    DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:---%s() [0x%.8X]\n"           ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,_status_)
+#define DBG_MSG_DRV_PREFIX "HDMIAUD"
+#define DBG_VERBOSITY 1
+#if DBG_VERBOSITY > 1
+    #define DBG_DRV_METHOD_BEG()                                        DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:+++%s()\n"                    ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__)
+    #define DBG_DRV_METHOD_BEG_WITH_PARAMS(_format_str_,...)            DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:+++%s("_format_str_")\n"      ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,__VA_ARGS__)
+    #define DBG_DRV_METHOD_END()                                        DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:---%s()\n"                    ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__)
+    #define DBG_DRV_METHOD_END_WITH_PARAMS(_format_str_,...)            DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:---%s("_format_str_")\n"      ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,__VA_ARGS__)
+    #define DBG_DRV_METHOD_END_WITH_STATUS(_status_)                    DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:---%s() [0x%.8X]\n"           ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,_status_)
+    #define DBG_DRV_PRINT_VERBOSE(_format_str_,...)                     DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:   %s "_format_str_"\n"       ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,__VA_ARGS__)
+#else
+    #define DBG_DRV_METHOD_BEG()                                 
+    #define DBG_DRV_METHOD_BEG_WITH_PARAMS(_format_str_,...)     
+    #define DBG_DRV_METHOD_END()                                 
+    #define DBG_DRV_METHOD_END_WITH_PARAMS(_format_str_,...)     
+    #define DBG_DRV_METHOD_END_WITH_STATUS(_status_)    
+    #define DBG_DRV_PRINT_VERBOSE(_format_str_,...)              
+#endif
 #define DBG_DRV_PRINT_WARNING(_format_str_,...)                     DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:   %s "_format_str_"\n"       ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,__VA_ARGS__)
-#define DBG_DRV_PRINT_VERBOSE(_format_str_,...)                     DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:   %s "_format_str_"\n"       ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,__VA_ARGS__)
 #define DBG_DRV_PRINT_INFO(_format_str_,...)                        DbgPrintEx(DPFLTR_IHVDRIVER_ID,0xFFFFFFFE,"D%d %s:   %s "_format_str_"\n"       ,KeGetCurrentIrql(),DBG_MSG_DRV_PREFIX,__FUNCTION__,__VA_ARGS__)
 #else
 #define DBG_DRV_METHOD_BEG()                                 
@@ -73,6 +83,7 @@ public:
     (
         _In_ PCM_PARTIAL_RESOURCE_DESCRIPTOR registersDescriptor,
         _In_ PCM_PARTIAL_RESOURCE_DESCRIPTOR interruptDescriptor,
+        _In_ PCM_PARTIAL_RESOURCE_DESCRIPTOR txDmaResourcePtr,
         _In_ PDEVICE_OBJECT PDO
     ) override;
 
@@ -107,7 +118,7 @@ public:
     (
         _In_        CMiniportWaveRTStream* Stream,
         eDeviceType                        DeviceType,
-        _In_        ULONG                  Size,
+        _Inout_     PULONG                 Size,
         _Out_       PMDL*                  pMdl,
         _Out_       MEMORY_CACHING_TYPE*   CacheType
     ) override;
@@ -123,7 +134,6 @@ public:
     VOID Notify(DMA_COMPLETION_STATUS Status);
 
 private:
-    AUD2HTX_DSD_CONFIG         m_DsdConfig;
     volatile PAUD2HTX_REGISTERS m_pAud2HtxRegisters;
     PHYSICAL_ADDRESS            m_RegBase;
     PWAVEFORMATEXTENSIBLE  m_pWfExt;

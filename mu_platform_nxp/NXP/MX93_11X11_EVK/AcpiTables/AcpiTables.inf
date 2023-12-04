@@ -74,3 +74,5 @@
   gMsPkgTokenSpaceGuid.PcdSecureBootEnable
   giMX8TokenSpaceGuid.PcdMipiCsiDeviceMemorySize
   giMX8TokenSpaceGuid.PcdIsiChannelMemorySize
+
+  giMX8TokenSpaceGuid.PcdCsi1CameraRpiCamMipi

@@ -306,7 +306,7 @@ static uint32_t composite_set_rate(imx_clk_t *clk, uint32_t rate)
         val |= IMX_CCM_TARGET_ROOT_POST_PODF(postdiv);
         __raw_writel(val, clk->clk_slice.base_reg + clk->clk_slice.phy_offset);
     }
-    CLK_TRACE("composite_set_rate:%12s prediv=%d postdiv=%d clk=%d\n", clk->name, clk->clk_slice.prediv,
+    CLK_DEBUG("composite_set_rate:%12s prediv=%d postdiv=%d clk=%d\n", clk->name, clk->clk_slice.prediv,
               clk->clk_slice.postdiv, rate_real);
     return rate_real;
 }

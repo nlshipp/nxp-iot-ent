@@ -603,80 +603,86 @@ ImxPwmEvtDeviceAdd (
     // Set controller info and defaults
     //
     {
-       UINT32 bootOn = 0;
-       UINT32 bootPolarity = 0;
-       ULARGE_INTEGER bootDesiredPeriod = { 0 };
-       ULARGE_INTEGER bootActiveDutyCycle = { 0 };
+        UINT32 bootOn = 0;
+        UINT32 bootPolarity = 0;
+        ULARGE_INTEGER bootDesiredPeriod = { 0 };
+        ULARGE_INTEGER bootActiveDutyCycle = { 0 };
 
-       //Use hardcoded values first. Can be overriden by ACPI values later
-       deviceContextPtr->ClockSource = IMXPWM_PWMCR_CLKSRC(IMXPWM_DEFAULT_CLKSRC);
-       switch (ImxGetSocType()) {
-       case IMX_SOC_MX8M:
-          deviceContextPtr->ClockSourceFrequency = IMXPWM_25MHZ_CLKSRC_FREQ;
-          break;
-       case IMX_SOC_MX7:
-          deviceContextPtr->ClockSourceFrequency = IMXPWM_24MHZ_CLKSRC_FREQ;
-          break;
-       default:
-          deviceContextPtr->ClockSourceFrequency = IMXPWM_66MHZ_CLKSRC_FREQ;
-          break;
-       }
-       // Pull optional Pwm-SchematicName value from ACPI _DSD table and publish as SchematicName property
-       DEVICE_OBJECT* pdoPtr = WdfDeviceWdmGetPhysicalDevice(wdfDevice);
-       NT_ASSERT(pdoPtr != nullptr);
-
-       ACPI_EVAL_OUTPUT_BUFFER* dsdBufferPtr = nullptr;
-       
-       status = AcpiQueryDsd(pdoPtr, &dsdBufferPtr);
-       if (!NT_SUCCESS(status)) {
-          IMXPWM_LOG_WARNING(
-             "DevAdd - AcpiQueryDsd() failed with error %!STATUS!",
-             status);
-          goto bootCfgEnd;;
-       }
-
-       const ACPI_METHOD_ARGUMENT UNALIGNED* devicePropertiesPkgPtr;
-       status = AcpiParseDsdAsDeviceProperties(dsdBufferPtr, &devicePropertiesPkgPtr);
-       if (!NT_SUCCESS(status)) {
-          IMXPWM_LOG_WARNING(
-             "DevAdd - AcpiParseDsdAsDeviceProperties() failed with error %!STATUS!",
-             status);
-          goto bootCfgEnd;;
-       }
-       UINT32 freq = 0;
-       status = AcpiDevicePropertiesQueryIntegerValue(
-          devicePropertiesPkgPtr,
-          "ClockFrequency_Hz",
-          &freq);
-       if (!NT_SUCCESS(status)) {
-          IMXPWM_LOG_WARNING(
-             "DevAdd - AcpiDevicePropertiesQueryIntegerValue(ClockFrequency_Hz) failed with error %!STATUS!",
-             status);
-       } else {
-          deviceContextPtr->ClockSourceFrequency = freq;
-       }
-        deviceContextPtr->RovEventCounterCompare = IMXPWM_ROV_EVT_COUNTER_COMPARE;
-
-        auto &info = deviceContextPtr->ControllerInfo;
-
-        info.Size = sizeof(PWM_CONTROLLER_INFO);
-
-        UINT32 pinCnt = 0;
-        status = AcpiDevicePropertiesQueryIntegerValue(
-           devicePropertiesPkgPtr,
-           "PinCount",
-           &pinCnt);
-        if (!NT_SUCCESS(status)) {
-           IMXPWM_LOG_WARNING(
-              "DevAdd - AcpiDevicePropertiesQueryIntegerValue(PinCount) failed with error %!STATUS!",
-              status);
-           //fallof to non-acpi table read behavioe if ACPI not modified for this new driver
-           info.PinCount = IMXPWM_PIN_COUNT;
-        } else {
-           info.PinCount = pinCnt;
+        //Use hardcoded values first. Can be overriden by ACPI values later
+        deviceContextPtr->ClockSource = IMXPWM_PWMCR_CLKSRC(IMXPWM_DEFAULT_CLKSRC);
+        switch (ImxGetSocType()) {
+        case IMX_SOC_MX8M:
+            deviceContextPtr->ClockSourceFrequency = IMXPWM_25MHZ_CLKSRC_FREQ;
+            break;
+        case IMX_SOC_MX7:
+            deviceContextPtr->ClockSourceFrequency = IMXPWM_24MHZ_CLKSRC_FREQ;
+            break;
+        default:
+            deviceContextPtr->ClockSourceFrequency = IMXPWM_66MHZ_CLKSRC_FREQ;
+            break;
         }
-        
+        //set default values, if ACPI values are not defined
+        deviceContextPtr->RovEventCounterCompare = IMXPWM_ROV_EVT_COUNTER_COMPARE;
+        auto& info = deviceContextPtr->ControllerInfo;
+        info.Size = sizeof(PWM_CONTROLLER_INFO);
+        info.PinCount = IMXPWM_PIN_COUNT;
 
+        // Pull optional Pwm-SchematicName value from ACPI _DSD table and publish as SchematicName property
+        DEVICE_OBJECT* pdoPtr = WdfDeviceWdmGetPhysicalDevice(wdfDevice);
+        NT_ASSERT(pdoPtr != nullptr);
+
+        ACPI_EVAL_OUTPUT_BUFFER* dsdBufferPtr = nullptr;
+
+        bool acpiAvailable = false;
+        const ACPI_METHOD_ARGUMENT UNALIGNED* devicePropertiesPkgPtr = nullptr;
+
+        status = AcpiQueryDsd(pdoPtr, &dsdBufferPtr);
+        if (!NT_SUCCESS(status)) {
+            IMXPWM_LOG_WARNING(
+                "DevAdd - AcpiQueryDsd() failed with error %!STATUS!",
+                status);
+        }
+        else {
+            status = AcpiParseDsdAsDeviceProperties(dsdBufferPtr, &devicePropertiesPkgPtr);
+            if (!NT_SUCCESS(status)) {
+                IMXPWM_LOG_WARNING(
+                    "DevAdd - AcpiParseDsdAsDeviceProperties() failed with error %!STATUS!",
+                    status);
+            }
+            else {
+                acpiAvailable = true;
+            }
+        }
+        if (acpiAvailable) {
+            UINT32 freq = 0;
+            status = AcpiDevicePropertiesQueryIntegerValue(
+                devicePropertiesPkgPtr,
+                "ClockFrequency_Hz",
+                &freq);
+            if (!NT_SUCCESS(status)) {
+                IMXPWM_LOG_WARNING(
+                    "DevAdd - AcpiDevicePropertiesQueryIntegerValue(ClockFrequency_Hz) failed with error %!STATUS!",
+                    status);
+                
+            }
+            else {
+                deviceContextPtr->ClockSourceFrequency = freq;
+            }
+            UINT32 pinCnt = 0;
+            status = AcpiDevicePropertiesQueryIntegerValue(
+                devicePropertiesPkgPtr,
+                "PinCount",
+                &pinCnt);
+            if (!NT_SUCCESS(status)) {
+                IMXPWM_LOG_WARNING(
+                    "DevAdd - AcpiDevicePropertiesQueryIntegerValue(PinCount) failed with error %!STATUS!",
+                    status);
+            }
+            else {
+                info.PinCount = pinCnt;
+            }
+        }
+        ///calculate period, from ACPIvalues or from hardcoded defaults
         status =
             ImxPwmCalculatePeriod(
                 deviceContextPtr,
@@ -687,7 +693,7 @@ ImxPwmEvtDeviceAdd (
                 "Failed to compute minimum period. (status = %!STATUS!)",
                 status);
             if (dsdBufferPtr != nullptr) {
-               ExFreePoolWithTag(dsdBufferPtr, ACPI_TAG_EVAL_OUTPUT_BUFFER);
+                ExFreePoolWithTag(dsdBufferPtr, ACPI_TAG_EVAL_OUTPUT_BUFFER);
             }
             return status;
         }
@@ -702,7 +708,7 @@ ImxPwmEvtDeviceAdd (
                 "Failed to compute maximum period. (status = %!STATUS!)",
                 status);
             if (dsdBufferPtr != nullptr) {
-               ExFreePoolWithTag(dsdBufferPtr, ACPI_TAG_EVAL_OUTPUT_BUFFER);
+                ExFreePoolWithTag(dsdBufferPtr, ACPI_TAG_EVAL_OUTPUT_BUFFER);
             }
             return status;
         }
@@ -723,95 +729,96 @@ ImxPwmEvtDeviceAdd (
             ImxPwmPeriodToFrequency(info.MaximumPeriod),
             deviceContextPtr->DefaultDesiredPeriod,
             ImxPwmPeriodToFrequency(deviceContextPtr->DefaultDesiredPeriod));
-	
-			//boot configuration - check if enable the PWM device after boot is requested
+
+        //boot configuration - check if enable the PWM device after boot is requested
+        if (acpiAvailable) {
             status = AcpiDevicePropertiesQueryIntegerValue(
-          devicePropertiesPkgPtr,
-          "BootOn",
-          &bootOn);
-       if (!NT_SUCCESS(status)) {
-          IMXPWM_LOG_WARNING(
-             "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootOn) failed with error %!STATUS!",
-             status);
-          status = STATUS_SUCCESS;
-          goto bootCfgEnd;
-       }
-       if (bootOn) {
-          
-          status = AcpiDevicePropertiesQueryIntegerValue(
-             devicePropertiesPkgPtr,
-             "BootDesiredPeriodLowPart",
-             &bootDesiredPeriod.LowPart);
-          if (!NT_SUCCESS(status)) {
-             IMXPWM_LOG_WARNING(
-                "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootDesiredPeriodLowPart) failed with error %!STATUS!",
-                status);
-             bootOn = false;
-             goto bootCfgEnd;
-          }
-          status = AcpiDevicePropertiesQueryIntegerValue(
-             devicePropertiesPkgPtr,
-             "BootDesiredPeriodHighPart",
-             &bootDesiredPeriod.HighPart);
-          if (!NT_SUCCESS(status)) {
-             IMXPWM_LOG_WARNING(
-                "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootDesiredPeriodHighPart) failed with error %!STATUS!",
-                status);
-             bootOn = false;
-             goto bootCfgEnd;
-          }
-          if ((bootDesiredPeriod.QuadPart < info.MinimumPeriod) || (bootDesiredPeriod.QuadPart > info.MaximumPeriod)){
-            bootOn = false;
-            IMXPWM_LOG_ERROR( "DevAdd - BootDesiredPeriod is out of allowed range!!!" );
-            goto bootCfgEnd;
-            
-          }
-          
-          status = AcpiDevicePropertiesQueryIntegerValue(
-             devicePropertiesPkgPtr,
-             "BootActiveDutyCycleLowPart",
-             &bootActiveDutyCycle.LowPart);
-          if (!NT_SUCCESS(status)) {
-             IMXPWM_LOG_WARNING(
-                "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootActiveDutyCycleLowPart) failed with error %!STATUS!",
-                status);
-             bootOn = false;
-             goto bootCfgEnd;
-          }
-          status = AcpiDevicePropertiesQueryIntegerValue(
-             devicePropertiesPkgPtr,
-             "BootActiveDutyCycleHighPart",
-             &bootActiveDutyCycle.HighPart);
-          if (!NT_SUCCESS(status)) {
-             IMXPWM_LOG_WARNING(
-                "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootActiveDutyCycleHighPart) failed with error %!STATUS!",
-                status);
-             bootOn = false;
-             goto bootCfgEnd;
-          }
-          
-          status = AcpiDevicePropertiesQueryIntegerValue(
-             devicePropertiesPkgPtr,
-             "BootPolarity",
-             &bootPolarity);
-          if (!NT_SUCCESS(status)) {
-             IMXPWM_LOG_WARNING(
-                "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootPolarity) failed with error %!STATUS!",
-                status);
-             bootPolarity = 1;
-             goto bootCfgEnd;
-          }
-       }
-    bootCfgEnd:
-       if (bootOn) {
-          deviceContextPtr->RestorePwmState = TRUE;
-          deviceContextPtr->RestoreActiveDutyCycle = bootActiveDutyCycle.QuadPart;
-          deviceContextPtr->RestoreDesiredPeriod = bootDesiredPeriod.QuadPart;
-          deviceContextPtr->Pin.Polarity = (bootPolarity > 0) ? PWM_POLARITY::PWM_ACTIVE_HIGH : PWM_POLARITY::PWM_ACTIVE_LOW;
-       }
-       if (dsdBufferPtr != nullptr) {
-          ExFreePoolWithTag(dsdBufferPtr, ACPI_TAG_EVAL_OUTPUT_BUFFER);
-       }
+                devicePropertiesPkgPtr,
+                "BootOn",
+                &bootOn);
+            if (!NT_SUCCESS(status)) {
+                IMXPWM_LOG_WARNING(
+                    "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootOn) failed with error %!STATUS!",
+                    status);
+                status = STATUS_SUCCESS;
+                bootOn = false;
+                goto bootCfgEnd;
+            }
+            if (bootOn) {
+                status = AcpiDevicePropertiesQueryIntegerValue(
+                    devicePropertiesPkgPtr,
+                    "BootDesiredPeriodLowPart",
+                    &bootDesiredPeriod.LowPart);
+                if (!NT_SUCCESS(status)) {
+                    IMXPWM_LOG_WARNING(
+                        "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootDesiredPeriodLowPart) failed with error %!STATUS!",
+                        status);
+                    bootOn = false;
+                    goto bootCfgEnd;
+                }
+                status = AcpiDevicePropertiesQueryIntegerValue(
+                    devicePropertiesPkgPtr,
+                    "BootDesiredPeriodHighPart",
+                    &bootDesiredPeriod.HighPart);
+                if (!NT_SUCCESS(status)) {
+                    IMXPWM_LOG_WARNING(
+                        "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootDesiredPeriodHighPart) failed with error %!STATUS!",
+                        status);
+                    bootOn = false;
+                    goto bootCfgEnd;
+                }
+                if ((bootDesiredPeriod.QuadPart < info.MinimumPeriod) || (bootDesiredPeriod.QuadPart > info.MaximumPeriod)) {
+                    IMXPWM_LOG_ERROR("DevAdd - BootDesiredPeriod is out of allowed range!!!");
+                    bootOn = false;
+                    goto bootCfgEnd;
+
+                }
+                status = AcpiDevicePropertiesQueryIntegerValue(
+                    devicePropertiesPkgPtr,
+                    "BootActiveDutyCycleLowPart",
+                    &bootActiveDutyCycle.LowPart);
+                if (!NT_SUCCESS(status)) {
+                    IMXPWM_LOG_WARNING(
+                        "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootActiveDutyCycleLowPart) failed with error %!STATUS!",
+                        status);
+                    bootOn = false;
+                    goto bootCfgEnd;
+                }
+                status = AcpiDevicePropertiesQueryIntegerValue(
+                    devicePropertiesPkgPtr,
+                    "BootActiveDutyCycleHighPart",
+                    &bootActiveDutyCycle.HighPart);
+                if (!NT_SUCCESS(status)) {
+                    IMXPWM_LOG_WARNING(
+                        "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootActiveDutyCycleHighPart) failed with error %!STATUS!",
+                        status);
+                    bootOn = false;
+                    goto bootCfgEnd;
+                }
+
+                status = AcpiDevicePropertiesQueryIntegerValue(
+                    devicePropertiesPkgPtr,
+                    "BootPolarity",
+                    &bootPolarity);
+                if (!NT_SUCCESS(status)) {
+                    IMXPWM_LOG_WARNING(
+                        "DevAdd - AcpiDevicePropertiesQueryIntegerValue(BootPolarity) failed with error %!STATUS!",
+                        status);
+                    bootPolarity = 1;
+                    goto bootCfgEnd;
+                }
+            }
+        }
+ bootCfgEnd:
+        if (bootOn) {
+            deviceContextPtr->RestorePwmState = TRUE;
+            deviceContextPtr->RestoreActiveDutyCycle = bootActiveDutyCycle.QuadPart;
+            deviceContextPtr->RestoreDesiredPeriod = bootDesiredPeriod.QuadPart;
+            deviceContextPtr->Pin.Polarity = (bootPolarity > 0) ? PWM_POLARITY::PWM_ACTIVE_HIGH : PWM_POLARITY::PWM_ACTIVE_LOW;
+        }
+        if (dsdBufferPtr != nullptr) {
+            ExFreePoolWithTag(dsdBufferPtr, ACPI_TAG_EVAL_OUTPUT_BUFFER);
+        }
     }
 
     //

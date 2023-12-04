@@ -33,7 +33,7 @@
 
 #include "MipiDsi_packet.h"
 
-EFI_STATUS Rm67191Init(void);
+EFI_STATUS Rm67191Init(imxDisplayInterfaceType displayInterface);
 EFI_STATUS Rm67191Shutdown(void);
 
 #endif

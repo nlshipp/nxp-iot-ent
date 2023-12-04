@@ -143,36 +143,42 @@ BOOLEAN IMUDevice::OnInterruptIsr(
 
     // Read the interrupt source
     BYTE IntSrcBuffer = 0;
+    BYTE FStatus2 = 0;
+
     WdfWaitLockAcquire(m_I2CWaitLock, NULL);
     Status = I2CSensorReadRegister(m_I2CIoTarget, LSM6DSOX_STATUS_REG, &IntSrcBuffer, sizeof(IntSrcBuffer));
+    Status = I2CSensorReadRegister(m_I2CIoTarget, LSM6DSOX_FIFO_STATUS2, &FStatus2, sizeof(FStatus2));
     WdfWaitLockRelease(m_I2CWaitLock);
-
+    
     if (!NT_SUCCESS(Status))
     {
         TraceError("IMU %!FUNC! I2CSensorReadRegister from 0x%02x failed! %!STATUS!", LSM6DSOX_STATUS_REG, Status);
         goto Exit;
     }
-    if ((IntSrcBuffer & (LSM6DSOX_STATUS_REG_XLDA_MASK | LSM6DSOX_STATUS_REG_GDA_MASK )) == 0)
+    if ((IntSrcBuffer & (LSM6DSOX_STATUS_REG_XLDA_MASK | LSM6DSOX_STATUS_REG_GDA_MASK )) == 0 && (FStatus2 & LSM6DSOX_FIFO_STATUS2_FIFO_WTM_IA) == 0)
     {
         TraceError("%!FUNC! Interrupt source not recognized");
-        goto Exit;
-        
+        goto Exit;        
     }
 
-    if ( IntSrcBuffer & LSM6DSOX_STATUS_REG_XLDA_MASK )
-    {
+    if (IntSrcBuffer & LSM6DSOX_STATUS_REG_XLDA_MASK || FStatus2 & LSM6DSOX_FIFO_STATUS2_FIFO_WTM_IA)
+    {        
         pDevice = GetContextFromSensorInstance(SensorInstancesBuffer[Device_LinearAccelerometer]);
         if (nullptr == pDevice)
-        {
+        { 
             Status = STATUS_INVALID_PARAMETER;
             TraceError("IMU %!FUNC! GetContextFromSensorInstance failed %!STATUS!", Status);
             goto Exit;
         }
-        pDevice->m_DataReady = true;
-        InterruptRecognized = TRUE;
-        BOOLEAN WorkItemQueued = WdfInterruptQueueWorkItemForIsr(Interrupt);
-        TraceVerbose("%!FUNC! Work item %s queued for interrupt", WorkItemQueued ? "" : " already");
+        if ((IntSrcBuffer & LSM6DSOX_STATUS_REG_XLDA_MASK && !pDevice->m_fifo_enabled) || (FStatus2 & LSM6DSOX_FIFO_STATUS2_FIFO_WTM_IA && pDevice->m_fifo_enabled))
+        {
+            pDevice->m_DataReady = true;
+            InterruptRecognized = TRUE;
+            BOOLEAN WorkItemQueued = WdfInterruptQueueWorkItemForIsr(Interrupt);
+            TraceVerbose("%!FUNC! Work item %s queued for interrupt", WorkItemQueued ? "" : " already");
+        }        
     }
+
     if ( IntSrcBuffer & LSM6DSOX_STATUS_REG_GDA_MASK )
     {
         pDevice = GetContextFromSensorInstance(SensorInstancesBuffer[Device_Gyr]);
@@ -891,6 +897,27 @@ NTSTATUS IMUDevice::OnCancelHistoryRetrieval(_In_ SENSOROBJECT SensorInstance, _
         Status = pDevice->CancelHistoryRetrieval(pBytesWritten);
     }
 
+    SENSOR_FunctionExit(Status);
+    return Status;
+}
+
+NTSTATUS IMUDevice::OnSetBatchLatency(_In_ SENSOROBJECT SensorInstance, _In_ ULONG batchLatencyMs)
+{
+    PIMUDevice pDevice = GetContextFromSensorInstance(SensorInstance);
+    NTSTATUS Status = STATUS_SUCCESS;
+
+    SENSOR_FunctionEnter();
+
+    if (pDevice == nullptr)
+    {
+        Status = STATUS_INVALID_PARAMETER;
+        TraceError("IMU %!FUNC! Invalid parameter!");
+        goto Exit;
+    }
+
+    Status = pDevice->UpdateBatchLatency(batchLatencyMs);
+
+Exit:
     SENSOR_FunctionExit(Status);
     return Status;
 }

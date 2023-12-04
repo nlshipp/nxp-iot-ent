@@ -853,7 +853,7 @@ if [ $build_8m_nano -eq 1 ]; then
         uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
         sed -n -E \
             -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_IMX_HAB=y\nCONFIG_SPL_FIT_SIGNATURE=y' \
+            -e '$aCONFIG_IMX_HAB=y' \
             -e '$aCONFIG_ENV_IS_NOWHERE=y' \
             "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
         uboot_defconfig="$uboot_defconfig_temp"
@@ -892,7 +892,7 @@ if [ $build_8mn_ddr4 -eq 1 ]; then
         uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
         sed -n -E \
             -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_IMX_HAB=y\nCONFIG_SPL_FIT_SIGNATURE=y' \
+            -e '$aCONFIG_IMX_HAB=y' \
             -e '$aCONFIG_ENV_IS_NOWHERE=y' \
             "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
         uboot_defconfig="$uboot_defconfig_temp"
@@ -931,7 +931,7 @@ if [ $build_8m_plus -eq 1 ]; then
         uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
         sed -n -E \
             -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_IMX_HAB=y\nCONFIG_SPL_FIT_SIGNATURE=y' \
+            -e '$aCONFIG_IMX_HAB=y' \
             -e '$aCONFIG_ENV_IS_NOWHERE=y' \
             "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
         uboot_defconfig="$uboot_defconfig_temp"

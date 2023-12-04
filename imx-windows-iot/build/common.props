@@ -13,14 +13,11 @@
     <IntermediateOutputPath>$(MainOutput)$(ProjectName)\</IntermediateOutputPath>
     <PackageDir>$(MainOutput)$(ProjectName)\</PackageDir>
     <UseCommonOutputDirectory>True</UseCommonOutputDirectory>
-    <WindowsTargetPlatformMinVersion>10.0.19041.0</WindowsTargetPlatformMinVersion>
-    <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
-    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
-    <LatestTargetPlatformMinVersion>10.0.19041.0</LatestTargetPlatformMinVersion>
     <TimestampServer>http://timestamp.digicert.com/</TimestampServer>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
+      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
     <ResourceCompile>

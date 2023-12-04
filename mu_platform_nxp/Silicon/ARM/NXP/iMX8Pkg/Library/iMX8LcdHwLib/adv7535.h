@@ -217,6 +217,16 @@
 #define ADV7535_REG_CECDSI_FIXED_0X24               0x24
 #define ADV7535_REG_CECDSI_FIXED_0X24__FIXED        0x20
 
+#define ADV7535_REG_DSI_CONFIG                      0x25
+#define ADV7535_REG_DSI_CONFIG__SHDN_TURNON_EN      0x04
+#define ADV7535_REG_DSI_CONFIG__SHDN_TURNON_DI      0x00
+#define ADV7535_REG_DSI_CONFIG__VC_OFFSET_1         0x10
+
+#define ADV7535_REG_DSI_RESET                       0x26
+#define ADV7535_REG_DSI_RESET__FIXED                0x18
+#define ADV7535_REG_DSI_RESET__NOT_RESET            0x20
+#define ADV7535_REG_DSI_RESET__RESET                0x00
+
 #define ADV7535_REG_TIMING_GEN                      0x27
 #define ADV7535_REG_TIMING_GEN__ENABLE              0x80
 #define ADV7535_REG_TIMING_GEN__DISABLE             0x00
@@ -246,6 +256,7 @@
 
 #define ADV7535_REG_DSI_STATUS                      0x38
 #define ADV7535_REG_DSI_STATUS__STATUS_CLR          0x80
+#define ADV7535_REG_DSI_STATUS__TURN_ON_PKT_CLR     0x08
 
 #define ADV7535_REG_PATTERN_GEN                     0x55
 #define ADV7535_REG_PATTERN_GEN__ENABLE             0x80

@@ -18,9 +18,14 @@
 
   # Firmware update related settings
   DEFINE CAPSULE_ENABLE = TRUE
-  FIRMWARE_VER = 2023-05-01
+  FIRMWARE_VER = 2023-10-21
   FIRMWARE_VER_LOWEST_SUPPORTED = 2020-01-01
   DEFINE FMP_IMX_DEVICE = 806AB34B-EC97-4fA3-9928-FFF95E768b7D
+  DEFINE FIRMWARE_UPDATE = FALSE
+
+  # Allow Debug printouts via serial port from UEFI when OS is running, see also Dsdt-Platform.asl
+  # When enabled the WinDbg over serial port cannot be used
+  DEFINE RUNTIME_DEBUG = FALSE
 
 [BuildOptions]
   GCC:*_*_ARM_PLATFORM_FLAGS = -march=armv8-a -fno-inline -fno-inline-smallfunctions -fno-inline-functions-called-once
@@ -149,7 +154,7 @@
   CapsuleUpdatePolicyLib|iMX8Pkg/Library/iMX8CapsuleUpdatePolicyLib/iMX8CapsuleUpdatePolicyLib.inf
   FltUsedLib|MdePkg/Library/FltUsedLib/FltUsedLib.inf
   ResetUtilityLib|MdeModulePkg/Library/ResetUtilityLib/ResetUtilityLib.inf
-  CapsulePersistLib|MdeModulePkg/Library/CapsulePersistLibNull/CapsulePersistLibNull.inf
+  CapsulePersistLib|iMX8Pkg/Library/iMX8CapsulePersistLib/iMX8CapsulePersistLib.inf
 !endif
 
   #
@@ -225,7 +230,11 @@
 
   # BDS Libraries
   UefiBootManagerLib|MdeModulePkg/Library/UefiBootManagerLib/UefiBootManagerLib.inf
+!if $(FIRMWARE_UPDATE) == TRUE
+  PlatformBootManagerLib|MsCorePkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
+!else
   PlatformBootManagerLib|ArmPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
+!endif
   BootLogoLib|MdeModulePkg/Library/BootLogoLib/BootLogoLib.inf
   CustomizedDisplayLib|MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf
 
@@ -378,7 +387,11 @@
   CapsuleLib|MdeModulePkg/Library/DxeCapsuleLibFmp/DxeRuntimeCapsuleLib.inf
 !endif
 !if $(TARGET) != RELEASE
-  DebugLib|MdePkg/Library/DxeRuntimeDebugLibSerialPort/DxeRuntimeDebugLibSerialPort.inf
+  !if $(RUNTIME_DEBUG) == TRUE
+    DebugLib|iMXPlatformPkg/Library/DxeAndRuntimeDebugLibSerialPort/DxeAndRuntimeDebugLibSerialPort.inf
+  !else
+    DebugLib|MdePkg/Library/DxeRuntimeDebugLibSerialPort/DxeRuntimeDebugLibSerialPort.inf
+  !endif
 !endif
   DxeServicesLib|MdePkg/Library/DxeServicesLib/DxeServicesLib.inf
   HobLib|MdePkg/Library/DxeHobLib/DxeHobLib.inf
@@ -446,6 +459,9 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareRevision|0x00010000
 
   gEfiMdeModulePkgTokenSpaceGuid.PcdEmuVariableNvModeEnable|TRUE
+!if $(RUNTIME_DEBUG) == TRUE
+  gEfiMdePkgTokenSpaceGuid.PcdUefiRuntimeDebugEnable|TRUE
+!endif
 
   gArmPlatformTokenSpaceGuid.PcdSystemMemoryUefiRegionSize|0x01000000
 
@@ -705,6 +721,7 @@
   #
   iMX8Pkg/Drivers/iMX8Dxe/iMX8Dxe.inf
   iMXPlatformPkg/Drivers/SdhcDxe/SdhcDxe.inf
+  iMX8Pkg/Drivers/iMXNorFlashDxe/iMXNorFlashDxe.inf
 
   #
   # GOP driver
@@ -724,7 +741,7 @@
   MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
   MdeModulePkg/Universal/BdsDxe/BdsDxe.inf {
     <LibraryClasses>
-!if $(CONFIG_FRONTPAGE) == TRUE
+!if (($(CONFIG_FRONTPAGE) == TRUE) || ($(FIRMWARE_UPDATE) == TRUE))
       PlatformBootManagerLib|MsCorePkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
 !else
       PlatformBootManagerLib|ArmPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf

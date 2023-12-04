@@ -2,7 +2,7 @@
   Provides firmware device specific services to support updates of a firmware
   image stored in a firmware device.
 
-  Copyright 2022 NXP
+  Copyright 2022-2023 NXP
 
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -645,17 +645,14 @@ FmpDeviceSetImage (
 **/
 EFI_STATUS
 WriteCapsule(
-  IN CONST EFI_DEVICE_PATH_PROTOCOL *DevPath,
+  IN EFI_BLOCK_IO_PROTOCOL          *BlockIo,
+  IN EFI_SDMMCPART_PROTOCOL         *SdMmcPart,
   IN CONST UINT64                   ImageOffset,
   IN  CONST VOID                    *Image,
   IN  UINTN                         ImageSize,
   IN  EFI_FIRMWARE_MANAGEMENT_UPDATE_IMAGE_PROGRESS  Progress          OPTIONAL
   )
 {
-  EFI_BLOCK_IO_PROTOCOL     *BlockIo;
-  EFI_SDMMCPART_PROTOCOL    *SdMmcPart = NULL;
-  EFI_HANDLE                BlockIoHandle = NULL;
-  EFI_HANDLE                SdMmcPartHandle = NULL;
   EFI_STATUS                Status;
   UINT8                     *Buffer;
   UINT8                     *OriginalBuffer;
@@ -663,27 +660,6 @@ WriteCapsule(
   UINT16                    originalPartition = (UINT16)-1;
 
   #define BLOCK_BATCH 20
-
-  Status = gBS->LocateDevicePath(&gEfiBlockIoProtocolGuid, (EFI_DEVICE_PATH_PROTOCOL **)&DevPath, &BlockIoHandle);
-  if (EFI_ERROR(Status)) {
-    return (EFI_NOT_FOUND);
-  }
-
-  Status = gBS->OpenProtocol(BlockIoHandle, &gEfiBlockIoProtocolGuid, (VOID**)&BlockIo, gImageHandle, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
-  if (EFI_ERROR(Status)) {
-    DEBUG((DEBUG_WARN, "WriteCapsule failed to open gEfiBlockIoProtocolGuid: Status=%r\n", Status));
-    goto write_capsule_cleanup;
-  }
-
-  Status = gBS->LocateProtocol (
-                  &gEfiSdMmcPartProtocolGuid,
-                  NULL,
-                  (VOID **) &SdMmcPart);
-
-  if (EFI_ERROR(Status)) {
-    DEBUG((DEBUG_WARN, "WriteCapsule failed to locate gEfiSdMmcPartProtocolGuid: Status=%r\n", Status));
-    goto write_capsule_cleanup;
-  }
 
   if ((ImageOffset % BlockIo->Media->BlockSize) != 0) {
     DEBUG((DEBUG_WARN, "WriteCapsule invalid ImageOffset: %lu\n", ImageOffset));
@@ -767,43 +743,8 @@ write_capsule_cleanup:
   if (OriginalBuffer != NULL) {
     FreePool (OriginalBuffer);
   }
-  if (BlockIoHandle) {
-    gBS->CloseProtocol(BlockIoHandle, &gEfiBlockIoProtocolGuid, gImageHandle, NULL);
-  }
-  if (SdMmcPartHandle) {
-    gBS->CloseProtocol(SdMmcPartHandle, &gEfiSdMmcPartProtocolGuid, gImageHandle, NULL);
-  }
   return (Status);
 }
-
-
-#include <Protocol/Shell.h>
-
-static EFI_SHELL_PROTOCOL* mShellProtocol = NULL;
-
-EFI_SHELL_PROTOCOL *
-GetShellProtocol (
-  VOID
-  )
-{
-  EFI_STATUS            Status;
-
-  if (mShellProtocol == NULL) {
-    Status = gBS->LocateProtocol (
-                    &gEfiShellProtocolGuid,
-                    NULL,
-                    (VOID **) &mShellProtocol
-                    );
-    if (EFI_ERROR (Status)) {
-      mShellProtocol = NULL;
-    }
-  }
-
-  return mShellProtocol;
-}
-
-
-
 
 /**
   Updates a firmware device with a new firmware image.  This function returns
@@ -880,38 +821,41 @@ FmpDeviceSetImageWithStatus (
   OUT UINT32                                         *LastAttemptStatus
   )
 {
+  EFI_STATUS Status;
+
   DEBUG((DEBUG_INFO, "FmpDeviceSetImage: IMX8 (ImageSize=%u)\n", ImageSize));
 
-  EFI_SHELL_PROTOCOL* efiShellProtocol = GetShellProtocol();
-  const EFI_DEVICE_PATH_PROTOCOL* dp = NULL;
-  CONST CHAR16* DevPathString;
+  EFI_HANDLE* Buffer;
+  UINTN NoHandles = 0;
 
-  //We search for BLK* device which is MMC and is not HD, examples:
-  //DevPathString = VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,01000000)/eMMC(0x0)
-  //DevPathString = VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,01000000)/eMMC(0x0)/HD(1,GPT,28777550-3142-4498-800D-FB16567BDA97,0x800,0x32000)
+  Status = gBS->LocateHandleBuffer (
+                  ByProtocol,
+                  &gEfiSdMmcPartProtocolGuid,
+                  NULL,
+                  &NoHandles,
+                  &Buffer);
 
-  CHAR16 blkName[5] = { L'b', L'l', L'k', L'0', CHAR_NULL };
-  for (UINTN i = 0; i < 10; i++) {
-    blkName[3] = L'0' + i; //Iterate blk0, blk1, ... blk9
+  DEBUG((DEBUG_WARN, "gEfiSdMmcPartProtocolGuid Status=%r Count=%lu\n", Status, NoHandles));
 
-    dp = efiShellProtocol->GetDevicePathFromMap(blkName);
-    if (dp == NULL) {
-      continue;
-    }
-
-    DevPathString = ConvertDevicePathToText(dp, TRUE, FALSE);
-    CHAR16* isMMC = StrStr(DevPathString, L"MMC");
-    CHAR16* isHD  = StrStr(DevPathString, L"HD");
-
-    if (isMMC != NULL && isHD == NULL) {
-      DEBUG((DEBUG_INFO, "Found MMC: %s\n", DevPathString, isMMC != NULL, isHD != NULL));
-      break; //Exit the loop, we will use device dp
-    } else {
-      dp = NULL; //This is indication that MMC was not found
-    }
+  if (EFI_ERROR(Status) || NoHandles != 1) {
+    DEBUG((DEBUG_WARN, "Unexcpected number of SdMmcPartProtocols Guid Status=%r Count=%lu\n", Status, NoHandles));
+    return EFI_NOT_FOUND;
   }
 
-  if (dp == NULL) {
+  EFI_HANDLE* MmcHandle = Buffer[0];
+
+  EFI_BLOCK_IO_PROTOCOL     *BlockIo = NULL;
+  EFI_SDMMCPART_PROTOCOL    *SdMmcPart = NULL;
+
+  Status = gBS->OpenProtocol(MmcHandle, &gEfiBlockIoProtocolGuid, (VOID**)&BlockIo, gImageHandle, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+  if (EFI_ERROR(Status)) {
+    DEBUG((DEBUG_WARN, "WriteCapsule failed to open gEfiBlockIoProtocolGuid: Status=%r\n", Status));
+    return EFI_NOT_FOUND;
+  }
+
+  Status = gBS->OpenProtocol(MmcHandle, &gEfiSdMmcPartProtocolGuid, (VOID**)&SdMmcPart, gImageHandle, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+  if (EFI_ERROR(Status)) {
+    DEBUG((DEBUG_WARN, "WriteCapsule failed to open gEfiSdMmcPartProtocolGuid: Status=%r\n", Status));
     return EFI_NOT_FOUND;
   }
 
@@ -919,9 +863,12 @@ FmpDeviceSetImageWithStatus (
   UINT64 imageOffset = PcdGet64 (PcdFirmwareImageOffset);
 
   // Write the Capsule to disk
-  WriteCapsule(dp, imageOffset, Image, ImageSize, Progress);
+  Status = WriteCapsule(BlockIo, SdMmcPart, imageOffset, Image, ImageSize, Progress);
 
-  return EFI_SUCCESS;
+  gBS->CloseProtocol(MmcHandle, &gEfiBlockIoProtocolGuid, gImageHandle, NULL);
+  gBS->CloseProtocol(MmcHandle, &gEfiSdMmcPartProtocolGuid, gImageHandle, NULL);
+
+  return Status;
 }
 
 /**

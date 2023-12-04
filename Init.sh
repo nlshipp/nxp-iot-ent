@@ -29,6 +29,9 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 # 
 
+GitUserName="NXP Build Server"
+GitUserEmail="XXX@nxp.com"
+
 echo "Populating source files from git ..."
 git reset --hard
 
@@ -57,9 +60,6 @@ do
     pushd $module_path;
         git apply $patch_dir/${patch_name}.patch;
         git add -A -f .
-        git commit -m "NXP i.MX BSP support patch" 2>/dev/null || echo "Failed to commit patch to your local copy of $module. Fix errors and commit patch to $module submodule manually. Shell command: pushd $module; git commit -m \"NXP i.MX BSP support patch\"; popd;"
+        git -c user.name="$GitUserName" -c user.email="$GitUserEmail" commit -m "NXP i.MX BSP support patch" 2>/dev/null || echo "Failed to commit patch to your local copy of $module_path. Fix errors and commit patch to $module_path submodule manually. Shell command: pushd $module_path; git commit -m \"NXP i.MX BSP support patch\"; popd;"
     popd;
 done
-
-git config --unset-all user.name
-git config --unset-all user.email

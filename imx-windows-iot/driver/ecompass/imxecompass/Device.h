@@ -81,6 +81,9 @@ typedef enum
     SENSOR_PROPERTY_MIN_DATA_INTERVAL,
     SENSOR_PROPERTY_MAX_DATA_FIELD_SIZE,
     SENSOR_PROPERTY_TYPE,
+    SENSOR_PROPERTY_FIFORESERVEDSIZE_SAMPLES,
+    SENSOR_PROPERTY_FIFO_MAXSIZE_SAMPLES,
+    SENSOR_PROPERTY_WAKE_CAPABLE,
     SENSOR_PROPERTY_COUNT
 } SENSOR_PROPERTIES_INDEX;
 
@@ -123,12 +126,12 @@ const REGISTER_SETTING g_ConfigurationSettings[] =
     { FXOS8700_F_SETUP , FXOS8700_F_SETUP_F_MODE_FIFO_DISABLE },
     // Interrupt active low
     { FXOS8700_CTRL_REG3 , FXOS8700_CTRL_REG3_IPOL_ACTIVE_LOW | FXOS8700_CTRL_REG3_PP_OD_OPEN_DRAIN },
-    // Interrupt routing to INT1 pin
-    { FXOS8700_CTRL_REG5 , FXOS8700_CTRL_REG5_INT_CFG_DRDY_INT1 },
-    // Interrupt enable
-    { FXOS8700_CTRL_REG4 , FXOS8700_CTRL_REG4_INT_EN_DRDY_EN },
+    // Data ready and FIFO interrupt routing to INT1 pin
+    { FXOS8700_CTRL_REG5 , FXOS8700_CTRL_REG5_INT_CFG_DRDY_INT1 | FXOS8700_CTRL_REG5_INT_CFG_FIFO_INT1 },
+    // Data ready and FIFO interrupts enable
+    { FXOS8700_CTRL_REG4 , FXOS8700_CTRL_REG4_INT_EN_DRDY_EN | FXOS8700_CTRL_REG4_INT_EN_FIFO_EN },
     // Hybrid mode
-    {FXOS8700_M_CTRL_REG1 , FXOS8700_M_CTRL_REG1_M_ACAL_EN | FXOS8700_M_CTRL_REG1_M_HMS_HYBRID_MODE},
+    {FXOS8700_M_CTRL_REG1 , FXOS8700_M_CTRL_REG1_M_ACAL_EN | FXOS8700_M_CTRL_REG1_M_HMS_HYBRID_MODE },
 };
 
 //
@@ -163,6 +166,15 @@ public:
     SENSOROBJECT                m_SensorInstance{};
 
     //
+    //FIFO
+    //
+    static BOOLEAN              m_fifo_enabled;
+    static ULONG                m_batch_latency;
+    static ULONG                m_fifo_size;
+    static UINT32               m_accelerometer_max_fifo_samples;
+    static UINT32               m_magnetometer_max_fifo_samples;
+
+    //
     // Sensor Specific Properties
     //
     PSENSOR_PROPERTY_LIST       m_pSupportedDataFields{};
@@ -194,6 +206,7 @@ public:
     static EVT_SENSOR_DRIVER_CANCEL_HISTORY_RETRIEVAL   OnCancelHistoryRetrieval;
     static EVT_SENSOR_DRIVER_ENABLE_WAKE                OnEnableWake;
     static EVT_SENSOR_DRIVER_DISABLE_WAKE               OnDisableWake;
+    static EVT_SENSOR_DRIVER_SET_BATCH_LATENCY          OnSetBatchLatency;
 
     // WDF callbacks
     static EVT_WDF_TIMER                                OnTimerExpire;

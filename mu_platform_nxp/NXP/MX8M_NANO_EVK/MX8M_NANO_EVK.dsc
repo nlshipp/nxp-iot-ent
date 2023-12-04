@@ -123,7 +123,11 @@
   # | Operating System  |  ^
   # | Memory            |  |
   # |                   |  |
+  # |                   |  |
+  # |                   |  |
   # |                   |  v
+  # +-------------------+===> (0xB5F00000) PcdFlashNvStorageVariableBase
+  # | Nv UEFI Vars      |  |
   # +-------------------+===> (0xB6000000) PcdArmGPUReservedMemoryBase
   # | GPU Reserved      |  ^
   # | Memory            |  |  (0x08000000) PcdArmGPUReservedMemorySize
@@ -162,8 +166,8 @@
 !if $(CONFIG_HEADLESS) == TRUE
   gArmTokenSpaceGuid.PcdSystemMemorySize|0x7E000000
 !else
-  #The SystemMemorySize must exclude GPU reserved memory
-  gArmTokenSpaceGuid.PcdSystemMemorySize|0x76000000
+  #The SystemMemorySize must exclude GPU reserved memory and 3*NvStorageVariableSize
+  gArmTokenSpaceGuid.PcdSystemMemorySize|0x75F00000
 !endif
 !else
   gArmTokenSpaceGuid.PcdSystemMemorySize|0x80000000
@@ -201,14 +205,14 @@
 !endif
 
   #
-  # NV Storage PCDs. Use base of 0x30370000 for SNVS?
+  # NV Storage PCDs. Use base of 0xB5F00000 ... area below GPU
   #
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase|0x30370000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize|0x00004000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase|0x30374000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize|0x00004000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase|0x30378000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize|0x00004000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase|0xB5F00000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize|0x00040000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase|0xB5F40000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize|0x00040000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase|0xB5F80000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize|0x00040000
 
   # i.MX8M Nano
   gArmPlatformTokenSpaceGuid.PcdCoreCount|4
@@ -315,13 +319,18 @@
   # Camera
   #
   # Configuration of camera type connected to CSI1 and CSI2 port
-  giMX8TokenSpaceGuid.PcdCsi1CameraOv5640|0x1
+  giMX8TokenSpaceGuid.PcdCsi1CameraOv5640|0x0
   giMX8TokenSpaceGuid.PcdCsi1CameraOv10635|0x0
 
   #
   # USB
   #
   giMX8TokenSpaceGuid.PcdUsb1EhciBaseAddress|0x32E40100
+
+  #
+  # FlexSPI
+  #
+  giMX8TokenSpaceGuid.PcdFlexSpiBaseAddress|0x30bb0000
 
 [PcdsPatchableInModule]
   # Use system default resolution

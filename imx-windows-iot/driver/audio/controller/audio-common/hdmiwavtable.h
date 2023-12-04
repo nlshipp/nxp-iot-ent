@@ -55,7 +55,7 @@ KSDATAFORMAT_WAVEFORMATEXTENSIBLE HdmiHostPinSupportedDeviceFormats[] =
                 WAVE_FORMAT_EXTENSIBLE,
                 2,
                 HDMI_HOST_MIN_SAMPLE_RATE,
-                HDMI_HOST_MAX_SAMPLE_RATE,
+                8*HDMI_HOST_MAX_SAMPLE_RATE,
                 8,
                 32,  // specify a 32 bit container for 24 bit audio to make fifo management easier.
                 sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)

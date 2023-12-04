@@ -22,7 +22,7 @@
     <TargetVersion>Windows10</TargetVersion>
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>$(Nxp_PlatformToolset)</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <DriverTargetPlatform>Universal</DriverTargetPlatform>
     <DriverType />
@@ -32,7 +32,7 @@
     <TargetVersion>Windows10</TargetVersion>
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>$(Nxp_PlatformToolset)</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
     <DriverTargetPlatform>Universal</DriverTargetPlatform>

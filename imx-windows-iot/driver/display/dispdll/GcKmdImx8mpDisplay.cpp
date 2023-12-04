@@ -5,6 +5,7 @@
 #include "precomp.h"
 
 #include "GcKmdLogging.h"
+#include "GcKmdImx8Display.h"
 #include "GcKmdImx8mpDisplay.tmh"
 
 #include "GcKmdImx8mpDisplay.h"
@@ -44,7 +45,7 @@ GcKmImx8mpDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
 {
     NTSTATUS ret = STATUS_SUCCESS;
 
-    clk_tree = clk_init_imx8mp(imx_lvds);
+    clk_tree = clk_init_imx8mp(imx_lvds, m_di.Shared);
 
     lcdif_pdev.name = "lcdif2_dev";
     lcdif_pdev.plat_name = "mp";
@@ -82,7 +83,7 @@ GcKmImx8mpDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
     /* Start lcdif clocks first before lvds, so LPCCG clock gate is not disabled by ldb_bind*/
     /* Start clocks in lcdifv3_soc directly */
     imx_lcdifv3_runtime_resume(&lcdif_pdev.dev);
-    ret = m_LvdsTransmitter.Start(pDxgkInterface);
+    ret = m_LvdsTransmitter.Start(pDxgkInterface, m_di.RegistryIndex);
 
     return ret;
 }
@@ -294,6 +295,8 @@ GcKmImx8mpDisplay::HwCommitVidPn(
 
     m_bNotifyVSync = true;
 
+    m_ScanoutFormat = ColorFormat;
+
     return STATUS_SUCCESS;
 }
 
@@ -343,8 +346,15 @@ GcKmImx8mpDisplay::SetVidPnSourceAddressWithMultiPlaneOverlay3(
         plane_state.src_w = pAllocation->m_hwWidthPixels;
         plane_state.src_h = pAllocation->m_hwHeightPixels;
 
-        /* Assume only address has changed */
-        plane_state.mode_change = false;
+        if (pAllocation->m_format != m_ScanoutFormat)
+        {
+            plane_state.mode_change = true;
+            m_ScanoutFormat = pAllocation->m_format;
+        }
+        else
+        {
+            plane_state.mode_change = false;
+        }
 
         lcdifv3_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
         lcdifv3_crtc_atomic_flush(&lcdif_crtc_pdev);

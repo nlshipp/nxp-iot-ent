@@ -89,10 +89,12 @@ GcKmImx8mqDisplay::HwStop(
     // is disabled/uninstalled, the desktop should continue to work
     // (with Basic Display Driver).
     if (DoCommitFwFb) {
-        SetupFramebuffer(nullptr,
+        SetupFramebuffer(
             m_PreviousPostDisplayInfo.PhysicAddress.LowPart,
+            m_PreviousPostDisplayInfo.Pitch,
+            TranslateD3dDdiToDrmFormat(m_PreviousPostDisplayInfo.ColorFormat),
             GetDrmTileFromHwTile(Linear));
-        dcss_plane_atomic_page_flip(&m_crtc.plane[0]->base,
+        dcss_plane_atomic_update(&m_crtc.plane[0]->base,
             &m_old_plane_state);
         dcss_crtc_atomic_flush(&m_crtc.base, &m_crtc_state.base);
     }
@@ -137,18 +139,15 @@ GC_NONPAGED_SEGMENT_BEGIN; //===================================================
 
 void
 GcKmImx8mqDisplay::SetupFramebuffer(
-    const D3DKMDT_VIDPN_SOURCE_MODE* pSourceMode,
     UINT FrameBufferPhysicalAddress,
+    UINT Pitch,
+    UINT DrmFormat,
     UINT64 TileMode)
 {
     struct drm_framebuffer *fb = &m_crtc.plane[0]->fb;
-    if (pSourceMode)
-    {
-        fb->pitches[0] = pSourceMode->Format.Graphics.Stride;
-        fb->format = drm_format_info(
-            TranslateD3dDdiToDrmFormat(
-            pSourceMode->Format.Graphics.PixelFormat));
-    }
+
+    fb->pitches[0] = Pitch;
+    fb->format = drm_format_info(DrmFormat);
     fb->paddr[0] = FrameBufferPhysicalAddress;
     fb->modifier = GetDrmTileFromHwTile((Gc7LHwTileMode)TileMode);
     fb->flags = fb->modifier ? DRM_MODE_FB_MODIFIERS : 0;
@@ -162,8 +161,10 @@ GcKmImx8mqDisplay::SetVidPnSourceAddress(
 
     m_FrontBufferSegmentOffset = pSetVidPnSourceAddress->PrimaryAddress;
 
-    SetupFramebuffer(nullptr,
+    SetupFramebuffer(
         m_LocalVidMemPhysicalBase + m_FrontBufferSegmentOffset.LowPart,
+        pAllocation->m_hwPitch,
+        TranslateDxgiToDrmFormat(pAllocation->m_format),
         GetDrmTileFromHwTile((Gc7LHwTileMode)pAllocation->m_hwTileMode));
 
     dcss_plane_atomic_page_flip(&m_crtc.plane[0]->base,
@@ -205,6 +206,7 @@ GcKmImx8mqDisplay::SetupHwCommit(
     const D3DKMDT_VIDPN_TARGET_MODE* pTargetMode,
     struct videomode* vm,
     UINT FrameBufferPhysicalAddress,
+    UINT Pitch,
     UINT TileMode)
 {
     struct drm_display_mode dmode;
@@ -239,8 +241,11 @@ GcKmImx8mqDisplay::SetupHwCommit(
     dcss_crtc_copy_display_mode(&dmode, &m_crtc.base.state->adjusted_mode);
     dcss_crtc_copy_display_mode(&dmode, &m_crtc_state.base.mode);
 
-    SetupFramebuffer(pSourceMode,
-        FrameBufferPhysicalAddress, TileMode);
+    SetupFramebuffer(
+        FrameBufferPhysicalAddress,
+        Pitch,
+        TranslateD3dDdiToDrmFormat(pSourceMode->Format.Graphics.PixelFormat),
+        TileMode);
 
     SetupPlaneState(pSourceMode, pTargetMode);
 
@@ -294,6 +299,7 @@ GcKmImx8mqDisplay::HwCommitVidPn(
 {
     UINT FrameBufferPhysicalAddress = 0;
     UINT TileMode = 0;
+    UINT Pitch = 0;
 
     m_CurSourceModes[0] = { 0 };
     m_CurTargetModes[0] = { 0 };
@@ -303,11 +309,13 @@ GcKmImx8mqDisplay::HwCommitVidPn(
         GcKmAllocation* pPrimaryAllocation = (GcKmAllocation*)pCommitVidPn->hPrimaryAllocation;
 
         FrameBufferPhysicalAddress = (UINT)(pPrimaryAllocation->m_gpuPhysicalAddress.SegmentOffset + m_LocalVidMemPhysicalBase);
+        Pitch = pPrimaryAllocation->m_hwPitch;
         TileMode = pPrimaryAllocation->m_hwTileMode;
     }
     else
     {
         FrameBufferPhysicalAddress = m_PreviousPostDisplayInfo.PhysicAddress.LowPart;
+        Pitch = m_PreviousPostDisplayInfo.Pitch;
         TileMode = 0;
     }
 
@@ -331,7 +339,7 @@ GcKmImx8mqDisplay::HwCommitVidPn(
     }
 
     NTSTATUS Status = SetupHwCommit(pSourceMode, pTargetMode,
-        &vm, FrameBufferPhysicalAddress, TileMode);
+        &vm, FrameBufferPhysicalAddress, Pitch, TileMode);
     if (!NT_SUCCESS(Status))
     {
         return Status;
@@ -343,6 +351,8 @@ GcKmImx8mqDisplay::HwCommitVidPn(
     m_CurTargetModes[0] = *pTargetMode;
 
     m_bNotifyVSync = true;
+
+    m_ScanoutFormat = TranslateD3dDdiToDxgiFormat(pSourceMode->Format.Graphics.PixelFormat);
 
     return STATUS_SUCCESS;
 }
@@ -388,12 +398,24 @@ GcKmImx8mqDisplay::SetVidPnSourceAddressWithMultiPlaneOverlay3(
 
         m_FrontBufferSegmentOffset = pSetMpo3->ppPlanes[0]->ppContextData[0]->SegmentAddress;
 
-        SetupFramebuffer(nullptr,
+        SetupFramebuffer(
             m_LocalVidMemPhysicalBase + m_FrontBufferSegmentOffset.LowPart,
+            pAllocation->m_hwPitch,
+            TranslateDxgiToDrmFormat(pAllocation->m_format),
             pAllocation->m_hwTileMode);
 
-        dcss_plane_atomic_page_flip(&m_crtc.plane[0]->base,
-            &m_old_plane_state);
+        if (pAllocation->m_format != m_ScanoutFormat)
+        {
+            dcss_plane_atomic_update(&m_crtc.plane[0]->base,
+                &m_old_plane_state);
+
+            m_ScanoutFormat = pAllocation->m_format;
+        }
+        else
+        {
+            dcss_plane_atomic_page_flip(&m_crtc.plane[0]->base,
+                &m_old_plane_state);
+        }
 
         dcss_crtc_atomic_flush(&m_crtc.base, &m_crtc_state.base);
     }

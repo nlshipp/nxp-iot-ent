@@ -83,7 +83,7 @@ GcKmImx8mnDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
     lcdif_disable_vblank(&lcdif_crtc_pdev);
     /* Start clocks in lcdif_soc directly */
     imx_lcdif_runtime_resume(&lcdif_pdev.dev);
-    ret = m_DsiTransmitter.Start(pDxgkInterface);
+    ret = m_DsiTransmitter.Start(pDxgkInterface, "mn", 0);
 
     return ret;
 }
@@ -311,6 +311,8 @@ GcKmImx8mnDisplay::HwCommitVidPn(
 
     m_bNotifyVSync = true;
 
+    m_ScanoutFormat = ColorFormat;
+
     return STATUS_SUCCESS;
 }
 
@@ -360,7 +362,7 @@ GcKmImx8mnDisplay::SetVidPnSourceAddressWithMultiPlaneOverlay3(
         plane_state.src_w = pAllocation->m_hwWidthPixels;
         plane_state.src_h = pAllocation->m_hwHeightPixels;
 
-        /* Assume only address has changed */
+        /* Nano's LCDIF only allows address change on the fly, format change by DirectFlip is disabled in GPU driver */
         plane_state.mode_change = false;
 
         lcdif_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);

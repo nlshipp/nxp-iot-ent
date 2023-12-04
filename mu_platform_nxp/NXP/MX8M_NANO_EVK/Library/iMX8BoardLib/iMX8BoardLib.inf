@@ -73,7 +73,11 @@
   giMX8TokenSpaceGuid.PcdArmGPUReservedMemoryBase
   giMX8TokenSpaceGuid.PcdArmGPUReservedMemorySize
 
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize
+
   gArmPlatformTokenSpaceGuid.PcdCoreCount
+  gEfiMdeModulePkgTokenSpaceGuid.PcdEmuVariableNvModeEnable
 
   #
   # TrustZone private memory (?Mb OPTEE)

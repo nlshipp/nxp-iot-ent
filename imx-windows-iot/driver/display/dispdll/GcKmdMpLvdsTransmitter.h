@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Cadence Design Systems, Inc.
  * All rights reserved worldwide.
  *
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -57,7 +57,7 @@ class MpLvdsTransmitter : public BaseTransmitter
 {
 public:
 
-    NTSTATUS Start(DXGKRNL_INTERFACE* pDxgkInterface);
+    NTSTATUS Start(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex);
 
     NTSTATUS Stop();
 
@@ -91,7 +91,7 @@ private:
         WriteDoubleWord(m_Base + offset, value);
     }
 
-    NTSTATUS GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface);
+    NTSTATUS GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex);
     CHAR* GetPrintableDispInterface();
 
     BYTE* m_Base{0};

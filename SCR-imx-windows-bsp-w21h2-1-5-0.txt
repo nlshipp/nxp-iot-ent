@@ -1,9 +1,9 @@
 NXP Software Content Register
 
-Release - Windows 10 IoT 1.4.1
-July 2023
+Release - Windows 10 IoT 1.5.0
+December 2023
 
-License file: EULA.txt  NXP Proprietary LA_OPT_NXP_Software_License v47 July 2023 - Additional distribution license granted, Section 2.3 applies
+License file: EULA.txt  NXP Proprietary LA_OPT_NXP_Software_License v53 December 2023 - Additional distribution license granted, Section 2.3 applies
 
 --------------------------------------------
 
@@ -262,11 +262,22 @@ Origin:                      NXP (proprietary)
 -------------------------------------------- 
 
 Packages:                    ./imx-windows-iot/driver/camera/imxsns_x_rpi_cam_mipi/ap1302_fw
-Outgoing License:            ON Semiconductor (proprietary)
+                             The package must be used consistent with the terms of ON Semiconductor proprietary license.
+License Origin:              https://github.com/ONSemiconductor/ap1302_binaries/blob/main/AP1302%20Software%20License%20Agreement.pdf
 License File:                ./imx-windows-iot/driver/camera/imxsns_x_rpi_cam_mipi/ap1302_fw/AP1302 Software License Agreement.pdf
 Type of content:             Binary
 Description and comments:    AP1302 Camera Firmware
 Release Location:            https://github.com/ONSemiconductor/ap1302_binaries
 Origin:                      ON Semiconductor
+
+-------------------------------------------- 
+
+Packages:                    ./examples/Sensors/acc-demo/lib/PDCurses-3.8
+Outgoing License:            Public Domain
+License File:                /lib/PDCurses-3.8/README.md
+Type of content:             Source, Binary
+Description and comments:    Curses library for Windows console
+Release Location:            ./examples/Sensors/acc-demo/lib/PDCurses-3.8
+Origin:                      William McBrine (Public Domain) - https://pdcurses.org/
 
 -------------------------------------------- 

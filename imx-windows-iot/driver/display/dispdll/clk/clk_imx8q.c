@@ -79,8 +79,8 @@ static int set_gate_scu(const struct clk *clk, bool enable)
     sc_err_t err = sc_pm_clock_enable(ipc, clk->clk_scu.rsrc_id,
         clk->clk_scu.clk_type, enable, false);
     if (err != SC_ERR_NONE) {
-        dev_err(NULL, "[clk: %s] set_gate_scu failed! (error = %d)\n",
-            clk->name, err);
+        dev_err(NULL, "[clk: %s] set_gate_scu failed! (error = %d, %s)\n",
+            clk->name, err, sc_err_to_string(err));
         return -EIO;
     }
 
@@ -99,8 +99,8 @@ static int set_rate_scu(const struct clk *clk, unsigned long rate)
     sc_err_t err = sc_pm_set_clock_rate(ipc, clk->clk_scu.rsrc_id,
         clk->clk_scu.clk_type, &(sc_pm_clock_rate_t)rate);
     if (err != SC_ERR_NONE) {
-        dev_err(NULL, "[clk: %s] set_rate_scu() failed! (err = %d)\n",
-            clk->name, err);
+        dev_err(NULL, "[clk: %s] set_rate_scu() failed! (err = %d, %s)\n",
+            clk->name, err, sc_err_to_string(err));
         return err;
     }
 
@@ -120,8 +120,8 @@ static unsigned long get_rate_scu(const struct clk *clk)
     sc_err_t err = sc_pm_get_clock_rate(ipc, clk->clk_scu.rsrc_id,
         clk->clk_scu.clk_type, &rate);
     if (err != SC_ERR_NONE) {
-        dev_err(NULL, "[clk: %s] get_rate_scu() failed! (err = %d)\n",
-            clk->name, err);
+        dev_err(NULL, "[clk: %s] get_rate_scu() failed! (err = %d, %s)\n",
+            clk->name, err, sc_err_to_string(err));
         return 0;
     }
 
@@ -138,11 +138,11 @@ static struct clk *get_parent_scu(const struct clk *clk)
     }
 
     sc_pm_clk_parent_t par_id;
-    int err = sc_pm_get_clock_parent(ipc, clk->clk_scu.rsrc_id,
+    sc_err_t err = sc_pm_get_clock_parent(ipc, clk->clk_scu.rsrc_id,
         clk->clk_scu.clk_type, &par_id);
     if (err != SC_ERR_NONE) {
-        dev_err(NULL, "[clk: %s] get_parent_scu() failed! (err = %d)\n",
-            clk->name, err);
+        dev_err(NULL, "[clk: %s] get_parent_scu() failed! (err = %d, %s)\n",
+            clk->name, err, sc_err_to_string(err));
         return NULL;
     }
 
@@ -173,11 +173,11 @@ static int set_parent_scu(const struct clk *clk, const struct clk *parent)
         return -EINVAL;
     }
 
-    int err = sc_pm_set_clock_parent(ipc, clk->clk_scu.rsrc_id,
+    sc_err_t err = sc_pm_set_clock_parent(ipc, clk->clk_scu.rsrc_id,
             clk->clk_scu.clk_type, i);
     if (err != SC_ERR_NONE) {
-        dev_err(NULL, "[clk: %s] get_parent_scu() failed! (err = %d)\n",
-            clk->name, err);
+        dev_err(NULL, "[clk: %s] set_parent_scu() failed! (err = %d, %s)\n",
+            clk->name, err, sc_err_to_string(err));
         return -EINVAL;
     }
 
@@ -234,7 +234,7 @@ static unsigned long imx8q_clk_get_rate(struct clk *clk)
         break;
     }
 
-    dev_info(NULL, "[clk: %s] get_rate()-%7d\n", clk->name, rate);
+    dev_info(NULL, "[clk: %s] get_rate() %7d\n", clk->name, rate);
 
     return rate;
 }

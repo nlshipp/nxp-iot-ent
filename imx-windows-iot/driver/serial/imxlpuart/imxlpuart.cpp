@@ -2200,7 +2200,7 @@ iMXLPUARTIoctlGetLineControl(
 
     if (NT_SUCCESS(status)) {
         const ULONG ctrlCopy = DeviceContextPtr->InterruptContextPtr->CTRLCopy;
-        const ULONG statCopy = DeviceContextPtr->InterruptContextPtr->STATCopy;
+        //const ULONG statCopy = DeviceContextPtr->InterruptContextPtr->STATCopy;
         const ULONG baudCopy = DeviceContextPtr->InterruptContextPtr->BAUDCopy;
         UCHAR parityBits = 0;
 

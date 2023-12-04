@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019, 2022 NXP
+ * Copyright 2017-2019, 2022-2023 NXP
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -74,10 +74,15 @@ bool dprc_stride_double_check(struct dprc *dprc,
 			      u32 format, u64 modifier,
 			      dma_addr_t baddr, dma_addr_t uv_baddr);
 void dprc_page_flip(struct dprc* dprc, unsigned int stream_id,
+	unsigned int stride,
+	unsigned int width, unsigned int height,
+	unsigned int x_offset, unsigned int y_offset,
 	u32 format, u64 modifier, unsigned long baddr,
 	unsigned long uv_baddr);
 int dprc_probe(struct platform_device *pdev,
 		struct platform_device *prg_pdev, int prg_cnt);
 int dprc_remove(struct platform_device *pdev, bool stop);
+void dump_prg_regs(struct prg* prg);
+void dump_dpr_regs(struct dprc* dprc);
 
 #endif

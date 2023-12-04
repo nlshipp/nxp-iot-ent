@@ -188,7 +188,7 @@ class CAdapterCommon :
         (
             _In_        CMiniportWaveRTStream* Stream,
             eDeviceType                        DeviceType,
-            _In_        ULONG                  Size,
+            _Inout_     PULONG                 Size,
             _Out_       PMDL* pMdl,
             _Out_       MEMORY_CACHING_TYPE* CacheType
         );
@@ -239,6 +239,16 @@ class CAdapterCommon :
         {
             UNREFERENCED_PARAMETER(nPinId);
             UNREFERENCED_PARAMETER(SinkInfo);
+        }
+
+        STDMETHODIMP_(BOOL) isRenderSupported(VOID)
+        {
+            return TRUE;
+        }
+
+        STDMETHODIMP_(BOOL) isCaptureSupported(VOID)
+        {
+            return TRUE;
         }
         //=====================================================================
         // friends
@@ -2282,7 +2292,7 @@ CAdapterCommon::AllocBuffer
 (
     _In_        CMiniportWaveRTStream* Stream,
     eDeviceType                        DeviceType,
-    _In_        ULONG                  Size,
+    _Inout_     PULONG                 Size,
     _Out_       PMDL*                  pMdl,
     _Out_       MEMORY_CACHING_TYPE* CacheType
 )

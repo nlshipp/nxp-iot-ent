@@ -73,7 +73,7 @@ Device (SDH1)
        Package () {
          Package (2) {"RegisterBasePA", 0x42850000},
          Package (2) {"BaseClockFrequencyHz", 400000000},
-         Package (2) {"Regulator1V8Exist", 0},
+         Package (2) {"Regulator1V8Exist", 1},
          Package (2) {"TuningStartTap", 20},
          Package (2) {"TuningStep", 2}
        }
@@ -127,8 +127,10 @@ Device (SDH2)
      ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
        Package () {
          Package (2) {"RegisterBasePA", 0x42860000},
-         Package (2) {"BaseClockFrequencyHz", 200000000},
-         Package (2) {"Regulator1V8Exist", 0}
+         Package (2) {"BaseClockFrequencyHz", 400000000},
+         Package (2) {"Regulator1V8Exist", 0},
+         Package (2) {"DeviceName", "SD_0"}
+
        }
    })
 }

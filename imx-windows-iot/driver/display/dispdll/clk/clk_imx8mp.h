@@ -151,7 +151,7 @@ struct imx8mp_clk_device {
 
 typedef struct imx8mp_clk_device imx8mp_clk_device_t;
 
-imx8mp_clk_device_t *clk_init_imx8mp(imx_display_interface disp);
+imx8mp_clk_device_t *clk_init_imx8mp(imx_display_interface disp, bool shared);
 int clk_stop_imx8mp(imx8mp_clk_device_t *dev, imx_display_interface stop_disp);
 int clk_deinit_imx8mp(imx8mp_clk_device_t *dev, imx_display_interface stop_disp);
 void clk_dump_clock_tree_imx8mp(const imx8mp_clk_device_t *dev);

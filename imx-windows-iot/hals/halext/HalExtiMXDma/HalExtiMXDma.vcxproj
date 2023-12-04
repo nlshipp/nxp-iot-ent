@@ -37,6 +37,10 @@
     <DriverType>KMDF</DriverType>
     <DriverTargetPlatform>Universal</DriverTargetPlatform>
   </PropertyGroup>
+  <PropertyGroup>
+    <SignMode>TestSign</SignMode>
+    <TestCertificate>CN=Windows OEM HAL Extension Test Cert 2017 (TEST ONLY), O=Microsoft Partner, OU=Windows, L=Redmond, S=Washington, C=US | 7074114C75B3AE020B5684971E67BABFFA5DBDCD</TestCertificate>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -54,14 +58,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
-    <CustomBuildBeforeTargets>DriverPackageTarget</CustomBuildBeforeTargets>
     <IncludePath>..\..\..\driver\include;$(IncludePath)</IncludePath>
     <ApiValidator_Enable>false</ApiValidator_Enable>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
-    <CustomBuildBeforeTargets>DriverPackageTarget</CustomBuildBeforeTargets>
     <IncludePath>..\..\..\driver\include;$(IncludePath)</IncludePath>
     <ApiValidator_Enable>false</ApiValidator_Enable>
   </PropertyGroup>
@@ -81,15 +83,14 @@
       <ExpandAttributedSource>true</ExpandAttributedSource>
     </ClCompile>
     <CustomBuildStep>
-      <Command>set PATH=$(PATH);$(WDKContentRoot)tools\bin\i386\
-set SIGN_OEM=1
-set SIGN_WITH_TIMESTAMP=0
-set TIMESERVER=/t $(TimestampServer)
-sign -hal $(OutDir)$(TARGETNAME)$(TARGETEXT)</Command>
+      <Command>
+      </Command>
     </CustomBuildStep>
     <CustomBuildStep>
-      <Message>Test sign HAL Extension</Message>
-      <Outputs>placeholder</Outputs>
+      <Message>
+      </Message>
+      <Outputs>
+      </Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
@@ -106,15 +107,14 @@ sign -hal $(OutDir)$(TARGETNAME)$(TARGETEXT)</Command>
       <PreprocessorDefinitions>HALEXT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <CustomBuildStep>
-      <Command>set PATH=$(PATH);$(WDKContentRoot)tools\bin\i386\
-set SIGN_OEM=1
-set SIGN_WITH_TIMESTAMP=0
-set TIMESERVER=/t $(TimestampServer)
-sign -hal $(OutDir)$(TARGETNAME)$(TARGETEXT)</Command>
+      <Command>
+      </Command>
     </CustomBuildStep>
     <CustomBuildStep>
-      <Message>Test sign HAL Extension</Message>
-      <Outputs>placeholder</Outputs>
+      <Message>
+      </Message>
+      <Outputs>
+      </Outputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemGroup>

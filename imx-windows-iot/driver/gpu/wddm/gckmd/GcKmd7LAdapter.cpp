@@ -690,6 +690,46 @@ GcKm7LAdapter::Escape(
         }
         break;
 
+        case D3D_KM_ESCAPE_CHECK_DIRECT_FLIP:
+        {
+            DXGKARG_RELEASE_HANDLE  ReleaseHandle;
+            DXGKARGCB_GETHANDLEDATA GetHandleData = { 0 };
+            GcKmAllocation* pAllocation;
+
+            pD3dKmEscape->CheckDirectFlip.bSupported = 0;
+
+            GetHandleData.hObject = pD3dKmEscape->CheckDirectFlip.hAllocation;
+            GetHandleData.Type = DXGK_HANDLE_ALLOCATION;
+
+            pAllocation = (GcKmAllocation*)m_DxgkInterface.DxgkCbAcquireHandleData(&GetHandleData, &ReleaseHandle);
+            if (pAllocation)
+            {
+                if ((DXGI_FORMAT_B8G8R8A8_UNORM == pAllocation->m_format) ||
+                    (DXGI_FORMAT_B8G8R8X8_UNORM == pAllocation->m_format))
+                {
+                    pD3dKmEscape->CheckDirectFlip.bSupported = 1;
+                }
+
+                if (DXGI_FORMAT_R8G8B8A8_UNORM == pAllocation->m_format)
+                {
+                    if ((0 == wcscmp(m_DeviceId, GC_7000_LITE_MQ)) ||
+                        (0 == wcscmp(m_DeviceId, GC_7000_LITE_MP)) ||
+                        (0 == wcscmp(m_DeviceId, GC_7000_LITE_8X)))
+                    {
+                        pD3dKmEscape->CheckDirectFlip.bSupported = 1;
+                    }
+                }
+
+                DXGKARGCB_RELEASEHANDLEDATA ReleaseHandleData = { 0 };
+
+                ReleaseHandleData.ReleaseHandle = ReleaseHandle;
+                ReleaseHandleData.Type = DXGK_HANDLE_ALLOCATION;
+
+                m_DxgkInterface.DxgkCbReleaseHandleData(ReleaseHandleData);
+            }
+        }
+        break;
+
         default:
             return STATUS_INVALID_PARAMETER;
             break;

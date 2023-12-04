@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -202,14 +202,14 @@ Device (I2C9)   // I2C0_MIPI_LVDS1
 
   Method (_STA)
   {
-    Return(0x0)
+    Return(0xf)
   }
 
   Method (_CRS, 0x0, NotSerialized)
   {
     Name (RBUF, ResourceTemplate () {
       MEMORY32FIXED(ReadWrite, 0x56246000, 0x1000, )
-      //Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 92 }       // GIC SPI
+      Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 92 }       // GIC SPI
       I2CSerialBus(0x59, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.SCFW")
     })
     Return(RBUF)

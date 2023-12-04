@@ -2,7 +2,7 @@
 *
 *  Copyright (c) 2013-2015, ARM Limited. All rights reserved.
 *  Copyright (c) Microsoft Corporation. All rights reserved.
-*  Copyright 2022, 2023 NXP
+*  Copyright 2022 - 2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -181,6 +181,38 @@ iMX8EntryPoint (
     }
   }
 
+  if(FixedPcdGet32(PcdUefiRuntimeDebugEnable)) {
+    // This memory space is used by UartDebugPrint. It needs to be added as EFI_MEMORY_RUNTIME in order
+    // to be able to remap the UartBase to the virtual address, see DebugLibAddressChangeEvent
+    UINT64 UartBase = (UINT64)FixedPcdGet32 (PcdSerialRegisterBase);
+
+    Status = gDS->AddMemorySpace (
+      EfiGcdMemoryTypeMemoryMappedIo,
+      (UINT64)UartBase, 0x1000,
+      EFI_MEMORY_UC | EFI_MEMORY_RUNTIME
+      );
+    ASSERT_EFI_ERROR (Status);
+
+    Status = gDS->SetMemorySpaceAttributes (
+      (UINT64)UartBase, 0x1000,
+      EFI_MEMORY_UC | EFI_MEMORY_RUNTIME);
+    ASSERT_EFI_ERROR (Status);
+  }
+
+  if (!FixedPcdGet32(PcdEmuVariableNvModeEnable)) {
+    UINT64 FlexSPIBase = (UINT64)FixedPcdGet32 (PcdFlexSpiBaseAddress);
+    Status = gDS->AddMemorySpace (
+      EfiGcdMemoryTypeMemoryMappedIo,
+      (UINT64)FlexSPIBase, 0x10000,
+      EFI_MEMORY_UC | EFI_MEMORY_RUNTIME
+      );
+    ASSERT_EFI_ERROR (Status);
+
+    Status = gDS->SetMemorySpaceAttributes (
+      (UINT64)FlexSPIBase, 0x10000,
+      EFI_MEMORY_UC | EFI_MEMORY_RUNTIME);
+    ASSERT_EFI_ERROR (Status);
+  }
   // Install dynamic Shell command to run baremetal binaries.
   Status = ShellDynCmdRunAxfInstall (ImageHandle);
   if (EFI_ERROR (Status)) {

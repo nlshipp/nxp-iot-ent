@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2022 NXP
+ * Copyright 2017-2023 NXP
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +24,8 @@
 #include <linux/spinlock.h>
 #include <svc/misc/misc_api.h>
 #include <video/imx8-prefetch.h>
+
+/* #define DPRC_DEBUG_REG_DUMP */
 
 #define SET					0x4
 #define CLR					0x8
@@ -565,6 +567,9 @@ void dprc_configure(struct dprc *dprc, unsigned int stream_id,
 
 	dev_dbg(dprc->dev, "w-%u, h-%u, s-%u, fmt-0x%08x, mod-0x%016llx\n",
 				width, height, stride, format, modifier);
+#ifdef DPRC_DEBUG_REG_DUMP
+	dump_dpr_regs(dprc);
+#endif
 }
 
 void dprc_disable_repeat_en(struct dprc *dprc)
@@ -763,11 +768,20 @@ bool dprc_stride_double_check(struct dprc *dprc,
 	return true;
 }
 
-void dprc_page_flip(struct dprc* dprc, unsigned int stream_id,
+void dprc_page_flip(struct dprc* dprc,
+	unsigned int stream_id, unsigned int stride,
+	unsigned int width, unsigned int height,
+	unsigned int x_offset, unsigned int y_offset,
 	u32 format, u64 modifier, unsigned long baddr,
 	unsigned long uv_baddr)
 {
 	const struct dprc_format_info* info = dprc_format_info(format);
+	unsigned int dprc_width = width + x_offset;
+	unsigned int dprc_height = height + y_offset;
+	unsigned int p1_w, p1_h;
+	unsigned int bpp = 8 * info->cpp[0];
+	unsigned int preq;
+	unsigned int mt_w = 0, mt_h = 0;	/* w/h in a micro-tile */
 	u32 val;
 
 	if (!dprc) {
@@ -778,6 +792,55 @@ void dprc_page_flip(struct dprc* dprc, unsigned int stream_id,
 	if (info->num_planes > 1)
 		dprc_write(dprc, uv_baddr, FRAME_2P_BASE_ADDR_CTRL0);
 
+	switch (modifier) {
+	case DRM_FORMAT_MOD_VIVANTE_TILED:
+		p1_w = round_up(dprc_width, info->cpp[0] == 2 ? 8 : 4);
+		break;
+	case DRM_FORMAT_MOD_VIVANTE_SUPER_TILED:
+		if (dprc->is_blit_chan)
+			p1_w = round_up(dprc_width,
+				info->cpp[0] == 2 ? 8 : 4);
+		else
+			p1_w = round_up(dprc_width, 64);
+		break;
+	default:
+		p1_w = round_up(dprc_width,
+			info->cpp[0] == 2 ? 32 : 16);
+		break;
+	}
+	p1_h = round_up(dprc_height, 4);
+
+	dprc_write(dprc, PITCH(stride), FRAME_CTRL0);
+	switch (modifier) {
+	case DRM_FORMAT_MOD_AMPHION_TILED:
+		preq = BYTE_64;
+		mt_w = 8;
+		mt_h = 8;
+		break;
+	case DRM_FORMAT_MOD_VIVANTE_TILED:
+		preq = BYTE_256;
+		mt_w = bpp == 16 ? 8 : 4;
+		mt_h = 4;
+		break;
+	case DRM_FORMAT_MOD_VIVANTE_SUPER_TILED:
+		if (bpp == 16) {
+			preq = BYTE_64;
+			mt_w = 8;
+		}
+		else {
+			preq = (x_offset % 8) ? BYTE_64 : BYTE_128;
+			mt_w = 4;
+		}
+		mt_h = 4;
+		break;
+	default:
+		preq = BYTE_1K;
+		break;
+	}
+
+	dprc_write(dprc, preq, FRAME_1P_CTRL0);
+	dprc_write(dprc, NUM_X_PIX_WIDE(p1_w), FRAME_1P_PIX_X_CTRL);
+	dprc_write(dprc, NUM_Y_PIX_HIGH(p1_h), FRAME_1P_PIX_Y_CTRL);
 	dprc_write(dprc, baddr, FRAME_1P_BASE_ADDR_CTRL0);
 
 	val = dprc_read(dprc, MODE_CTRL0);
@@ -800,6 +863,10 @@ void dprc_page_flip(struct dprc* dprc, unsigned int stream_id,
 		return;
 	}
 	dprc_write(dprc, val, MODE_CTRL0);
+
+#ifdef DPRC_DEBUG_REG_DUMP
+	dump_dpr_regs(dprc);
+#endif
 }
 
 int dprc_probe(struct platform_device *pdev,
@@ -927,4 +994,28 @@ int dprc_remove(struct platform_device *pdev, bool stop)
 	kfree(dprc);
 
 	return 0;
+}
+
+void dump_dpr_regs(struct dprc* dprc)
+{
+	dev_err(dprc->dev, "SYSTEM_CTRL0 = 0x%08X\n", dprc_read(dprc, SYSTEM_CTRL0));
+	dev_err(dprc->dev, "IRQ_MASK = 0x%08X\n", dprc_read(dprc, IRQ_MASK));
+	dev_err(dprc->dev, "IRQ_MASK_STATUS = 0x%08X\n", dprc_read(dprc, IRQ_MASK_STATUS));
+	dev_err(dprc->dev, "IRQ_NONMASK_STATUS = 0x%08X\n", dprc_read(dprc, IRQ_NONMASK_STATUS));
+	dev_err(dprc->dev, "MODE_CTRL0 = 0x%08X\n", dprc_read(dprc, MODE_CTRL0));
+	dev_err(dprc->dev, "FRAME_CTRL0 = 0x%08X\n", dprc_read(dprc, FRAME_CTRL0));
+	dev_err(dprc->dev, "FRAME_1P_CTRL0 = 0x%08X\n", dprc_read(dprc, FRAME_1P_CTRL0));
+	dev_err(dprc->dev, "FRAME_1P_PIX_X_CTRL = 0x%08X\n", dprc_read(dprc, FRAME_1P_PIX_X_CTRL));
+	dev_err(dprc->dev, "FRAME_1P_PIX_Y_CTRL = 0x%08X\n", dprc_read(dprc, FRAME_1P_PIX_Y_CTRL));
+	dev_err(dprc->dev, "FRAME_1P_BASE_ADDR_CTRL0 = 0x%08X\n", dprc_read(dprc, FRAME_1P_BASE_ADDR_CTRL0));
+	dev_err(dprc->dev, "FRAME_2P_CTRL0 = 0x%08X\n", dprc_read(dprc, FRAME_2P_CTRL0));
+	dev_err(dprc->dev, "FRAME_2P_BASE_ADDR_CTRL0 = 0x%08X\n", dprc_read(dprc, FRAME_2P_BASE_ADDR_CTRL0));
+	dev_err(dprc->dev, "FRAME_PIX_X_ULC_CTRL = 0x%08X\n", dprc_read(dprc, FRAME_PIX_X_ULC_CTRL));
+	dev_err(dprc->dev, "FRAME_PIX_Y_ULC_CTRL = 0x%08X\n", dprc_read(dprc, FRAME_PIX_Y_ULC_CTRL));
+	dev_err(dprc->dev, "RTRAM_CTRL0 = 0x%08X\n", dprc_read(dprc, RTRAM_CTRL0));
+
+	dump_prg_regs(dprc->prgs[0]);
+	if (dprc->use_aux_prg) {
+		dump_prg_regs(dprc->prgs[1]);
+	}
 }

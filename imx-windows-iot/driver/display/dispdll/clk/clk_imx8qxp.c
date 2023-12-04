@@ -37,7 +37,9 @@
 #include "linux/kernel.h"
 
 /* Main object of the clock tree - single instance for all monitors */
-static struct imx8qxp_clk_device clktree;
+static struct imx8qxp_clk_device clktree = {
+    .disp_num = 0,
+};
 
 static struct clk* dc0_sels[5] = {0};
 
@@ -79,6 +81,12 @@ struct imx8qxp_clk_device *clk_init_imx8qxp()
 
     if (!dev) {
         return NULL;
+    }
+
+    dev->disp_num++;
+    if (dev->disp_num > 1) {
+        /* Clock tree has already been initialized */
+        return dev;
     }
 
     dev->lpcg_reg = ioremap(IMX_LPCG_BASE, IMX_LPCG_SIZE);
@@ -163,6 +171,14 @@ int clk_deinit_imx8qxp(struct imx8qxp_clk_device *dev)
 {
     if (!dev) {
         return -1;
+    }
+
+    if (dev->disp_num != 0) {
+        dev->disp_num--;
+    }
+    if (dev->disp_num != 0) {
+        /* Another display interface still running, keep the clock tree alive. The last one will do the cleaning. */
+        return 0;
     }
 
     for (int i = 0; i < IMX8QXP_DC_CLK_END; i++) {

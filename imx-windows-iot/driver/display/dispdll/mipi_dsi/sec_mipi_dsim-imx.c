@@ -1,7 +1,7 @@
 /*
  * Samsung MIPI DSI Host Controller on IMX
  *
- * Copyright 2018-2020,2022 NXP
+ * Copyright 2018-2020,2022-2023 NXP
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -116,7 +116,9 @@ static int sec_dsim_set_pll_ref_rate(u32 *rate)
 	struct device *dev = dsim_dev->dev;
 	unsigned long get_rate, req_rate;
 
+	/* For others (Nano), reference rate is determined from PLL table */
 	req_rate = clk_get_reference_rate(dsim_dev->clk_pllref);
+
 	if (!req_rate)
 		return -EINVAL;
 
@@ -134,7 +136,35 @@ static int sec_dsim_set_pll_ref_rate(u32 *rate)
 		return -EINVAL;
 	}
 	*rate = req_rate;
+	return 0;
+}
 
+static int sec_dsim_set_pll_ref_rate_mp(u32* rate)
+{
+	int ret;
+	struct device* dev = dsim_dev->dev;
+	unsigned long get_rate, req_rate;
+
+	/*For MP reference rate is fixed, already set in the probe function*/
+	req_rate = clk_get_rate(dsim_dev->clk_pllref);
+
+	if (!req_rate)
+		return -EINVAL;
+
+	ret = clk_set_rate(dsim_dev->clk_pllref, req_rate);
+	if (ret)
+		return ret;
+
+	get_rate = clk_get_rate(dsim_dev->clk_pllref);
+	if (!get_rate)
+		return -EINVAL;
+
+	/* PLL ref clock rate should be set precisely */
+	if (get_rate != req_rate) {
+		dev_err(dev, "request rate %u cannot be satisfied\n", req_rate);
+		return -EINVAL;
+	}
+	*rate = req_rate;
 	return 0;
 }
 
@@ -150,6 +180,18 @@ static const struct sec_mipi_dsim_plat_data imx8mm_mipi_dsim_plat_data = {
 	.set_pll_ref_rate = sec_dsim_set_pll_ref_rate,
 };
 
+static const struct sec_mipi_dsim_plat_data imx8mp_mipi_dsim_plat_data = {
+	.version = 0x1060200,
+	.max_data_lanes = 4,
+	.max_data_rate = 1500000000ULL,
+	.dphy_pll = &pll_1432x,
+	.dphy_timing = dphy_timing_ln14lpp_v1p2,
+	.num_dphy_timing = ARRAY_SIZE(dphy_timing_ln14lpp_v1p2),
+	.dphy_timing_cmp = dphy_timing_default_cmp,
+	.determine_pll_ref_rate = sec_dsim_determine_pll_ref_rate,
+	.set_pll_ref_rate = sec_dsim_set_pll_ref_rate_mp,
+};
+
 static const struct of_device_id imx_sec_dsim_dt_ids[] = {
 	{
 		.compatible = "fsl,imx8mm-mipi-dsim",
@@ -161,7 +203,7 @@ static const struct of_device_id imx_sec_dsim_dt_ids[] = {
 	},
 	{
 		.compatible = "fsl,imx8mp-mipi-dsim",
-		.data = &imx8mm_mipi_dsim_plat_data,
+		.data = &imx8mp_mipi_dsim_plat_data,
 	},
 	{ /* sentinel */ 0 }
 };

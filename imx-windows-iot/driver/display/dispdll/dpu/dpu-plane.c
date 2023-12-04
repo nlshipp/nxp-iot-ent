@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019, 2022 NXP
+ * Copyright 2017-2019, 2022-2023 NXP
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -693,7 +693,9 @@ again:
 
 	fu->ops->set_burstlength(fu, src_x, mt_w, bpp, baseaddr, use_prefetch);
 	fu->ops->set_src_bpp(fu, bpp);
-	fu->ops->set_src_stride(fu, src_w, src_w, mt_w, bpp, fb->pitches[0],
+	/* Original linux driver puts src_w into x_offset parameter,
+	   which corrupts 1366x768 in tile=2 mode */
+	fu->ops->set_src_stride(fu, src_w, src_x, mt_w, bpp, fb->pitches[0],
 				baseaddr, use_prefetch);
 	fu->ops->set_src_buf_dimensions(fu, src_w, src_h, 0, fb_is_interlaced);
 	fu->ops->set_pixel_blend_mode(fu, state->pixel_blend_mode,
@@ -883,12 +885,17 @@ void dpu_plane_atomic_page_flip(struct drm_plane *plane,
 	dma_addr_t baseaddr, uv_baseaddr = 0;
 	lb_sec_sel_t source;
 	unsigned int stream_id;
+	unsigned int src_w, src_h, src_x, src_y;
+	unsigned int mt_w = 0, mt_h = 0;	/* w/h in a micro-tile */
+	int bpp;
 	bool need_fetcheco = false;
 	bool use_prefetch;
+	bool fb_is_interlaced;
 
 	if (!fb || !state->crtc || !state->visible)
 		return;
 
+	fb_is_interlaced = !!(fb->flags & DRM_MODE_FB_INTERLACED);
 	source = dpstate->source;
 	use_prefetch = dpstate->use_prefetch;
 
@@ -900,10 +907,43 @@ void dpu_plane_atomic_page_flip(struct drm_plane *plane,
 
 	dprc = fu->dprc;
 
+	src_w = drm_rect_width(&state->src) >> 16;
+	src_h = drm_rect_height(&state->src) >> 16;
+	src_x = fb->modifier ? (state->src_x >> 16) : 0;
+	src_y = fb->modifier ? (state->src_y >> 16) : 0;
+
 	if (fetchunit_is_fetchdecode(fu)) {
 		if (fetchdecode_need_fetcheco(fu, fb->format->format)) {
 			need_fetcheco = true;
 		}
+	}
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
+		bpp = 16;
+		break;
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+		bpp = 8;
+		break;
+	default:
+		bpp = fb->format->cpp[0] * 8;
+		break;
+	}
+
+	switch (fb->modifier) {
+	case DRM_FORMAT_MOD_AMPHION_TILED:
+		mt_w = 8;
+		mt_h = 8;
+		break;
+	case DRM_FORMAT_MOD_VIVANTE_TILED:
+	case DRM_FORMAT_MOD_VIVANTE_SUPER_TILED:
+		mt_w = (bpp == 16) ? 8 : 4;
+		mt_h = 4;
+		break;
+	default:
+		break;
 	}
 
 	baseaddr = drm_plane_state_to_baseaddr(state, false);
@@ -911,8 +951,25 @@ void dpu_plane_atomic_page_flip(struct drm_plane *plane,
 		uv_baseaddr = drm_plane_state_to_uvbaseaddr(state,
 			false);
 
+	fu->ops->set_burstlength(fu, src_x, mt_w, bpp, baseaddr, use_prefetch);
+	/* Original linux driver puts src_w into x_offset parameter,
+	   which corrupts 1366x768 in tile=2 mode */
+	fu->ops->set_src_stride(fu, src_w, src_x, mt_w, bpp, fb->pitches[0],
+		baseaddr, use_prefetch);
+	fu->ops->set_pixel_blend_mode(fu, state->pixel_blend_mode,
+		state->alpha, fb->format->format);
+	fu->ops->set_fmt(fu, fb->format->format, state->color_encoding,
+		state->color_range, fb_is_interlaced);
+	fu->ops->set_baseaddress(fu, src_w, src_x, src_y, mt_w, mt_h, bpp,
+		baseaddr);
+
+	if (need_fetcheco) {
+		/* TODO: support color format setting for fetcheco - only needed for two-plane formats */
+	}
+
 	if (use_prefetch) {
-		dprc_page_flip(dprc, stream_id,
+		dprc_page_flip(dprc, stream_id, fb->pitches[0],
+			src_w, src_h, src_x, src_y,
 			fb->format->format, fb->modifier,
 			baseaddr, uv_baseaddr);
 
