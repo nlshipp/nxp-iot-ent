@@ -622,7 +622,9 @@ Return Value:
 
     SdmaChannel0Ptr->SdmaCCBs[ChannelNumber].CurrentBdAddress =
         SdmaChannel0Ptr->SdmaCCBs[ChannelNumber].BasedBdAddress;
-
+#ifdef _ARM64_
+    _DataSynchronizationBarrier();
+#endif
     //
     // Setup the channel: set and load the context etc.
     //
@@ -894,7 +896,6 @@ Return Value:
     SDMA_CONTROLLER* SdmaControllerPtr;
     NTSTATUS Status;
 
-
     NT_ASSERT(ChannelNumber < SDMA_NUM_CHANNELS);
 
     SDMA_DEBUG_PRINT("%s start\n", __FUNCTION__);
@@ -905,13 +906,13 @@ Return Value:
     if (SdmaChannelPtr->State != CHANNEL_ERROR) {
         NT_ASSERT(!SdmaHwIsChannelRunning(SdmaControllerPtr, ChannelNumber));
     }
-
+    
     Status = SdmaHwStopChannel(SdmaControllerPtr, ChannelNumber);
 
     if (!NT_SUCCESS(Status)) {
         NT_ASSERT(NT_SUCCESS(Status));
     }
-
+    
     SDMA_DEBUG_PRINT("%s end\n", __FUNCTION__);
     return;
 }
@@ -1232,7 +1233,9 @@ Return Value:
         SDMA_CHN_LOGICAL_ADDR(SdmaChannelPtr, SdmaBD[0]);
     SdmChannel0Ptr->SdmaCCBs[ChannelNumber].BasedBdAddress =
         SDMA_CHN_LOGICAL_ADDR(SdmaChannelPtr, SdmaBD[0]);
-
+#ifdef _ARM64_
+    _DataSynchronizationBarrier();
+#endif
     if (ChannelNumber == 0) {
         SdmaHwInitialize(SdmaControllerPtr);
     }
@@ -2566,6 +2569,9 @@ Return Value:
     //
 
     SdmaBufferDescAttrPtr->D = 1;
+#ifdef _ARM64_
+    _DataSynchronizationBarrier();
+#endif
     SDMA_DEBUG_PRINT("%s end\n", __FUNCTION__);
     return;
 }
@@ -2675,7 +2681,6 @@ Return Value:
 
         SdmaChannel0Ptr->SdmaCCBs[ChannelNumber].CurrentBdAddress =
             SDMA_CHN_LOGICAL_ADDR(SdmaChannelPtr, SdmaBD[BufferIndex]);
-
         //
         // Re-initialize the following BDs
         //
@@ -2714,6 +2719,9 @@ Return Value:
 
     SdmaBufferDescAttrPtr->R = 0;
     SdmaBufferDescAttrPtr->D = 1;
+#ifdef _ARM64_
+    _DataSynchronizationBarrier();
+#endif
     SDMA_DEBUG_PRINT("%s end\n", __FUNCTION__);
 
     return IsDescriptorDone;
@@ -2842,7 +2850,9 @@ Return Value:
 
     Channel0BdPtr->Address = SourceAddress;
     Channel0BdPtr->ExtendedAddress = DestinationAddress;
-
+#ifdef _ARM64_
+    _DataSynchronizationBarrier();
+#endif
     //
     // Start the transfer
     //
@@ -2939,7 +2949,9 @@ Return Value:
     Channel0BdAttrPtr->Count = sizeof(SDMA_CHANNEL_CONTEXT) / sizeof(ULONG);
     Channel0BdAttrPtr->W = 1; // Wrap. Move to this buffer after it is done.
     Channel0BdAttrPtr->D = 1; // Buffer is ready for SDMA
-
+#ifdef _ARM64_
+    _DataSynchronizationBarrier();
+#endif
     //
     // Start the transfer
     //
@@ -3215,7 +3227,9 @@ Return Value:
         }
 
     }
-
+#ifdef _ARM64_
+    _DataSynchronizationBarrier();
+#endif
     SdmaChannelPtr->AutoInitNextBufferIndex = BufferIndex;
     return;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1215,7 +1215,6 @@ iMXI2cReadE(
 {
     lpi2c_master_transfer_t transfer = { 0 };
     i2c_status i2cStatus;
-    RETURN_STATUS status;
     IMX_LPI2C_REGISTERS *baseAddress;
     INT8 instance;
 
@@ -1230,13 +1229,6 @@ iMXI2cReadE(
     if (!LPI2C_IsMasterInitialized(baseAddress, instance)) {
         iMXI2cInit(baseAddress, I2cContext);
         LPI2C_SetMasterInitializedFlag(instance);
-    }
-
-    if (RegisterAddressSize) {
-        status = iMXI2cWriteE(I2cContext, RegisterAddress, RegisterAddressSize, NULL, 0);
-        if (status != RETURN_SUCCESS) {
-            return status;
-        }
     }
 
     transfer.flags = kLPI2C_TransferDefaultFlag;

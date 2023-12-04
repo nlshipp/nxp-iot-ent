@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright 2019,2022 NXP
+ * Copyright 2019,2022-2023 NXP
  */
 
 #include <linux/clk.h>
@@ -667,8 +667,7 @@ int imx_lcdifv3_probe(struct platform_device *pdev)
 
 		writel(CTRL_SW_RESET, lcdifv3->base + LCDIFV3_CTRL_CLR);
 
-		clk_disable_unprepare(lcdifv3->clk_disp_axi);
-		clk_disable_unprepare(lcdifv3->clk_disp_apb);
+		/* Original driver disabled the clock again. We keep it enabled, so we can disable interrupts later */
 	}
 
 	imx_lcdifv3_of_parse_thres(lcdifv3);

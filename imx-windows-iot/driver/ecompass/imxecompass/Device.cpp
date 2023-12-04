@@ -239,6 +239,7 @@ OnDeviceAdd(
     SensorConfig.EvtSensorCancelHistoryRetrieval    = eCompassDevice::OnCancelHistoryRetrieval;
     SensorConfig.EvtSensorEnableWake                = eCompassDevice::OnEnableWake;
     SensorConfig.EvtSensorDisableWake               = eCompassDevice::OnDisableWake;
+    SensorConfig.EvtSensorSetBatchLatency           = eCompassDevice::OnSetBatchLatency;
 
     //
     // Set up power capabilities and IO queues

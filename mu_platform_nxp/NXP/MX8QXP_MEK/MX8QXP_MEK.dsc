@@ -60,7 +60,7 @@
   iMXLpi2cLib|iMXPlatformPkg/Library/iMXLpi2cLib/iMXLpi2cLib.inf
 
 !if $(CONFIG_HEADLESS) != TRUE
-  LcdHwLib|iMX8Pkg/Library/iMX8HdmiHwLib/iMX8HdmiHwLib.inf
+  LcdHwLib|iMX8Pkg/Library/iMX8LcdHwLib/iMXDpuHwLib.inf
 !endif
 
 [Components.common]
@@ -267,11 +267,22 @@
 
   # i.MX8QXP Display configuration
   #  PcdDisplayEnable      - enable display, default enabled
-  #  PcdDisplayInterface   - default display interface, 0=HDMI, 1=MIPI_DSI
-  #  PcdDisplayI2CBaseAddr - use I2C2 on iMX8MN
+  #  PcdDisplayInterface   - default display interface: 2=LVDS0, 3=LVDS1, (note: mipi-dsi not supported yet)
+  #  PcdDisplayI2CBaseAddr - I2C related to IMX-LVDS-HDMI or IMX-MIPI-HDMI converter:
+  #                          DSI0_I2C0 - 0x56226000 (for LVDS0/DSI0), DSI1_I2C0 - 0x56246000 (for LVDS1/DSI1)
+  #  PcdDisplayReadEDID    - applicable for lvds-hdmi or mipi_dsi-hdmi converter
+  #                        - TRUE = read EDID from display if available. If not available, set fixed resolution (default 1920x1080@60)
+  #                        - FALSE = skip EDID reading (even if available) and set fixed resolution (default 1920x1080@60)
+  #  PcdDisplayForceConverterMaxResolution - mipi-hdmi and lvds-hdmi converters have max allowed resolution 1920x1080@60
+  #                                        - TRUE - if EDID data read exceeds the limit, force set fixed resolution for converters only
+  #                                        - FALSE - Use EDID data read even if exceeds the limit
+  #                                        - if PcdDisplayReadEDID = FALSE, this option has no effect
+
   giMX8TokenSpaceGuid.PcdDisplayEnable|TRUE
-  giMX8TokenSpaceGuid.PcdDisplayInterface|1
+  giMX8TokenSpaceGuid.PcdDisplayInterface|2
   giMX8TokenSpaceGuid.PcdDisplayI2CBaseAddr|0x56226000
+  giMX8TokenSpaceGuid.PcdDisplayReadEDID|TRUE
+  giMX8TokenSpaceGuid.PcdDisplayForceConverterMaxResolution|TRUE
 
   #
   # iMXPlatformPkg
@@ -377,7 +388,7 @@
   # Camera
   #
   # Configuration of camera type connected to CSI1 port
-  giMX8TokenSpaceGuid.PcdCsi1CameraOv5640|0x1
+  giMX8TokenSpaceGuid.PcdCsi1CameraOv5640|0x0
   giMX8TokenSpaceGuid.PcdCsi1CameraOv10635|0x0
   
   #

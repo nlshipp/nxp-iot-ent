@@ -1,5 +1,5 @@
 /*
-* Copyright 2022 NXP
+* Copyright 2022-2023 NXP
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -34,7 +34,7 @@
 EFI_STATUS It6263Discover();
 EFI_STATUS It6263ReadEdid(OUT uint8_t *edid, IN uint32_t offset, IN uint32_t length);
 EFI_STATUS It6263SetMode(IN IMX_DISPLAY_TIMING *PreferredTiming, IN imxDisplayInterfaceType DispInterface);
-EFI_STATUS It6263DumpRegister(IN IMX_I2C_CONTEXT *i2cConfig, IN uint8_t reg, IN char* reg_name);
+EFI_STATUS It6263DumpRegister(IN IMX_I2C_CONTEXT *i2cConfig, IN uint8_t reg);
 EFI_STATUS It6263Dump();
 
 #endif /* IT6263_H_ */

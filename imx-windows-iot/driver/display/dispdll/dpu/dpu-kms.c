@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020, 2022 NXP
+ * Copyright 2017-2020, 2022-2023 NXP
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -175,14 +175,30 @@ again:
 			if (k < 0)
 				return -EINVAL;
 
+			/* Changed in comparison with original linux driver:
+			   dpu plane is hard assigned according to it's index (override k variable),
+			   which is selected in GcKmImx8qxpDisplay object in m_PlaneId and plane_mask
+			   (see m_crtc.base.state->plane_mask |= drm_plane_mask(&m_crtc.plane[m_PlaneId]->base))
+			   m_PlaneId = 0 => fetchlayer - primary for display stream 0
+			   m_PlaneId = 1 => fetchwarp - primary for display stream 1
+			   Reason: HwCommitVidPn is not called in the same order for all monitors all the time,
+			   depends on the resolution. Sometimes Display stream 1 is called first (assigned fetchlayer)
+			   and display stream 0 second (assigns fetchwarp), which doesn't work well.
+			   This code need to be reviewed/tested for ovelay support
+			*/
+			k = dplane->base.index;
+
 			fu = source_to_fu(&grp->res, sources[k]);
 			if (!fu)
 				return -EINVAL;
 
 			/* avoid on-the-fly/hot migration */
 			src_sid = fu->ops->get_stream_id(fu);
+			/* Disable the check, because the plane is hard-assigned above */
+/*
 			if (src_sid && src_sid != BIT(sid))
 				goto next;
+*/
 
 			if (fetchunit_is_fetchdecode(fu)) {
 				cap_mask = fetchdecode_get_vproc_mask(fu);

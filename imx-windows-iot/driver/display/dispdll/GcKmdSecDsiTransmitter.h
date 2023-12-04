@@ -57,7 +57,7 @@ class SecDsiTransmitter : public BaseTransmitter
 {
 public:
 
-    NTSTATUS Start(DXGKRNL_INTERFACE* pDxgkInterface);
+    NTSTATUS Start(DXGKRNL_INTERFACE* pDxgkInterface, const char* plat_name, UINT registryIndex);
 
     NTSTATUS Stop();
 
@@ -80,7 +80,7 @@ private:
 
     NTSTATUS GetResourceNum(DXGKRNL_INTERFACE* pDxgkInterface, ULONG index, LARGE_INTEGER *connection_id, enum ResType restype);
 
-    NTSTATUS GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface);
+    NTSTATUS GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex);
     CHAR* GetPrintableDispInterface();
 
     BYTE m_CachedEdid[EDID_SIZE];

@@ -367,7 +367,7 @@ static int clk_start_imx8mp(imx8mp_clk_device_t *dev, imx_display_interface new_
  * @param  dev device for which initialize the clock tree.
  * @return NULL on fail, poiter to clktree on success.
  */
-imx8mp_clk_device_t *clk_init_imx8mp(imx_display_interface new_disp)
+imx8mp_clk_device_t *clk_init_imx8mp(imx_display_interface new_disp, bool shared)
 {
     const struct imx_pll_rate_table *rate_table;
     imx8mp_clk_device_t *dev = &clktree;
@@ -385,7 +385,7 @@ imx8mp_clk_device_t *clk_init_imx8mp(imx_display_interface new_disp)
         dev->disp_lvds = new_disp;
         break;
     case imx_mipi_dsi:
-        rate_table = videopll_tab_24m_mipi;
+        rate_table = shared ? videopll_tab_24m_lvds : videopll_tab_24m_mipi;
         dev->disp_mipi = new_disp;
         break;
     case imx_hdmi:
@@ -407,6 +407,15 @@ imx8mp_clk_device_t *clk_init_imx8mp(imx_display_interface new_disp)
                 dev->clks[IMX8MP_CLK_24M],
                 dev->ccm_analog_regptr, IMX_CCM_ANALOG_VIDEO_PLL1_GEN_CTRL,
                 rate_table);
+            /* re-fill the selector table to refresh new pointer to IMX8MP_VIDEO_PLL1 clock */
+            fill_clk_sels(dev, imx8mp_media_mipi_phy1_ref_sels_data,
+                imx8mp_media_mipi_phy1_ref_sels);
+            fill_clk_sels(dev, imx8mp_media_disp1_pix_sels_data,
+                imx8mp_media_disp1_pix_sels);
+            fill_clk_sels(dev, imx8mp_media_disp2_pix_sels_data,
+                imx8mp_media_disp2_pix_sels);
+            fill_clk_sels(dev, imx8mp_media_ldb_sels_data,
+                imx8mp_media_ldb_sels);
         }
 
         if (((last_disp_lvds != imx_interface_undefined) || (last_disp_mipi != imx_interface_undefined)) && (new_disp != imx_hdmi)) {

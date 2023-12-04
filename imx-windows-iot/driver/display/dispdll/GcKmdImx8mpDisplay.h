@@ -16,11 +16,12 @@ class GcKmImx8mpDisplay : public GcKmBaseDisplay
 {
 public:
 
-    GcKmImx8mpDisplay()
+    GcKmImx8mpDisplay(struct DisplayInterface* di)
     {
         m_FrontBufferSegmentOffset.QuadPart = 0L;
         m_InterruptData = {};
         m_pTransmitter = &m_LvdsTransmitter;
+        RtlCopyMemory(&m_di, di, sizeof(struct DisplayInterface));
     }
 
     virtual NTSTATUS HwStart(DXGKRNL_INTERFACE* pDxgkInterface) override;
@@ -64,6 +65,7 @@ private:
     struct platform_device lcdif_pdev;
     struct platform_device lcdif_crtc_pdev;
     imx8mp_clk_device *clk_tree;
+    struct DisplayInterface m_di;
 
 };
 

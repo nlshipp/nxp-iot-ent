@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2020, 2022 NXP
+ * Copyright 2017-2020, 2022-2023 NXP
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -546,6 +546,7 @@ int dpu_remove(struct platform_device *pdev,
 int dpu_crtc_copy_display_mode(struct drm_display_mode *src_mode,
 	struct drm_display_mode *dst_mode);
 void dpu_drm_crtc_reset(struct drm_crtc *crtc);
+bool dpu_crtc_is_enabled(struct drm_crtc* crtc);
 int dpu_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct drm_crtc_state *old_crtc_state);
 int dpu_crtc_atomic_disable(struct drm_crtc *crtc,

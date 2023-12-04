@@ -31,11 +31,12 @@
 /* Display interfaces */
 typedef enum {
  imxNativeHdmi = 0,
- imxMipiDsi = 1,
+ imxMipiDsi = 1, /* If more mipi-dsi ports, imxMipiDsi relates to port with index 0 */
  imxLvds0 = 2,
  imxLvds1 = 3,
  imxLvds0dual = 4,
  imxRgb = 5,
+ imxMipiDsi1 = 6,
  imxInterfaceUnknown,
 } imxDisplayInterfaceType;
 

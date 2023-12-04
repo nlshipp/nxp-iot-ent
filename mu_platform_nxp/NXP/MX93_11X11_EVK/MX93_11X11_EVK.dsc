@@ -297,6 +297,12 @@
   giMX8TokenSpaceGuid.PcdMX93EXPSelSetting|FALSE
 
   #
+  # Camera
+  #
+  # Configuration of camera type connected to CSI port
+  giMX8TokenSpaceGuid.PcdCsi1CameraRpiCamMipi|0x0
+
+  #
   # USB
   #
   giMX8TokenSpaceGuid.PcdUsb1EhciBaseAddress|0x4C100100

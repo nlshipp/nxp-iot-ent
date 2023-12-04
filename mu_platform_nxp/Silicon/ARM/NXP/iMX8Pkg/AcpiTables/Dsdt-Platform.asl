@@ -102,6 +102,15 @@ Device (PEP0)
   Method (_STA) {
     Return (0xf)
   }
+  
+  // Enable this section when RUNTIME_DEBUG is TRUE
+  // Allow usage of UART2 for UEFI Runtime Debug
+  /*Method (_CRS, 0x0, NotSerialized) {
+    Name (RBUF, ResourceTemplate () {
+      MEMORY32FIXED(ReadWrite, 0x30890000, 0x4000, )
+    })
+    Return(RBUF)
+  }*/
 }
 
 #if FixedPcdGet32(PcdPowerButtonEnabled)
@@ -114,6 +123,13 @@ Device(PWRB) {
         Return (0xF)
     }
     Name(_PRW, Package(){0, 0x4})
+    
+    OperationRegion (SNVS, SystemMemory, 0x30370000, 0x10000)
+    Field (SNVS, DWordAcc, NoLock, Preserve)
+    {
+        Offset(0x004C),
+        LPCR, 32, // iMX_SNVS_LPSR SNVS Low Power Status Register
+    }
 }
 
 // Generic Event Device - for power button interrupt 4 (=36)
@@ -131,10 +147,17 @@ Device (GED1)
         Switch (Arg0) // Arg0 = GSIV of the interrupt
         {
             Case (36) { // interrupt 36
-                Notify(\_SB.PWRB, 0x80) // Notify OS of event
+                If (\_SB.PWRB.LPCR & 0x00040000) // Bit 18 ... Set Power Off = power button was pressed
+                {
+                    Local0 = \_SB.PWRB.LPCR
+                    \_SB.PWRB.LPCR = Local0  // Writing to the SPO bit will clear the set_pwr_off_irq interrupt 
+                                             // (also in GIC GICD_ICPENDR1 offset 0x284)
+                    Local1 = \_SB.PWRB.LPCR  // Read back to verify that the bit was cleared
+                    Notify(\_SB.PWRB, 0x80)  // Notify OS of event
+                }
             }
         }
     }
-} //End of Scope
+} // End of Scope
 
-#endif //PcdPowerButtonEnabled
+#endif // PcdPowerButtonEnabled

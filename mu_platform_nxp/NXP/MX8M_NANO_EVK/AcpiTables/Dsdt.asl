@@ -2,7 +2,7 @@
 * iMX8M Nano Differentiated System Description Table Fields (DSDT)
 *
 *  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
-*  Copyright 2019-2020,2022 NXP
+*  Copyright 2019-2020,2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -46,5 +46,6 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 5, "MSFT", "EDK2", 1) {
     include("Dsdt-Pwm.asl")
     include("Dsdt-Gfx.asl")
     include("Dsdt-TCPC.asl")
+    include("Dsdt-Tad.asl")
   }
 }

@@ -740,7 +740,7 @@ LcdSetMode (
       CHECK_STATUS_RETURN_ERR(Adv7535SetMode(Timing), "ADV7535 config");
     } else {
       /* MIPI-DSI panel init must be called after MipiDsiConfig() */
-      CHECK_STATUS_RETURN_ERR(Rm67191Init(), "RM67191 config");
+      CHECK_STATUS_RETURN_ERR(Rm67191Init(displayInterface), "RM67191 config");
     }
 #if defined(DISP_CTRL_LCDIFV3)
     /* LCDIF set timing mode */

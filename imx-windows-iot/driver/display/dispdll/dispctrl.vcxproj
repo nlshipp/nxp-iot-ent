@@ -61,7 +61,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);$(SDK_INC_PATH);$(SolutionDir)..\..\..\driver\wddmfw\gcdispif;$(SolutionDir)..\..\..\driver\display\dispdll;$(SolutionDir)..\..\..\driver\display\dispdll\util\include;$(SolutionDir)\..\..\..\driver\display\dispdll\util\src;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\include;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\arch\arm64\include;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\arch\alpha\include\uapi;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\include\uapi;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\arch\arm64;$(SolutionDir)..\..\..\driver\include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_ARM64_;ARM64;_USE_DECLSPECS_FOR_SAL=1;STD_CALL;DXGKDDI_INTERFACE_VERSION=DXGKDDI_INTERFACE_VERSION_WDDM2_6;CONFIG_PHYS_ADDR_T_64BIT;CONFIG_PM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4456;4100;4189;4201;6387</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4456;4100;4189;4201;6387;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <WppEnabled>true</WppEnabled>
       <WppPreprocessorDefinitions>ENABLE_WPP_RECORDER=1;WPP_EMIT_FUNC_NAME</WppPreprocessorDefinitions>
       <WppRecorderEnabled>false</WppRecorderEnabled>
@@ -80,7 +80,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);$(SDK_INC_PATH);$(SolutionDir)..\..\..\driver\wddmfw\gcdispif;$(SolutionDir)..\..\..\driver\display\dispdll;$(SolutionDir)..\..\..\driver\display\dispdll\util\include;$(SolutionDir)\..\..\..\driver\display\dispdll\util\src;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\include;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\arch\arm64\include;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\arch\alpha\include\uapi;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\include\uapi;$(SolutionDir)..\..\..\driver\display\dispdll\os\windows\include\linux\arch\arm64;$(SolutionDir)..\..\..\driver\include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_ARM64_;ARM64;_USE_DECLSPECS_FOR_SAL=1;STD_CALL;DXGKDDI_INTERFACE_VERSION=DXGKDDI_INTERFACE_VERSION_WDDM2_6;CONFIG_PHYS_ADDR_T_64BIT;CONFIG_PM;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4456;4100;4189;4201</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4456;4100;4189;4201;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <WppEnabled>true</WppEnabled>
       <WppPreprocessorDefinitions>ENABLE_WPP_RECORDER=1;WPP_EMIT_FUNC_NAME</WppPreprocessorDefinitions>
       <WppRecorderEnabled>false</WppRecorderEnabled>
@@ -179,8 +179,10 @@
     <ClCompile Include="GcKmdImx8mpDisplay.cpp" />
     <ClCompile Include="GcKmdImx8mpDisplayController.cpp" />
     <ClCompile Include="GcKmdImx8mpHdmiDisplay.cpp" />
+    <ClCompile Include="GcKmdImx8mpMipiDsiDisplay.cpp" />
     <ClCompile Include="GcKmdImx8mqDisplay.cpp" />
     <ClCompile Include="GcKmdImx8qxpDisplay.cpp" />
+    <ClCompile Include="GcKmdImx8qxpDisplayController.cpp" />
     <ClCompile Include="GcKmdLogging.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">precomp.h</PrecompiledHeaderFile>
@@ -293,8 +295,10 @@
     <ClInclude Include="GcKmdImx8mpDisplay.h" />
     <ClInclude Include="GcKmdImx8mpDisplayController.h" />
     <ClInclude Include="GcKmdImx8mpHdmiDisplay.h" />
+    <ClInclude Include="GcKmdImx8mpMipiDsiDisplay.h" />
     <ClInclude Include="GcKmdImx8mqDisplay.h" />
     <ClInclude Include="GcKmdImx8qxpDisplay.h" />
+    <ClInclude Include="GcKmdImx8qxpDisplayController.h" />
     <ClInclude Include="GcKmdLogging.h" />
     <ClInclude Include="GcKmdMpLvdsTransmitter.h" />
     <ClInclude Include="GcKmdQxpLvdsTransmitter.h" />

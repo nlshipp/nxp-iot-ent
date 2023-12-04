@@ -264,6 +264,18 @@ MagDevice::Initialize(
         m_pSensorProperties->List[SENSOR_PROPERTY_TYPE].Key = PKEY_Sensor_Type;
         InitPropVariantFromCLSID(GUID_SensorType_Magnetometer3D,
                                  &(m_pSensorProperties->List[SENSOR_PROPERTY_TYPE].Value));
+
+        m_pSensorProperties->List[SENSOR_PROPERTY_FIFORESERVEDSIZE_SAMPLES].Key = PKEY_Sensor_FifoReservedSize_Samples;
+        InitPropVariantFromUInt32(SENSOR_FIFORESERVEDSIZE_SAMPLES_MAG,
+            &(m_pSensorProperties->List[SENSOR_PROPERTY_FIFORESERVEDSIZE_SAMPLES].Value));
+
+        m_pSensorProperties->List[SENSOR_PROPERTY_FIFO_MAXSIZE_SAMPLES].Key = PKEY_Sensor_FifoMaxSize_Samples;
+        InitPropVariantFromUInt32(SENSOR_FIFO_MAXSIZE_SAMPLES,
+            &(m_pSensorProperties->List[SENSOR_PROPERTY_FIFO_MAXSIZE_SAMPLES].Value));
+
+        m_pSensorProperties->List[SENSOR_PROPERTY_WAKE_CAPABLE].Key = PKEY_Sensor_WakeCapable;
+        InitPropVariantFromBoolean(SENSOR_WAKE_CAPABLE,
+            &(m_pSensorProperties->List[SENSOR_PROPERTY_WAKE_CAPABLE].Value));
     }
 
     //
@@ -375,7 +387,6 @@ MagDevice::GetData(
     )
 {
     BOOLEAN DataReady = FALSE;
-    FILETIME TimeStamp = {0};
     NTSTATUS Status = STATUS_SUCCESS;
 
     SENSOR_FunctionEnter();
@@ -696,6 +707,25 @@ MagDevice::StopSensor(
             WdfWaitLockRelease(m_I2CWaitLock);
             TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
             goto Exit;
+        }
+
+        if (m_fifo_enabled)
+        {
+            FXOS8700_F_SETUP_t F_setupReg = { 0 };
+            ULONG desiredSampleCount = m_batch_latency / m_DataRate.DataRateInterval;
+            ULONG sampleCountToSet = min(desiredSampleCount, m_accelerometer_max_fifo_samples);
+            F_setupReg.b.f_mode = FXOS8700_F_SETUP_F_MODE_FIFO_STOP_OVF_VAL;
+            F_setupReg.b.f_wmrk = sampleCountToSet;
+            RegisterSetting = { FXOS8700_F_SETUP, F_setupReg.w };
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                goto Exit;
+            }
+
+            m_batch_latency = sampleCountToSet * m_DataRate.DataRateInterval;
+            m_fifo_size = sampleCountToSet;
         }
 
         // Set eCompass to active mode

@@ -69,6 +69,11 @@
   giMX8TokenSpaceGuid.PcdUsb2XhciBaseAddress
   giMX8TokenSpaceGuid.PcdUsb1EhciBaseAddress
   giMX8TokenSpaceGuid.PcdUsb2EhciBaseAddress
+  giMX8TokenSpaceGuid.PcdFlexSpiBaseAddress
+
+  gEfiMdePkgTokenSpaceGuid.PcdUefiRuntimeDebugEnable
+  giMXPlatformTokenSpaceGuid.PcdSerialRegisterBase
+  gEfiMdeModulePkgTokenSpaceGuid.PcdEmuVariableNvModeEnable
 
 [Depex]
   # We depend on these protocols to create the default boot entries

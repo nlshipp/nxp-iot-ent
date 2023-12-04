@@ -192,7 +192,7 @@ NTSTATUS GetDwordRegistryParam(DXGKRNL_INTERFACE* pDxgkInterface, PWSTR Name, UL
 
     /* Convert registry path from unicode string to wide string and ensure zero termination (__GFP_ZERO in kmalloc) */
     len = device_info.DeviceRegistryPath.Length;
-    reg_path = (PUCHAR)ExAllocatePoolWithTag(NonPagedPoolNx, len + sizeof(WCHAR), '8XMI');
+    reg_path = static_cast<PUCHAR>(ExAllocatePool2(POOL_FLAG_NON_PAGED, len + sizeof(WCHAR), '8XMI'));
     if (reg_path == NULL) {
         return STATUS_NO_MEMORY;
     }
@@ -211,4 +211,36 @@ NTSTATUS GetDwordRegistryParam(DXGKRNL_INTERFACE* pDxgkInterface, PWSTR Name, UL
     *Value = tmp_param;
 
     return status;
+}
+
+PWSTR GetRegParamString(enum RegParamType regParType, UINT regIndex)
+{
+    static const PWSTR parInterface[] = { L"Display0Interface", L"Display1Interface", L"Display2Interface" };
+    static const PWSTR parBusDataWidth[] = { L"Display0BusDataWidth", L"Display1BusDataWidth", L"Display2BusDataWidth" };
+    static const PWSTR parBusMapping[] = { L"Display0BusMapping", L"Display1BusMapping", L"Display2BusMapping" };
+    static const PWSTR parEdid[] = { L"Display0EDID", L"Display1EDID", L"Display2EDID" };
+    static const PWSTR parNumLanes[] = { L"Display0NumLanes", L"Display1NumLanes", L"Display2NumLanes" };
+    static const PWSTR parChannelId[] = { L"Display0ChannelId", L"Display1ChannelId", L"Display2ChannelId" };
+
+    /* Assume max 3 displays */
+    if (regIndex >= 3) {
+        return nullptr;
+    }
+
+    switch (regParType) {
+    case RegParInterface:
+        return parInterface[regIndex];
+    case RegParBusDataWidth:
+        return parBusDataWidth[regIndex];
+    case RegParBusMapping:
+        return parBusMapping[regIndex];
+    case RegParEdid:
+        return parEdid[regIndex];
+    case RegParNumLanes:
+        return parNumLanes[regIndex];
+    case RegParChannelId:
+        return parChannelId[regIndex];
+    default:
+        return nullptr;
+    }
 }

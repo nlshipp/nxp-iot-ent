@@ -64,8 +64,11 @@ Device (GPU1)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 83 }
     // SCFW
     I2CSerialBus(0x41, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.SCFW")
-    // I2C interface for IMX-LVDS-HDMI converter (IT6263) connected to MIPI-LVDS #0
+    // I2C interface for IMX-LVDS-HDMI converter (IT6263) connected to MIPI-DSI/LVDS #0
     I2CSerialBus(0x4C, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C8") // IT6263 HDMI memory region
     I2CSerialBus(0x33, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C8") // IT6263 LVDS memory region
+    // I2C interface for IMX-LVDS-HDMI converter (IT6263) connected to MIPI-DSI/LVDS #1
+    I2CSerialBus(0x4C, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C9") // IT6263 HDMI memory region
+    I2CSerialBus(0x33, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C9") // IT6263 LVDS memory region
   })
 }

@@ -1,5 +1,6 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
    Licensed under the MIT License.
+   Copyright 2023 NXP
 
 Module Name:
 
@@ -731,6 +732,15 @@ OpteeTreeProcessOtherDeviceIoEnd:
     WdfRequestCompleteWithInformation(Request, Status, BytesWritten);
 }
 
+//due inconsistency in WDK versions 
+// 19041: GUID_TREE_TPM_SERVICE 
+// 22621: GUID_TREE_NXP_TPM_SERVICE_FDTPM
+//We have to use own definition here:
+
+DEFINE_GUID(GUID_TREE_TPM_SERVICE_NXP,
+   0x36deaa79, 0xc5dd, 0x447c, 0x95, 0xe6, 0xb3, 0x85, 0x95, 0x89, 0x29, 0x1a);
+   
+
 _Function_class_(EVT_TR_QUERY_SERVICE_CALLBACKS)
 _IRQL_requires_same_
 _IRQL_requires_max_(PASSIVE_LEVEL)
@@ -772,7 +782,7 @@ OpteeTreeQueryServiceCallbacks(
     
         ServiceCallbacks = &VARIABLE_SERVICE_CALLBACKS;
 
-    } else if (IsEqualGUID(ServiceGuid, &GUID_TREE_TPM_SERVICE)) {
+    } else if (IsEqualGUID(ServiceGuid, &GUID_TREE_TPM_SERVICE_NXP)) {
 
         ServiceCallbacks = &FTPM_SERVICE_CALLBACKS;
 

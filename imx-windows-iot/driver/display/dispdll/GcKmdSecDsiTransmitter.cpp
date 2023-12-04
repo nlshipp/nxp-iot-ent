@@ -128,7 +128,7 @@ NTSTATUS SecDsiTransmitter_EDIDQueryRoutine(PWSTR ValueName, ULONG ValueType, PV
     return STATUS_SUCCESS;
 }
 
-NTSTATUS SecDsiTransmitter::GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface)
+NTSTATUS SecDsiTransmitter::GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex)
 {
     NTSTATUS status;
     DXGK_DEVICE_INFO device_info;
@@ -155,15 +155,15 @@ NTSTATUS SecDsiTransmitter::GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface)
     /* Initialize query table - read 1 items from registry, last item in query_table is zeroed */
     RtlZeroMemory(query_table, sizeof(query_table));
     query_table[0].Flags = RTL_QUERY_REGISTRY_DIRECT | RTL_QUERY_REGISTRY_TYPECHECK;
-    query_table[0].Name = L"Display0NumLanes";
+    query_table[0].Name = GetRegParamString(RegParNumLanes, registryIndex);
     query_table[0].EntryContext = &tmp_num_lanes;
     query_table[0].DefaultType = (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
     query_table[1].Flags = RTL_QUERY_REGISTRY_DIRECT | RTL_QUERY_REGISTRY_TYPECHECK;
-    query_table[1].Name = L"Display0ChannelId";
+    query_table[1].Name = GetRegParamString(RegParChannelId, registryIndex);
     query_table[1].EntryContext = &tmp_channel_id;
     query_table[1].DefaultType = (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
     query_table[2].Flags = 0;
-    query_table[2].Name = L"Display0EDID";
+    query_table[2].Name = GetRegParamString(RegParEdid, registryIndex);
     query_table[2].EntryContext = &m_CachedEdid;
     query_table[2].DefaultType = REG_BINARY;
     query_table[2].QueryRoutine = SecDsiTransmitter_EDIDQueryRoutine;
@@ -206,11 +206,11 @@ static property mn_panel_raydium_properties[] = {
     { "" /* mark end of the list */ }
 };
 
-NTSTATUS SecDsiTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
+NTSTATUS SecDsiTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface, const char* plat_name, UINT registryIndex)
 {
     NTSTATUS status;
 
-    status = GetRegistryParams(pDxgkInterface);
+    status = GetRegistryParams(pDxgkInterface, registryIndex);
     if (!NT_SUCCESS(status)) {
         printk("SecDsi display: WARNING parameters not valid. Switching to default settings: interface=%s num_lanes=%d channel_id=%d.\n",
             GetPrintableDispInterface(), m_num_lanes, m_channel_id);
@@ -219,7 +219,7 @@ NTSTATUS SecDsiTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
         GetPrintableDispInterface(), m_num_lanes, m_channel_id);
 
     dsi_pdev.name = "mipi_dsi_dev";
-    dsi_pdev.plat_name = "mn";
+    dsi_pdev.plat_name = plat_name;
     board_init(&dsi_pdev);
     if (imx_sec_dsim_probe(&dsi_pdev) != 0) {
         imx_sec_dsim_remove(&dsi_pdev);
@@ -240,18 +240,23 @@ NTSTATUS SecDsiTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
            There are four memory blocks with separate bus address.
            m_i2c_main is the main device with allocated driver data. others are auxiliary - only for i2c regmap storage */
         m_i2c_main.is_initialized = 0;
+        /* Offset of i2c device in ACPI, zero for Nano, two for Plus */
+        UINT acpi_i2c_offset = 0;
+        if (!strcmp(plat_name, "mp")) {
+            acpi_i2c_offset = 2;
+        }
         /* i2c_main device, ACPI i2c index 0 (first i2c device) */
-        status = GetResourceNum(pDxgkInterface, 0, &m_i2c_main.connection_id, ResourceType_I2C);
+        status = GetResourceNum(pDxgkInterface, acpi_i2c_offset + 0, &m_i2c_main.connection_id, ResourceType_I2C);
         if (!NT_SUCCESS(status)) {
             break;
         }
         /* i2c_cec device, ACPI i2c index 1 (second i2c device) */
-        status = GetResourceNum(pDxgkInterface, 1, &m_i2c_cec.connection_id, ResourceType_I2C);
+        status = GetResourceNum(pDxgkInterface, acpi_i2c_offset + 1, &m_i2c_cec.connection_id, ResourceType_I2C);
         if (!NT_SUCCESS(status)) {
             break;
         }
         /* i2c_edid device, ACPI i2c index 2 (third i2c device) */
-        status = GetResourceNum(pDxgkInterface, 2, &m_i2c_edid.connection_id, ResourceType_I2C);
+        status = GetResourceNum(pDxgkInterface, acpi_i2c_offset + 2, &m_i2c_edid.connection_id, ResourceType_I2C);
         if (!NT_SUCCESS(status)) {
             break;
         }

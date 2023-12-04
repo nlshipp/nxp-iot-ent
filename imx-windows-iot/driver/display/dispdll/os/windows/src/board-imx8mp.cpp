@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -96,6 +96,11 @@ static property mp_lcdif3_properties[] = {
 
 static property mp_hdmi_properties[] = {
     { "compatible", 1, "fsl,imx8mp-hdmi" },
+    { "" } // marks end of the list
+};
+
+static property mp_mipi_properties[] = {
+    { "compatible", 1, "fsl,imx8mp-mipi-dsim" },
     { "" } // marks end of the list
 };
 
@@ -211,10 +216,10 @@ static void lcdif2_irq_init(void)
 
 static void lcdif1_irq_init(void)
 {
-    irq_desc[IRQ_DESC_VBLANK].name = "vblank";
-    irq_desc[IRQ_DESC_VBLANK].irq_data.hwirq = 5;
-    irq_desc[IRQ_DESC_VBLANK].handler = nullptr;
-    irq_desc[IRQ_DESC_VBLANK].irq_data.chip.type = IRQCHIP_TYPE_GIC;
+    irq_desc[IRQ_DESC_VBLANK_LCDIF1].name = "vblank";
+    irq_desc[IRQ_DESC_VBLANK_LCDIF1].irq_data.hwirq = 5;
+    irq_desc[IRQ_DESC_VBLANK_LCDIF1].handler = nullptr;
+    irq_desc[IRQ_DESC_VBLANK_LCDIF1].irq_data.chip.type = IRQCHIP_TYPE_GIC;
 }
 
 static void lcdif3_irq_init(void)
@@ -246,6 +251,7 @@ static inline void mipi_res_init(platform_device* pdev)
 {
     pdev->resource = &mp_mipi_res_list[0];
     pdev->num_resources = ARRAYSIZE(mp_mipi_res_list);
+    pdev->dev.of_node.properties = (property*)&mp_mipi_properties;
     pdev->dev.of_clk = (struct clk_init_data_desc *)&mp_mipi_clock_desc;
     pdev->dev.get_clock_item = &clk_get_item_imx8mp;
 }
@@ -321,7 +327,7 @@ void mp_board_init(platform_device* pdev)
     {
         lvds_res_init(pdev);
     }
-    else if (!strcmp(pdev->name, "mipi-dsi_dev"))
+    else if (!strcmp(pdev->name, "mipi_dsi_dev"))
     {
         mipi_res_init(pdev);
     }

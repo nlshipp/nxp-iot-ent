@@ -151,6 +151,16 @@
  */
 
  /*--------------------------------
+ ** Register: FIFO_CTRL2
+ ** Enum: LSM6DSOX_FIFO_CTRL2
+ ** --
+ ** Offset : 0x08 - FIFO control register 2.
+ ** ------------------------------*/
+
+#define LSM6DSOX_FIFO_CTRL2_STOP_ON_WTM         ((uint8_t) 0x80)
+#define LSM6DSOX_FIFO_CTRL2_FIFO_COMPR_RT_EN    ((uint8_t) 0x40)
+
+ /*--------------------------------
  ** Register: FIFO_CTRL3
  ** Enum: LSM6DSOX_FIFO_CTRL3
  ** --
@@ -173,6 +183,8 @@ typedef union {
 
 #define LSM6DSOX_FIFO_CTRL3_BDR_GY_MASK        ((uint8_t) 0xF0)
 #define LSM6DSOX_FIFO_CTRL3_BDR_GY_SHIFT       ((uint8_t)    4)
+
+#define LSM6DSOX_FIFO_CTRL3_XL_DATARATE_SHIFT  ((uint8_t)    4)
 /*------------------------------*/
 
 /*
@@ -241,6 +253,7 @@ typedef union {
 ** FIFO_CTRL4 - Bit field value definitions
 */
 #define LSM6DSOX_FIFO_CTRL4_FIFO_MODE_DISABLE       ((uint8_t) 0x00)
+#define LSM6DSOX_FIFO_CTRL4_FIFO_MODE_ENABLE        ((uint8_t) 0x01)
 /*------------------------------*/
 
 
@@ -951,6 +964,22 @@ typedef union {
 
 
 
+
+/*
+** COUNTER_BDR_REG1 - Bit field mask definitions
+*/
+#define LSM6DSOX_COUNTER_BDR_REG1_CNT_BDR_TH_MASK   ((uint8_t) 0x07)
+#define LSM6DSOX_COUNTER_BDR_REG1_CNT_BDR_TH_SHIFT  ((uint8_t)    0)
+/*------------------------------*/
+
+/*
+** FIFO_STATUS2 - Bit field value definitions
+*/
+#define LSM6DSOX_FIFO_STATUS2_COUNTER_BDR_IA       ((uint8_t) 0x10)
+#define LSM6DSOX_FIFO_STATUS2_FIFO_WTM_IA          ((uint8_t) 0x80)
+/*------------------------------*/
+
+
 /* Bus address */
 const unsigned short SENSOR_BUS_ADDRESS[] = L"6A";
 
@@ -970,3 +999,10 @@ const unsigned short SENSOR_MODEL[] = L"LSM6DSOXCQ";
 
 const ULONG SENSOR_MIN_REPORT_INTERVAL = 1;
 const ULONG SENSOR_HIGH_PERFORMANCE_THRESHOLD_INTERVAL = 3;
+
+const ULONG DEFAULT_BATCH_SAMPLE_COUNT = 1;
+const ULONG DEFAULT_BATCH_LATENCY = 0;
+const UINT32 SENSOR_FIFORESERVEDSIZE_SAMPLES_ACC = 511;
+const UINT32 SENSOR_FIFORESERVEDSIZE_SAMPLES_GYR = 0;
+const UINT32 SENSOR_FIFO_MAXSIZE_SAMPLES = 511;
+const BOOL SENSOR_WAKE_CAPABLE = FALSE;

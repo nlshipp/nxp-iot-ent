@@ -30,6 +30,16 @@ ULONG                eCompassDevice::m_MinimumInterval  = SENSOR_MIN_REPORT_INTE
 BOOLEAN              eCompassDevice::m_WakeEnabled      = false;
 SensorMode           eCompassDevice::m_SensorMode       = STANDBY_MODE;
 
+//
+//FIFO
+//
+
+BOOLEAN             eCompassDevice::m_fifo_enabled = false;
+ULONG               eCompassDevice::m_batch_latency = DEFAULT_BATCH_LATENCY;
+ULONG               eCompassDevice::m_fifo_size = DEFAULT_BATCH_SAMPLE_COUNT;
+UINT32              eCompassDevice::m_accelerometer_max_fifo_samples = SENSOR_FIFORESERVEDSIZE_SAMPLES_ACC;
+UINT32              eCompassDevice::m_magnetometer_max_fifo_samples = SENSOR_FIFORESERVEDSIZE_SAMPLES_MAG;
+
 // Return the rate that is just less than the desired report interval
 DATA_RATE eCompassDevice::GetDataRateFromReportInterval(_In_ ULONG ReportInterval, _In_ ULONG SensorMode)
 {
@@ -247,10 +257,14 @@ BOOLEAN eCompassDevice::OnInterruptIsr(
 
     SENSOR_FunctionEnter();
 
-    // Read the interrupt source
+    // Read the interrupt source and status register to clear interrupt
     BYTE IntSrcBuffer = 0;
+    BYTE StatusBuffer = 0;
+
     WdfWaitLockAcquire(m_I2CWaitLock, NULL);
     Status = I2CSensorReadRegister(m_I2CIoTarget, FXOS8700_INT_SOURCE, &IntSrcBuffer, sizeof(IntSrcBuffer));
+    Status = I2CSensorReadRegister(m_I2CIoTarget, 0x00, &StatusBuffer, sizeof(StatusBuffer));
+    
     WdfWaitLockRelease(m_I2CWaitLock);
 
     if (!NT_SUCCESS(Status))
@@ -258,7 +272,7 @@ BOOLEAN eCompassDevice::OnInterruptIsr(
         TraceError("eCompass %!FUNC! I2CSensorReadRegister from 0x%02x failed! %!STATUS!", FXOS8700_INT_SOURCE, Status);
         goto Exit;
     }
-    else if ((IntSrcBuffer & FXOS8700_INT_SOURCE_SRC_DRDY_MASK) == 0)
+    else if ((IntSrcBuffer & (FXOS8700_INT_SOURCE_SRC_DRDY_MASK | FXOS8700_INT_SOURCE_SRC_FIFO_MASK)) == 0)
     {
         TraceError("%!FUNC! Interrupt source not recognized");
         goto Exit;
@@ -660,12 +674,39 @@ eCompassDevice::OnSetDataInterval(
             TraceError("eCompass %!FUNC! Failed to disable interrupts. %!STATUS!", Status);
             goto Exit;
         }
+        m_DataRate = GetDataRateFromReportInterval(DataRateMs, m_SensorMode);
+
+        //In case FIFO mode is enabled, try to adjust FIFO buffer size to keep same batch latency
+        if (m_fifo_enabled)
+        {
+            FXOS8700_F_SETUP_t F_setupReg = { 0 };
+            uint8_t desiredSampleCount = (uint8_t)(m_batch_latency / m_DataRate.DataRateInterval);
+            uint8_t sampleCountToSet = min(desiredSampleCount, (uint8_t)m_accelerometer_max_fifo_samples);
+            F_setupReg.b.f_mode = FXOS8700_F_SETUP_F_MODE_FIFO_STOP_OVF_VAL;
+            F_setupReg.b.f_wmrk = sampleCountToSet;
+            RegisterSetting = { FXOS8700_F_SETUP, F_setupReg.w };
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            WdfWaitLockRelease(m_I2CWaitLock);
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                goto Exit;
+            }
+
+            m_batch_latency = sampleCountToSet * m_DataRate.DataRateInterval;
+            m_fifo_size = sampleCountToSet;
+        }
+        else
+        {
+            m_fifo_size = DEFAULT_BATCH_SAMPLE_COUNT;
+            m_batch_latency = DEFAULT_BATCH_LATENCY;
+        }
+
 
         // Update data rate in HW
         pDevice->m_Started = true;
         pDevice->m_FirstSample = true;
         // Set data rate in HW and set ACTIVE MODE
-        m_DataRate = GetDataRateFromReportInterval(DataRateMs, m_SensorMode);
         RegisterSetting = { FXOS8700_CTRL_REG1, m_DataRate.RateCode };
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         WdfWaitLockRelease(m_I2CWaitLock);
@@ -674,6 +715,9 @@ eCompassDevice::OnSetDataInterval(
             TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
             goto Exit;
         }
+    }
+    else {
+        m_DataRate = GetDataRateFromReportInterval(DataRateMs, m_SensorMode);
     }
 
 Exit:
@@ -1017,6 +1061,87 @@ NTSTATUS eCompassDevice::OnCancelHistoryRetrieval(_In_ SENSOROBJECT SensorInstan
         Status = pDevice->CancelHistoryRetrieval(pBytesWritten);
     }
 
+    SENSOR_FunctionExit(Status);
+    return Status;
+}
+
+NTSTATUS eCompassDevice::OnSetBatchLatency(_In_ SENSOROBJECT SensorInstance, _In_ ULONG batchLatencyMs)
+{ 
+    SENSOR_FunctionEnter();
+
+    PeCompassDevice pDevice = GetContextFromSensorInstance(SensorInstance);
+    NTSTATUS Status = STATUS_SUCCESS;
+
+    UINT32 maxFifo;
+    REGISTER_SETTING RegisterSetting = { 0, 0 };
+    FXOS8700_F_SETUP_t F_setupReg = { 0 };
+
+    if (pDevice == nullptr)
+    {
+        Status = STATUS_INVALID_PARAMETER;
+        TraceError("eCompass %!FUNC! Invalid parameter!");
+        goto Exit;
+    }
+
+    maxFifo = m_accelerometer_max_fifo_samples;
+    if (pDevice->m_Started)
+    {
+        if (batchLatencyMs == 0) // Disabling FIFO mode
+        {
+            WdfWaitLockAcquire(m_I2CWaitLock, NULL);
+
+            //Set F_SETUP register to 0 to disable FIFO mode
+            F_setupReg.b.f_mode = FXOS8700_F_SETUP_F_MODE_FIFO_DISABLE_VAL;
+            F_setupReg.b.f_wmrk = 0;
+            RegisterSetting = { FXOS8700_F_SETUP, F_setupReg.w };
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            WdfWaitLockRelease(m_I2CWaitLock);
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                goto Exit;
+            }
+
+            m_batch_latency = 0;
+            m_fifo_size = DEFAULT_BATCH_SAMPLE_COUNT;
+            m_fifo_enabled = false;
+        }
+        else { // Enabling FIFO mode
+            ULONG desiredSampleCount = batchLatencyMs / m_DataRate.DataRateInterval;
+            ULONG sampleCountToSet = min(desiredSampleCount, maxFifo);
+
+            WdfWaitLockAcquire(m_I2CWaitLock, NULL);
+
+            //Set watermark to sampleCountToSet
+            F_setupReg.b.f_mode = FXOS8700_F_SETUP_F_MODE_FIFO_STOP_OVF_VAL;
+            F_setupReg.b.f_wmrk = sampleCountToSet;
+            RegisterSetting = { FXOS8700_F_SETUP, F_setupReg.w };
+            Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+            WdfWaitLockRelease(m_I2CWaitLock);
+            if (!NT_SUCCESS(Status))
+            {
+                TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+                goto Exit;
+            }
+
+            m_batch_latency = sampleCountToSet * m_DataRate.DataRateInterval;
+            m_fifo_size = sampleCountToSet;
+            m_fifo_enabled = true;
+        }
+    }
+    else {
+        if (batchLatencyMs == 0)
+        {
+            m_fifo_enabled = false;
+            m_batch_latency = 0;
+        }
+        else {
+            m_fifo_enabled = true;
+            m_batch_latency = batchLatencyMs;
+        }
+    }
+
+Exit:
     SENSOR_FunctionExit(Status);
     return Status;
 }

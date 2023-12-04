@@ -278,6 +278,11 @@ GyrDevice::Initialize(
 
         m_DataRate = GetDataRateFromReportInterval(GyrDevice_DefaultDataRate);
 
+        m_fifo_enabled = false;
+        m_batch_latency = DEFAULT_BATCH_LATENCY;
+        m_fifo_size = DEFAULT_BATCH_SAMPLE_COUNT;
+        m_max_fifo_samples = SENSOR_FIFORESERVEDSIZE_SAMPLES_GYR;
+
         SENSOR_COLLECTION_LIST_INIT(m_pSensorProperties, Size);
         m_pSensorProperties->Count = SENSOR_PROPERTY_COUNT;
 
@@ -300,6 +305,18 @@ GyrDevice::Initialize(
         m_pSensorProperties->List[SENSOR_PROPERTY_TYPE].Key = PKEY_Sensor_Type;
         InitPropVariantFromCLSID(GUID_SensorType_Gyrometer3D,
                                      &(m_pSensorProperties->List[SENSOR_PROPERTY_TYPE].Value));
+
+        m_pSensorProperties->List[SENSOR_PROPERTY_FIFORESERVEDSIZE_SAMPLES].Key = PKEY_Sensor_FifoReservedSize_Samples;
+        InitPropVariantFromUInt32(SENSOR_FIFORESERVEDSIZE_SAMPLES_GYR,
+            &(m_pSensorProperties->List[SENSOR_PROPERTY_FIFORESERVEDSIZE_SAMPLES].Value));
+
+        m_pSensorProperties->List[SENSOR_PROPERTY_FIFO_MAXSIZE_SAMPLES].Key = PKEY_Sensor_FifoMaxSize_Samples;
+        InitPropVariantFromUInt32(SENSOR_FIFO_MAXSIZE_SAMPLES,
+            &(m_pSensorProperties->List[SENSOR_PROPERTY_FIFO_MAXSIZE_SAMPLES].Value));
+
+        m_pSensorProperties->List[SENSOR_PROPERTY_WAKE_CAPABLE].Key = PKEY_Sensor_WakeCapable;
+        InitPropVariantFromBoolean(SENSOR_WAKE_CAPABLE,
+            &(m_pSensorProperties->List[SENSOR_PROPERTY_WAKE_CAPABLE].Value));
     }
 
     //
@@ -596,6 +613,20 @@ GyrDevice::UpdateDataInterval(
     WdfWaitLockRelease(m_I2CWaitLock);
 
 Exit:  
+    SENSOR_FunctionExit(Status);
+    return Status;
+}
+
+NTSTATUS 
+_GyrDevice::UpdateBatchLatency(
+    _In_ ULONG BatchLatencyMs
+)
+{
+    UNREFERENCED_PARAMETER(BatchLatencyMs);
+    SENSOR_FunctionEnter();
+
+    NTSTATUS Status = STATUS_SUCCESS;
+
     SENSOR_FunctionExit(Status);
     return Status;
 }

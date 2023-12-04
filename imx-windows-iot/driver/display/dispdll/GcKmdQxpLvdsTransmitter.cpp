@@ -58,7 +58,7 @@ extern "C" {
 #define printk(x, ...) \
     DbgPrintEx(DPFLTR_IHVVIDEO_ID, DPFLTR_ERROR_LEVEL, x, __VA_ARGS__)
 
-// #define LVDS_TRANSMITTER_DEBUG
+//#define LVDS_TRANSMITTER_DEBUG
 #ifdef LVDS_TRANSMITTER_DEBUG
     #define printk_debug printk
 #else
@@ -127,7 +127,16 @@ void QxpLvdsTransmitter::GetChildDescriptor(DXGK_CHILD_DESCRIPTOR* pDescriptor)
     pDescriptor->ChildCapabilities.Type.VideoOutput.SupportsSdtvModes = FALSE;
     // child device is not an ACPI device
     pDescriptor->AcpiUid = 0;
-    pDescriptor->ChildUid = LVDS0_CHILD_UID;
+    switch (m_disp_interface) {
+    case IMX_LVDS0:
+    case IMX_LVDS0_DUAL:
+    default:
+        pDescriptor->ChildUid = LVDS0_CHILD_UID;
+        break;
+    case IMX_LVDS1:
+        pDescriptor->ChildUid = LVDS1_CHILD_UID;
+        break;
+    }
 }
 
 RTL_QUERY_REGISTRY_ROUTINE QxpLvdsTransmitter_EDIDQueryRoutine;
@@ -157,7 +166,7 @@ NTSTATUS NTAPI QxpLvdsTransmitter_EDIDQueryRoutine(
 }
 
 NTSTATUS QxpLvdsTransmitter::GetRegistryParams(
-    DXGKRNL_INTERFACE* pDxgkInterface)
+    DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex)
 {
     NTSTATUS Status;
     ULONG TmpDispInterface;
@@ -189,24 +198,24 @@ NTSTATUS QxpLvdsTransmitter::GetRegistryParams(
     RtlZeroMemory(QueryTable, sizeof(QueryTable));
     QueryTable[0].Flags = RTL_QUERY_REGISTRY_DIRECT |
                         RTL_QUERY_REGISTRY_TYPECHECK;
-    QueryTable[0].Name = L"Display0Interface";
+    QueryTable[0].Name = GetRegParamString(RegParInterface, registryIndex);
     QueryTable[0].EntryContext = &TmpDispInterface;
     QueryTable[0].DefaultType =
         (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
     QueryTable[1].Flags = RTL_QUERY_REGISTRY_DIRECT |
                         RTL_QUERY_REGISTRY_TYPECHECK;
-    QueryTable[1].Name = L"Display0BusDataWidth";
+    QueryTable[1].Name = GetRegParamString(RegParBusDataWidth, registryIndex);
     QueryTable[1].EntryContext = &TmpDispBusDataWidth;
     QueryTable[1].DefaultType =
         (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
     QueryTable[2].Flags = RTL_QUERY_REGISTRY_DIRECT |
                         RTL_QUERY_REGISTRY_TYPECHECK;
-    QueryTable[2].Name = L"Display0BusMapping";
+    QueryTable[2].Name = GetRegParamString(RegParBusMapping, registryIndex);
     QueryTable[2].EntryContext = &TmpDispBusMapping;
     QueryTable[2].DefaultType =
         (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
     QueryTable[3].Flags = 0;
-    QueryTable[3].Name = L"Display0EDID";
+    QueryTable[3].Name = GetRegParamString(RegParEdid, registryIndex);
     QueryTable[3].EntryContext = &m_CachedEdid;
     QueryTable[3].DefaultType = REG_BINARY;
     QueryTable[3].QueryRoutine = QxpLvdsTransmitter_EDIDQueryRoutine;
@@ -270,13 +279,13 @@ NTSTATUS QxpLvdsTransmitter::GetRegistryParams(
     return Status;
 }
 
-NTSTATUS QxpLvdsTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
+NTSTATUS QxpLvdsTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex)
 {
     NTSTATUS Status;
 
-    // currently we are taking LVDS parameters from m_ldb1_pdev DT node;
+    // currently we are taking LVDS parameters from m_ldb_pdev DT node;
     // use below function to override DT setting
-    Status = GetRegistryParams(pDxgkInterface);
+    Status = GetRegistryParams(pDxgkInterface, registryIndex);
     if (!NT_SUCCESS(Status)) {
         printk_debug("LVDS display: WARNING parameters not valid."
             "Switching to default settings:"
@@ -287,26 +296,39 @@ NTSTATUS QxpLvdsTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
             "interface=%s bus_data_width=%d bus_mapping=%s\n",
         GetPrintableDispInterface(), m_bus_data_width, m_bus_mapping);
 
-    m_ldb1_phy_pdev.name = "ldb1_phy";
-    m_ldb1_phy_pdev.plat_name = "qxp";
-    m_ldb1_phy_pdev.data = pDxgkInterface;
-    board_init(&m_ldb1_phy_pdev);
+    if (m_disp_interface == IMX_LVDS0 || m_disp_interface == IMX_LVDS0_DUAL) {
+        m_ldb_phy_pdev.name = "ldb1_phy";
+        m_ldb_pdev.name = "ldb1";
+        ldb_prop_init(1, m_bus_data_width, m_bus_mapping);
+    }
+    else if (m_disp_interface == IMX_LVDS1) {
+        m_ldb_phy_pdev.name = "ldb2_phy";
+        m_ldb_pdev.name = "ldb2";
+        ldb_prop_init(2, m_bus_data_width, m_bus_mapping);
+    }
+    else {
+        return STATUS_INTERNAL_ERROR;
+    }
+    m_ldb_phy_pdev.plat_name = "qxp";
+    m_ldb_phy_pdev.data = pDxgkInterface;
+    board_init(&m_ldb_phy_pdev);
 
-    m_ldb1_pdev.name = "ldb1";
-    m_ldb1_pdev.plat_name = "qxp";
-    m_ldb1_pdev.data = pDxgkInterface;
-    board_init(&m_ldb1_pdev);
+    m_ldb_pdev.plat_name = "qxp";
+    m_ldb_pdev.data = pDxgkInterface;
+    board_init(&m_ldb_pdev);
 
-    if (mixel_lvds_combo_phy_probe(&m_ldb1_phy_pdev))
+    if (mixel_lvds_combo_phy_probe(&m_ldb_phy_pdev))
     {
-        // TODO: add respective remove functions everywhere
+        mixel_lvds_combo_phy_remove(&m_ldb_phy_pdev, false);
         return STATUS_INTERNAL_ERROR;
     }
 
     // dual channel is not supported; passing null for aux-ldb, aux-phy
-    if (imx8qxp_ldb_probe(&m_ldb1_pdev, nullptr,
-        &m_ldb1_phy_pdev, nullptr))
+    if (imx8qxp_ldb_probe(&m_ldb_pdev, nullptr,
+        &m_ldb_phy_pdev, nullptr))
     {
+        imx8qxp_ldb_remove(&m_ldb_pdev, nullptr, false);
+        mixel_lvds_combo_phy_remove(&m_ldb_phy_pdev, false);
         return STATUS_INTERNAL_ERROR;
     }
 
@@ -317,23 +339,30 @@ NTSTATUS QxpLvdsTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
         // There are two memory blocks with separate bus address.
         // m_i2c_hdmi is the main device with allocated driver data.
         // m_i2c_lvds is auxiliary - only for i2c regmap storage.
+        //
+        // i2c_hdmi converter device, ACPI i2c index #1 for LVDS0, #3 for LVDS1
+        ULONG i2c_hdmi_index = 1;
+        // i2c_lvds converter device, ACPI i2c index #2 for LVDS0, #4 for LVDS1
+        ULONG i2c_lvds_index = 2;
+        if (m_disp_interface == IMX_LVDS1) {
+            i2c_hdmi_index = 3;
+            i2c_lvds_index = 4;
+        }
         m_i2c_hdmi.is_initialized = 0;
-        // i2c_hdmi converter device, ACPI i2c index #1
         Status = GetI2CresourceNum(pDxgkInterface,
-            1, &m_i2c_hdmi.connection_id);
+            i2c_hdmi_index, &m_i2c_hdmi.connection_id);
         if (!NT_SUCCESS(Status))
         {
             break;
         }
-        // i2c_lvds converter device, ACPI i2c index #2
         Status = GetI2CresourceNum(pDxgkInterface,
-            2, &m_i2c_lvds.connection_id);
+            i2c_lvds_index, &m_i2c_lvds.connection_id);
         if (!NT_SUCCESS(Status))
         {
             break;
         }
         if (it6263_probe(&m_i2c_hdmi, &m_i2c_lvds, false,
-                imx8qxp_ldb_get_bus_format(&m_ldb1_pdev, 0), false))
+                imx8qxp_ldb_get_bus_format(&m_ldb_pdev, 0), false))
         {
             it6263_remove(&m_i2c_hdmi);
             break;
@@ -348,8 +377,8 @@ NTSTATUS QxpLvdsTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
 NTSTATUS QxpLvdsTransmitter::Stop()
 {
     // dual channel is not supported; passing null for aux-ldb
-    imx8qxp_ldb_remove(&m_ldb1_pdev, nullptr, false);
-    mixel_lvds_combo_phy_remove(&m_ldb1_phy_pdev, false);
+    imx8qxp_ldb_remove(&m_ldb_pdev, nullptr, false);
+    mixel_lvds_combo_phy_remove(&m_ldb_phy_pdev, false);
     if (m_i2c_hdmi.is_initialized)
     {
         it6263_remove(&m_i2c_hdmi);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019, 2022 NXP
+ * Copyright 2017-2019, 2022-2023 NXP
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -425,4 +425,16 @@ int prg_remove(struct platform_device *pdev, bool stop)
 	kfree(prg);
 
 	return 0;
+}
+
+void dump_prg_regs(struct prg* prg)
+{
+	dev_err(prg->dev, "PRG_CTRL = 0x%08X\n", prg_read(prg, PRG_CTRL));
+	dev_err(prg->dev, "PRG_STATUS = 0x%08X\n", prg_read(prg, PRG_STATUS));
+	dev_err(prg->dev, "PRG_REG_UPDATE = 0x%08X\n", prg_read(prg, PRG_REG_UPDATE));
+	dev_err(prg->dev, "PRG_STRIDE = 0x%08X\n", prg_read(prg, PRG_STRIDE));
+	dev_err(prg->dev, "PRG_HEIGHT = 0x%08X\n", prg_read(prg, PRG_HEIGHT));
+	dev_err(prg->dev, "PRG_BADDR = 0x%08X\n", prg_read(prg, PRG_BADDR));
+	dev_err(prg->dev, "PRG_OFFSET = 0x%08X\n", prg_read(prg, PRG_OFFSET));
+	dev_err(prg->dev, "PRG_WIDTH = 0x%08X\n", prg_read(prg, PRG_WIDTH));
 }

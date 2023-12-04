@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -89,9 +89,19 @@ Device(RHPX)
     GpioIO(Shared, PullDown, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 87 } // 2 * 32 + 23
     GpioInt(Edge, ActiveBoth, Shared, PullDown, 0, "\\_SB.GPIO",) { 87 }
 
+#if !FixedPcdGet32(PcdCAN2InsteadOfPDMStream3)
   // GPIO3_IO24 - PAD_SAI5_RXD3 EXP CN pin 35 (GPIO.24)
     GpioIO(Shared, PullDown, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 88 } // 2 * 32 + 24
     GpioInt(Edge, ActiveBoth, Shared, PullDown, 0, "\\_SB.GPIO",) { 88 }
+#endif
+
+  // GPIO5_IO06 PAD_ECSPI1_SCLK - EXP CN pin 10  (RXD)
+    GpioIO(Shared, PullDown, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 134 } // 4 * 32 + 6
+    GpioInt(Edge, ActiveBoth, Shared, PullDown, 0, "\\_SB.GPIO",) { 134 }
+
+  // GPIO5_IO07 PAD_ECSPI1_MOSI - EXP CN pin 8  (TXD)
+    GpioIO(Shared, PullDown, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 135 } // 4 * 32 + 7
+    GpioInt(Edge, ActiveBoth, Shared, PullDown, 0, "\\_SB.GPIO",) { 135 }
 
   // GPIO5_IO08 PAD_ECSPI1_MISO - EXP CN pin 7  (GPIO0.7)
     GpioIO(Shared, PullDown, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 136 } // 4 * 32 + 8
@@ -124,14 +134,6 @@ Device(RHPX)
   // GPIO5_IO19 PAD_I2C3_SDA - EXP CN pin 3  (SDA.1)
     GpioIO(Shared, PullDown, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 147 } // 4 * 32 + 19
     GpioInt(Edge, ActiveBoth, Shared, PullDown, 0, "\\_SB.GPIO",) { 147 }
-
-  // GPIO5_IO26 PAD_UART3_TXD - EXP CN pin 10  (RXD)
-    GpioIO(Shared, PullDown, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 154 } // 4 * 32 + 26
-    GpioInt(Edge, ActiveBoth, Shared, PullDown, 0, "\\_SB.GPIO",) { 154 }
-
-  // GPIO5_IO27 PAD_UART3_TXD - EXP CN pin 8  (TXD)
-    GpioIO(Shared, PullDown, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 155 } // 4 * 32 + 27
-    GpioInt(Edge, ActiveBoth, Shared, PullDown, 0, "\\_SB.GPIO",) { 155 }
 
   })
 

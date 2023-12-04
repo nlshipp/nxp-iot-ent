@@ -60,6 +60,12 @@ copy %BUILD_ROOT%\imxaudsc\* %DRVR_ROOT%\Audio\ >NUL
 if errorlevel 1 (set FAILURE=imxaudsc & goto ERROR)
 copy %REPO_ROOT%\driver\audio\controller\imxaudsc\imxaudsc.wm.xml %DRVR_ROOT%\Audio\ >NUL
 
+echo Copying Drivers to %DRVR_ROOT%
+mkdir %DRVR_ROOT%\Audio >NUL 2>NUL
+copy %BUILD_ROOT%\imxaud2\* %DRVR_ROOT%\Audio\ >NUL
+if errorlevel 1 (set FAILURE=imxaud2 & goto ERROR)
+copy %REPO_ROOT%\driver\audio\controller\imxaud2\imxaud2.wm.xml %DRVR_ROOT%\Audio\ >NUL
+
 mkdir %DRVR_ROOT%\Audio >NUL 2>NUL
 copy %BUILD_ROOT%\imxaud_hdmi\* %DRVR_ROOT%\Audio\ >NUL
 if errorlevel 1 (set FAILURE=imxaud_hdmi & goto ERROR)

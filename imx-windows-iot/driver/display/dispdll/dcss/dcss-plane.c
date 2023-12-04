@@ -82,6 +82,8 @@ static bool dcss_plane_format_mod_supported(struct drm_plane *plane,
 		switch (format) {
 		case DRM_FORMAT_ARGB8888:
 		case DRM_FORMAT_XRGB8888:
+		case DRM_FORMAT_ABGR8888:
+		case DRM_FORMAT_XBGR8888:
 		case DRM_FORMAT_ARGB2101010:
 			return modifier == DRM_FORMAT_MOD_LINEAR ||
 				modifier == DRM_FORMAT_MOD_VIVANTE_TILED ||
@@ -102,6 +104,8 @@ static bool dcss_plane_format_mod_supported(struct drm_plane *plane,
 				modifier == DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED;
 		case DRM_FORMAT_ARGB8888:
 		case DRM_FORMAT_XRGB8888:
+		case DRM_FORMAT_ABGR8888:
+		case DRM_FORMAT_XBGR8888:
 		case DRM_FORMAT_ARGB2101010:
 			return modifier == DRM_FORMAT_MOD_LINEAR ||
 				modifier == DRM_FORMAT_MOD_VIVANTE_TILED ||

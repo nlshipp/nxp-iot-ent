@@ -7,7 +7,7 @@
 #define VER_FILEDESCRIPTION_STR     "Verisilicon GC7000 Lite Driver"
 #define VER_INTERNALNAME_STR        "galcore.sys"
 
-#define VER_FILEVERSION 26,18,10,5
+#define VER_FILEVERSION 26,18,10,7
 
 #undef VER_COMPANYNAME_STR
 #undef VER_PRODUCTNAME_STR
@@ -16,7 +16,7 @@
 
 #define VER_COMPANYNAME_STR L"Verisilicon Corporation"
 #define VER_PRODUCTNAME_STR L"Verisilicon\256 GPU Driver"
-#define VER_PRODUCTVERSION_STR "26,18,10,5"
+#define VER_PRODUCTVERSION_STR "26,18,10,7"
 #define VER_LEGALCOPYRIGHT_STR L"\251 Verisilicon Corporation. All rights reserved."
 
 #include "common.ver"

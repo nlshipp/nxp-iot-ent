@@ -57,6 +57,20 @@ static struct clk_init_data_desc ldb1_phy_clock_desc[] = {
 };
 
 //-----------------------------------------------------------------------
+// LDB2_PHY
+//-----------------------------------------------------------------------
+
+static resource ldb2_phy_res_list[] = {
+    { 0x56241000, 0x56241100, "ldb2-phy-csr", IORESOURCE_MEM },
+    { 0x56248000, 0x56249000, "ldb2-phy-ctrl", IORESOURCE_MEM },
+};
+
+static struct clk_init_data_desc ldb2_phy_clock_desc[] = {
+    { "phy", IMX8QXP_LVDS1_PHY_CLK, IMX8QXP_LVDS1_BYPASS_CLK, 0, 0 },
+    {""},
+};
+
+//-----------------------------------------------------------------------
 // LDB1
 //-----------------------------------------------------------------------
 
@@ -69,18 +83,18 @@ static int ldb1_pwr_domains[] = {
     IMX_SC_R_LVDS_0,
     IMX_SC_R_LVDS_1,
 };
-static char* ldb1_pwr_domain_names[] = { "main", "aux" };
+static char* ldb_pwr_domain_names[] = { "main", "aux" };
 
 static property ldb1_properties[] = {
     { "ldb-id", 1, &ldb1_id },
     { "power-domains", ARRAYSIZE(ldb1_pwr_domains), &ldb1_pwr_domains },
-    { "power-domain-names", ARRAYSIZE(ldb1_pwr_domain_names),
-        &ldb1_pwr_domain_names },
+    { "power-domain-names", ARRAYSIZE(ldb_pwr_domain_names),
+        &ldb_pwr_domain_names },
     { "" },
 };
 
 static int ldb1_ch0_reg = 0;
-static char* ldb1_ch0_data_mapping = "jeida";
+static const char* ldb1_ch0_data_mapping = "jeida";
 static int ldb1_ch0_data_width = 24;
 static char* ldb1_ch0_phy_names[] = { "ldb_phy" };
 
@@ -93,7 +107,7 @@ static property ldb1_ch0_properties[] = {
 };
 
 static int ldb1_ch1_reg = 1;
-static char* ldb1_ch1_data_mapping = "jeida";
+static const char* ldb1_ch1_data_mapping = "jeida";
 static int ldb1_ch1_data_width = 24;
 static char* ldb1_ch1_phy_names[] = { "ldb_phy" };
 
@@ -107,6 +121,70 @@ static property ldb1_ch1_properties[] = {
 
 static struct device_node ldb1_child[2];
 
+static struct clk_init_data_desc ldb1_clock_desc[] = {
+    { "pixel", IMX8QXP_LVDS0_PIX_CLK, IMX8QXP_LVDS0_BYPASS_CLK, 0, 0 },
+    { "bypass", IMX8QXP_LVDS0_BYPASS_CLK, 0, 0, 0 },
+    { "aux_pixel", IMX8QXP_LVDS1_PIX_CLK, IMX8QXP_LVDS1_BYPASS_CLK, 0, 0 },
+    { "aux_bypass", IMX8QXP_LVDS1_BYPASS_CLK, 0, 0, 0 },
+    {""},
+};
+
+//-----------------------------------------------------------------------
+// LDB2
+//-----------------------------------------------------------------------
+
+static resource ldb2_res_list[] = {
+    { 0x56241000, 0x562410F0, "ldb2", IORESOURCE_MEM },
+};
+
+static int ldb2_id = 1;
+static int ldb2_pwr_domains[] = {
+    IMX_SC_R_LVDS_1,
+    IMX_SC_R_LVDS_0,
+};
+
+static property ldb2_properties[] = {
+    { "ldb-id", 1, &ldb2_id },
+    { "power-domains", ARRAYSIZE(ldb2_pwr_domains), &ldb2_pwr_domains },
+    { "power-domain-names", ARRAYSIZE(ldb_pwr_domain_names),
+        &ldb_pwr_domain_names },
+    { "" },
+};
+
+static int ldb2_ch0_reg = 0;
+static const char* ldb2_ch0_data_mapping = "jeida";
+static int ldb2_ch0_data_width = 24;
+
+static property ldb2_ch0_properties[] = {
+    { "reg", 1, &ldb2_ch0_reg },
+    { "fsl,data-mapping", 5, &ldb2_ch0_data_mapping },
+    { "fsl,data-width", 1, &ldb2_ch0_data_width },
+    { "phy-names", ARRAYSIZE(ldb1_ch0_phy_names), &ldb1_ch0_phy_names },
+    { "" },
+};
+
+static int ldb2_ch1_reg = 1;
+static const char* ldb2_ch1_data_mapping = "jeida";
+static int ldb2_ch1_data_width = 24;
+
+static property ldb2_ch1_properties[] = {
+    { "reg", 1, &ldb2_ch1_reg },
+    { "fsl,data-mapping", 5, &ldb2_ch1_data_mapping },
+    { "fsl,data-width", 1, &ldb2_ch1_data_width },
+    { "phy-names", ARRAYSIZE(ldb1_ch1_phy_names), &ldb1_ch1_phy_names },
+    { "" },
+};
+
+static struct device_node ldb2_child[2];
+
+static struct clk_init_data_desc ldb2_clock_desc[] = {
+    { "pixel", IMX8QXP_LVDS1_PIX_CLK, IMX8QXP_LVDS1_BYPASS_CLK, 0, 0 },
+    { "bypass", IMX8QXP_LVDS1_BYPASS_CLK, 0, 0, 0 },
+    { "aux_pixel", IMX8QXP_LVDS0_PIX_CLK, IMX8QXP_LVDS0_BYPASS_CLK, 0, 0 },
+    { "aux_bypass", IMX8QXP_LVDS0_BYPASS_CLK, 0, 0, 0 },
+    {""},
+};
+
 static void fill_ldb_child(int ldb)
 {
     if (ldb == 1)
@@ -116,15 +194,14 @@ static void fill_ldb_child(int ldb)
         ldb1_child[1].name = "lvds-channel1";
         ldb1_child[1].properties = ldb1_ch1_properties;
     }
+    if (ldb == 2)
+    {
+        ldb2_child[0].name = "lvds-channel0";
+        ldb2_child[0].properties = ldb2_ch0_properties;
+        ldb2_child[1].name = "lvds-channel1";
+        ldb2_child[1].properties = ldb2_ch1_properties;
+    }
 }
-
-static struct clk_init_data_desc ldb1_clock_desc[] = {
-    { "pixel", IMX8QXP_LVDS0_PIX_CLK, IMX8QXP_LVDS0_BYPASS_CLK, 0, 0 },
-    { "bypass", IMX8QXP_LVDS0_BYPASS_CLK, 0, 0, 0 },
-    { "aux_pixel", IMX8QXP_LVDS1_PIX_CLK, IMX8QXP_LVDS1_BYPASS_CLK, 0, 0 },
-    { "aux_bypass", IMX8QXP_LVDS1_BYPASS_CLK, 0, 0, 0 },
-    {""},
-};
 
 //-----------------------------------------------------------------------
 // PRG
@@ -416,6 +493,25 @@ static property irqsteer_properties[] = {
 // Init functions
 //-----------------------------------------------------------------------
 
+void ldb_prop_init(unsigned int ldb_index, unsigned int data_width, const char *bus_mapping)
+{
+    if (ldb_index == 1)
+    {
+        ldb1_ch0_data_mapping = bus_mapping;
+        ldb1_ch0_data_width = data_width;
+        ldb1_ch1_data_mapping = bus_mapping;
+        ldb1_ch1_data_width = data_width;
+    }
+
+    if (ldb_index == 2)
+    {
+        ldb2_ch0_data_mapping = bus_mapping;
+        ldb2_ch0_data_width = data_width;
+        ldb2_ch1_data_mapping = bus_mapping;
+        ldb2_ch1_data_width = data_width;
+    }
+}
+
 static void dpu_irq_init(void)
 {
     for (int i = 0; i < ARRAYSIZE(dpu_interrupts); i++)
@@ -470,6 +566,13 @@ static inline void ldb_res_init(platform_device* pdev, int ldb)
 
     if (ldb == 2)
     {
+        pdev->resource = &ldb2_res_list[0];
+        pdev->num_resources = ARRAYSIZE(ldb2_res_list);
+        pdev->dev.of_node.properties = ldb2_properties;
+        fill_ldb_child(2);
+        pdev->dev.of_node.child = ldb2_child;
+        pdev->dev.of_node.num_childs = 1;
+        pdev->dev.of_clk = (struct clk_init_data_desc*)&ldb2_clock_desc;
         pdev->dev.get_clock_item = &clk_get_item_imx8qxp;
     }
 }
@@ -481,6 +584,13 @@ static inline void phy_res_init(platform_device *pdev, int phy)
         pdev->resource = &ldb1_phy_res_list[0];
         pdev->num_resources = ARRAYSIZE(ldb1_phy_res_list);
         pdev->dev.of_clk = (struct clk_init_data_desc*)&ldb1_phy_clock_desc;
+        pdev->dev.get_clock_item = &clk_get_item_imx8qxp;
+    }
+    if (phy == 2)
+    {
+        pdev->resource = &ldb2_phy_res_list[0];
+        pdev->num_resources = ARRAYSIZE(ldb2_phy_res_list);
+        pdev->dev.of_clk = (struct clk_init_data_desc*)&ldb2_phy_clock_desc;
         pdev->dev.get_clock_item = &clk_get_item_imx8qxp;
     }
 }
@@ -506,6 +616,14 @@ void qxp_board_init(platform_device* pdev)
     else if (!strcmp(pdev->name, "ldb1_phy"))
     {
         phy_res_init(pdev, 1);
+    }
+    else if (!strcmp(pdev->name, "ldb2"))
+    {
+        ldb_res_init(pdev, 2);
+    }
+    else if (!strcmp(pdev->name, "ldb2_phy"))
+    {
+        phy_res_init(pdev, 2);
     }
 }
 

@@ -48,7 +48,7 @@ GcKmImx8mpHdmiDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
 {
     NTSTATUS ret = STATUS_SUCCESS;
 
-    clk_tree = clk_init_imx8mp(imx_hdmi);
+    clk_tree = clk_init_imx8mp(imx_hdmi, FALSE);
 
     lcdif_pdev.name = "lcdif3_dev";
     lcdif_pdev.plat_name = "mp";
@@ -369,6 +369,8 @@ GcKmImx8mpHdmiDisplay::HwCommitVidPn(
 
     m_bNotifyVSync = true;
 
+    m_ScanoutFormat = ColorFormat;
+
     return STATUS_SUCCESS;
 }
 
@@ -470,8 +472,15 @@ GcKmImx8mpHdmiDisplay::SetVidPnSourceAddressWithMultiPlaneOverlay3(
         plane_state.src_w = pAllocation->m_hwWidthPixels;
         plane_state.src_h = pAllocation->m_hwHeightPixels;
 
-        /* Assume only address has changed */
-        plane_state.mode_change = false;
+        if (pAllocation->m_format != m_ScanoutFormat)
+        {
+            plane_state.mode_change = true;
+            m_ScanoutFormat = pAllocation->m_format;
+        }
+        else
+        {
+            plane_state.mode_change = false;
+        }
 
         lcdifv3_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
         lcdifv3_crtc_atomic_flush(&lcdif_crtc_pdev);

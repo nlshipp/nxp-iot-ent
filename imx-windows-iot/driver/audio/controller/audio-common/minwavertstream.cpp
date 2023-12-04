@@ -257,12 +257,11 @@ CMiniportWaveRTStream::AllocateBufferCommon
     *OffsetFromFirstPage = 0;
     *CacheType = MmNotMapped;
 
-    RequestedSize -= RequestedSize % (m_pWfExt->Format.nBlockAlign);
-
-    ntStatus = m_pAdapterCommon->AllocBuffer(this, m_pMiniport->GetDeviceType(), RequestedSize, &pBufferMdl, CacheType);
+    ntStatus = m_pAdapterCommon->AllocBuffer(this, m_pMiniport->GetDeviceType(), &RequestedSize, &pBufferMdl, CacheType);
 
     if (ntStatus == STATUS_NOT_IMPLEMENTED) {
         allocSupported = false;
+        RequestedSize -= RequestedSize % (m_pWfExt->Format.nBlockAlign);
         // this is fallback in case Adapter does not support DMA
         PHYSICAL_ADDRESS highAddress;
         highAddress.HighPart = 0;

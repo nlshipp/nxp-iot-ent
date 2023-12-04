@@ -778,9 +778,34 @@ VOID PwmInit()
 
 /**
   Initialize USDHC blocks and perform required pin-muxing.
+  InitPeriphClock(,,ClockSource,Divider)
+  ClockSource:
+    00 - OSC_24M_CLK
+    01 - SYS_PLL_PFD0    1000 MHz
+    10 - SYS_PLL_PFD1     800 MHz
+    11 - SYS_PLL_PFD2     625 MHz
+  Divider:
+   1   - Div by 1
+   2   - Div by 2
+   ..
+   256 - Div by 256
 **/
 VOID UsdhcInit()
 {
+    /* Configure USDHC1 clock root to 400 MHz, SYS_PLL_PFD1 800 MHz divided by 2 */
+    InitPeriphClock(CCM_TARGET_USDHC1, CCM_LPCG_USDHC1, 2U, 2);
+    /* Configure USDHC2 clock root to 200 MHz, SYS_PLL_PFD1 800 MHz divided by 2 */
+    InitPeriphClock(CCM_TARGET_USDHC2, CCM_LPCG_USDHC2, 2U, 2);
+    // A1 silicon, ERR052021 fix
+    IOMUXC1_SW_MUX_CTL_PAD_SD1_CMD   |= 0x10;
+    IOMUXC1_SW_MUX_CTL_PAD_SD1_DATA0 |= 0x10;
+    IOMUXC1_SW_MUX_CTL_PAD_SD1_DATA1 |= 0x10;
+    IOMUXC1_SW_MUX_CTL_PAD_SD1_DATA2 |= 0x10;
+    IOMUXC1_SW_MUX_CTL_PAD_SD1_DATA3 |= 0x10;
+    IOMUXC1_SW_MUX_CTL_PAD_SD1_DATA4 |= 0x10;
+    IOMUXC1_SW_MUX_CTL_PAD_SD1_DATA5 |= 0x10;
+    IOMUXC1_SW_MUX_CTL_PAD_SD1_DATA6 |= 0x10;
+    IOMUXC1_SW_MUX_CTL_PAD_SD1_DATA7 |= 0x10;
 }
 
 /**

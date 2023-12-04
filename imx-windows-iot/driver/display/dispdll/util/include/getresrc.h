@@ -38,6 +38,15 @@ enum ResType {
     ResourceType_Memory,
 };
 
+enum RegParamType {
+    RegParInterface,
+    RegParBusDataWidth,
+    RegParBusMapping,
+    RegParEdid,
+    RegParNumLanes,
+    RegParChannelId,
+};
+
 NTSTATUS GetReslist(DXGKRNL_INTERFACE* pDxgkInterface, PWCHAR pReslist,
     ULONG ResListLen);
 
@@ -46,3 +55,5 @@ NTSTATUS ParseReslist(PCM_RESOURCE_LIST Reslist, UCHAR ResType,
 
 NTSTATUS GetDwordRegistryParam(DXGKRNL_INTERFACE* pDxgkInterface, PWSTR Name,
     ULONG* Value);
+
+PWSTR GetRegParamString(enum RegParamType regParType, UINT regIndex);

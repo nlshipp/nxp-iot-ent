@@ -35,11 +35,51 @@
 #include <Library/IoLib.h>
 #include <Library/TimerLib.h>
 #include <iMXGpio.h>
+#include <iMXI2cLib.h>
+#include <iMXDisplay.h>
 #include "MipiDsi_rm67191.h"
 
 #if defined(CPU_IMX8MM) || defined(CPU_IMX8MN) || defined(CPU_IMX8MP)
   #define RM67191_RST_BANK   IMX_GPIO_BANK1
   #define RM67191_RST_IOPIN  8
+#elif defined(CPU_IMX8QXP)
+  #define IMX_I2C1_BASE                       0x5a810000
+  #define IMX_PCA9557_IO_EXP_A_I2C_ADDRESS    0x1A
+  #define IMX_PCA9557_IO_EXP_A_I2C_BASE       IMX_I2C1_BASE
+
+  #define IMX_PCA9557_IO_EXP_B_I2C_ADDRESS    0x1D
+  #define IMX_PCA9557_IO_EXP_B_I2C_BASE       IMX_I2C1_BASE
+
+  #define EXP_A_MIPI_DSI0_EN                 0x40
+  #define EXP_B_MIPI_DSI1_EN                 0x80
+
+  #define EXP_OUTPUT_PORT_REG                0x01
+
+IMX_I2C_CONTEXT Pca9557IOExpAI2CConfig =
+{
+  (uintptr_t)IMX_PCA9557_IO_EXP_A_I2C_BASE, /* Base address of the I2C used for communication with PCA9557 Exp A */
+  0,                                    /* iMX I2C Controller SlaveAddress - not used, I2C interface is used in master mode only */
+  24000000,                             /* 24Mhz I2C ReferenceFreq */
+  400000,                               /* 400KHz required TargetFreq */
+  IMX_PCA9557_IO_EXP_A_I2C_ADDRESS,     /* PCA9557 Exp A SlaveAddress */
+  100000,                               /* TimeoutInUs ignored - not implemented in LPI2C driver */
+};
+
+IMX_I2C_CONTEXT Pca9557IOExpBI2CConfig =
+{
+  (uintptr_t)IMX_PCA9557_IO_EXP_B_I2C_BASE, /* Base address of the I2C used for communication with PCA9557 Exp B */
+  0,                                    /* iMX I2C Controller SlaveAddress - not used, I2C interface is used in master mode only */
+  24000000,                             /* 24Mhz I2C ReferenceFreq */
+  400000,                               /* 400KHz required TargetFreq */
+  IMX_PCA9557_IO_EXP_B_I2C_ADDRESS,     /* PCA9557 Exp B SlaveAddress */
+  100000,                               /* TimeoutInUs ignored - not implemented in LPI2C driver */
+};
+
+  #define CHECK_I2C_TRANSACTION_STATUS(status, message, label) \
+            if (status != EFI_SUCCESS) { \
+              DEBUG((DEBUG_ERROR, "I2C error. Register: %a, I2CStatus: %d\n", message, status)); \
+              goto label; \
+            }
 #else
   #error Unsupported derivative!
 #endif
@@ -200,17 +240,44 @@ static const cmd_list_item cmd_list[] = {
 	{0x51, 0x04},
 };
 
-EFI_STATUS Rm67191Init(void)
+EFI_STATUS Rm67191Init(imxDisplayInterfaceType displayInterface)
 {
     const uint8_t *cmd;
     uint32_t i;
+    EFI_STATUS Status = EFI_SUCCESS;
 
+#ifdef RM67191_RST_BANK
     /* Make hw-reset pulse */
     ImxGpioWrite (RM67191_RST_BANK, RM67191_RST_IOPIN, IMX_GPIO_HIGH);
     MicroSecondDelay(10000);
     ImxGpioWrite (RM67191_RST_BANK, RM67191_RST_IOPIN, IMX_GPIO_LOW);
     MicroSecondDelay(15000);
     ImxGpioWrite (RM67191_RST_BANK, RM67191_RST_IOPIN, IMX_GPIO_HIGH);
+#elif defined(IMX_PCA9557_IO_EXP_B_I2C_ADDRESS) || defined(IMX_PCA9557_IO_EXP_A_I2C_ADDRESS)
+    UINT8 Register = EXP_OUTPUT_PORT_REG, Data, Pin;
+    IMX_I2C_CONTEXT *context;
+
+    if (displayInterface == imxMipiDsi) {
+        context = &Pca9557IOExpAI2CConfig;
+        Pin = EXP_A_MIPI_DSI0_EN;
+    } else {
+        context = &Pca9557IOExpBI2CConfig;
+        Pin = EXP_B_MIPI_DSI1_EN;
+    }
+    Status = iMXI2cReadE(context, Register, 1, &Data, 1);
+    CHECK_I2C_TRANSACTION_STATUS(Status, "PCA9557 IO Expander - reading OUTPUT_PORT_REG", End);
+    Data = Data | Pin;
+    Status = iMXI2cWriteE(context, Register, 1, &Data, 1);
+    CHECK_I2C_TRANSACTION_STATUS(Status, "PCA9557 IO Expander - writing OUTPUT_PORT_REG", End);
+    MicroSecondDelay(10000);
+    Data = Data & ~Pin;
+    Status = iMXI2cWriteE(context, Register, 1, &Data, 1);
+    CHECK_I2C_TRANSACTION_STATUS(Status, "PCA9557 IO Expander - writing OUTPUT_PORT_REG", End);
+    MicroSecondDelay(15000);
+    Data = Data | Pin;
+    Status = iMXI2cWriteE(context, Register, 1, &Data, 1);
+    CHECK_I2C_TRANSACTION_STATUS(Status, "PCA9557 IO Expander - writing OUTPUT_PORT_REG", End);
+#endif
     /* Wait after reset pulse */
     MicroSecondDelay(50000);
     for (i = 0; i < (sizeof(cmd_list) / CMD_ITEM_SIZE) ; i++) {
@@ -235,7 +302,10 @@ EFI_STATUS Rm67191Init(void)
     MicroSecondDelay(15000);
     DEBUG((DEBUG_ERROR, "RM67191 OLED panel initialized.\n"));
 
-    return 0;
+#if defined(IMX_PCA9557_IO_EXP_B_I2C_ADDRESS) || defined(IMX_PCA9557_IO_EXP_A_I2C_ADDRESS)
+End:
+#endif
+    return Status;
 }
 
 EFI_STATUS Rm67191Shutdown(void)

@@ -227,6 +227,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "imxpwm_tpm", "..\..\..\driv
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "imxaud_hdmi", "..\..\..\driver\audio\controller\imxaud_hdmi\imxaud_hdmi.vcxproj", "{A60CAF7D-A8AE-4430-A451-050C403A35DA}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "imxaud2", "..\..\..\driver\audio\controller\imxaud2\imxaud2.vcxproj", "{41F217E1-EDF2-4DF7-BE1C-A13CF14A249C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
@@ -593,6 +595,12 @@ Global
 		{A60CAF7D-A8AE-4430-A451-050C403A35DA}.Release|ARM64.ActiveCfg = Release|ARM64
 		{A60CAF7D-A8AE-4430-A451-050C403A35DA}.Release|ARM64.Build.0 = Release|ARM64
 		{A60CAF7D-A8AE-4430-A451-050C403A35DA}.Release|ARM64.Deploy.0 = Release|ARM64
+		{41F217E1-EDF2-4DF7-BE1C-A13CF14A249C}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{41F217E1-EDF2-4DF7-BE1C-A13CF14A249C}.Debug|ARM64.Build.0 = Debug|ARM64
+		{41F217E1-EDF2-4DF7-BE1C-A13CF14A249C}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{41F217E1-EDF2-4DF7-BE1C-A13CF14A249C}.Release|ARM64.ActiveCfg = Release|ARM64
+		{41F217E1-EDF2-4DF7-BE1C-A13CF14A249C}.Release|ARM64.Build.0 = Release|ARM64
+		{41F217E1-EDF2-4DF7-BE1C-A13CF14A249C}.Release|ARM64.Deploy.0 = Release|ARM64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -670,6 +678,7 @@ Global
 		{D300FC7E-D368-42BA-BCE3-E8C001D1E7B7} = {67E6C703-9D68-4009-BAEE-382D1058417D}
 		{EFF7590F-5546-4D70-A08C-0D7BA0510A1A} = {D300FC7E-D368-42BA-BCE3-E8C001D1E7B7}
 		{A60CAF7D-A8AE-4430-A451-050C403A35DA} = {67E6C703-9D68-4009-BAEE-382D1058417D}
+		{41F217E1-EDF2-4DF7-BE1C-A13CF14A249C} = {67E6C703-9D68-4009-BAEE-382D1058417D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {7B40170D-C677-4C90-B16F-C839F69822FA}

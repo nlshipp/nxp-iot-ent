@@ -42,7 +42,7 @@
     <ClInclude Include="imx8mlogging.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="imx8mdod\precomp.h">
+    <ClInclude Include="precomp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

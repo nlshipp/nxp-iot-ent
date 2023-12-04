@@ -39,6 +39,8 @@
   giMX8TokenSpaceGuid = { 0x4F3BDBA2, 0x496B, 0x64BB, { 0xFA, 0xB3, 0x19, 0x9D, 0x81, 0xAA, 0xE5, 0xA2 } }
   gEfiBlockIoProtocolGuid = { 0x964E5B21, 0x6459, 0x11D2, { 0x8E, 0x39, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }}
   gEfiMdeModulePkgTokenSpaceGuid = { 0xA1AFF049, 0xFDEB, 0x442a, { 0xB3, 0x20, 0x13, 0xAB, 0x4C, 0xB7, 0x2B, 0xBC }}
+  giMXPlatformTokenSpaceGuid = { 0x24b09abe, 0x4e47, 0x481c, { 0xa9, 0xad, 0xce, 0xf1, 0x2c, 0x39, 0x23, 0x27} }
+  gShellNetwork1HiiGuid          = {0xf3d301bb, 0xf4a5, 0x45a8, {0xb0, 0xb7, 0xfa, 0x99, 0x9c, 0x62, 0x37, 0xae}}
 
 [PcdsFeatureFlag.common]
   giMX8TokenSpaceGuid.PcdPciMaxPayloadFixup|FALSE|BOOLEAN|0x00000004
@@ -148,6 +150,7 @@
   giMX8TokenSpaceGuid.PcdCsi1CameraOv10635|0x0|UINT64|0x0000003E
   giMX8TokenSpaceGuid.PcdCsi2CameraOv5640|0x0|UINT64|0x0000003F
   giMX8TokenSpaceGuid.PcdCsi2CameraOv10635|0x0|UINT64|0x00000040
+  giMX8TokenSpaceGuid.PcdCsi1CameraRpiCamMipi|0x0|UINT64|0x00000053
 
   # QXP Memory
   gArmPlatformTokenSpaceGuid.PcdVPUFWBase|0xF0100000|UINT64|0x00000041
@@ -163,6 +166,14 @@
   giMX8TokenSpaceGuid.PcdArmGPUReservedMemoryBase|0x00000000|UINT64|0x00000049
   giMX8TokenSpaceGuid.PcdArmGPUReservedMemorySize|0x00000000|UINT64|0x0000004A
 
-  gArmPlatformTokenSpaceGuid.PcdPowerButtonEnabled|FALSE|BOOLEAN|0x0000004C
+  #Nv Variable Base Reserved Memory
+  giMX8TokenSpaceGuid.PcdFlashNvStorageVariableBase|0x00000000|UINT64|0x0000004D
+  giMX8TokenSpaceGuid.PcdFlashNvStorageVariableSize|0x00000000|UINT64|0x0000004E
+
+  gArmPlatformTokenSpaceGuid.PcdPowerButtonEnabled|FALSE|BOOLEAN|0x0000004F
+  gEfiMdePkgTokenSpaceGuid.PcdUefiRuntimeDebugEnable|FALSE|BOOLEAN|0x00000050
+  giMXPlatformTokenSpaceGuid.PcdSerialRegisterBase|0x00000000|UINT64|0x00000051
+  gEfiMdeModulePkgTokenSpaceGuid.PcdEmuVariableNvModeEnable|FALSE|BOOLEAN|0x00000051
+  giMX8TokenSpaceGuid.PcdFlexSpiBaseAddress|0x00000000|UINT64|0x00000052
   
- 
+  

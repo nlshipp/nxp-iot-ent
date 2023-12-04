@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -48,9 +48,11 @@ void qxp_board_deinit(struct platform_device* pdev);
 int qxp_irq_count();
 void prg_res_init(struct platform_device* pdev, int cnt);
 void dprc_res_init(struct platform_device* pdev, int cnt);
+void ldb_prop_init(unsigned int ldb_index, unsigned int data_width, const char *bus_mapping);
 
 #define IRQ_DESC_VBLANK  0
 #define IRQ_DESC_HDMI_TX 1
+#define IRQ_DESC_VBLANK_LCDIF1 2
 void mp_board_init(struct platform_device* pdev);
 void mp_board_deinit(struct platform_device* pdev);
 

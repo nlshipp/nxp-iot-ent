@@ -86,6 +86,9 @@ Device(RHPX)
                             // DescriptorName: creates name for offset of resource descriptor
     )                       // Vendor Data
 
+    // Index 6
+    I2CSerialBus(0xFFFF,, 0,, "\\_SB.I2C9",,,,)
+
   })
 
   Name(_DSD, Package()
@@ -112,6 +115,8 @@ Device(RHPX)
       Package(2) { "SPI3-MinClockInHz", 10000 },                           // 10 kHz
       Package(2) { "SPI3-MaxClockInHz", 16000000 },                        // 16 MHz
       Package(2) { "SPI3-SupportedDataBitLengths", Package() { 8,16,32 }}, // Data bit length
+
+      Package(2) { "bus-I2C-I2C9", Package() { 6 }},
 
       // GPIO Pin Count and supported drive modes
       Package (2) { "GPIO-PinCount", 157 },

@@ -499,6 +499,8 @@ GcKmBaseDisplayController::CommitVidPn(
                     {
                         m_NumSources = SourceId + 1;
                     }
+
+                    pPipeline->PrepareScanlineEmulation(pTargetMode);
                 }
 
                 bAffectedSourceFound = TRUE;
@@ -603,6 +605,8 @@ GcKmBaseDisplayController::CommitVidPn(
             pActivePathInfo->m_TargetId = 0;
             memset(&pActivePathInfo->m_CurSourceMode, 0, sizeof(pActivePathInfo->m_CurSourceMode));
             memset(&pActivePathInfo->m_CurTargetMode, 0, sizeof(pActivePathInfo->m_CurTargetMode));
+
+            pActivePathInfo->m_pDisplayPipeline->PrepareScanlineEmulation(nullptr);
         }
 
         if ((SourceId + 1) == m_NumSources)

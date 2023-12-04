@@ -60,6 +60,8 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 5, "MSFT", "EDK2", 1) {
     include("Dsdt-TrEE.asl")
 #endif
     include("Dsdt-TCPC.asl")
+#if FixedPcdGet32(PcdCsi1CameraRpiCamMipi)
     include("Dsdt-X_Rpi_Cam_Mipi.asl")
+#endif
   }
 }

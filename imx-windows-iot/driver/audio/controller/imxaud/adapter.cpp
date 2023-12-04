@@ -431,12 +431,14 @@ Return Value:
     //
     // Install wave+topology filters for render devices
     //
-    ntStatus = InstallAllRenderFilters(DeviceObject, Irp, pAdapterCommon);
-    IF_FAILED_JUMP(ntStatus, Exit);
-
-    ntStatus = InstallAllCaptureFilters(DeviceObject, Irp, pAdapterCommon);
-    IF_FAILED_JUMP(ntStatus, Exit);
-
+    if (pAdapterCommon->isRenderSupported()) {
+        ntStatus = InstallAllRenderFilters(DeviceObject, Irp, pAdapterCommon);
+        IF_FAILED_JUMP(ntStatus, Exit);
+    }
+    if (pAdapterCommon->isCaptureSupported()) {
+        ntStatus = InstallAllCaptureFilters(DeviceObject, Irp, pAdapterCommon);
+        IF_FAILED_JUMP(ntStatus, Exit);
+    }
 Exit:
 
     //

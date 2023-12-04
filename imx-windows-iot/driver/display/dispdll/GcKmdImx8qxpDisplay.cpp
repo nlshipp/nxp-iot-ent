@@ -5,6 +5,7 @@
 #include "precomp.h"
 
 #include "GcKmdLogging.h"
+#include "GcKmdImx8Display.h"
 #include "GcKmdImx8qxpDisplay.tmh"
 
 #include "GcKmdImx8qxpDisplay.h"
@@ -35,20 +36,34 @@ GC_PAGED_SEGMENT_BEGIN; //======================================================
 
 #define USE_PREVIOUS_POST_DISPLAY_INFO
 
+#define printk(x, ...) \
+    DbgPrintEx(DPFLTR_IHVVIDEO_ID, DPFLTR_ERROR_LEVEL, x, __VA_ARGS__)
+
+//#define QXP_DISPLAY_DEBUG
+#ifdef QXP_DISPLAY_DEBUG
+#define printk_debug printk
+#else
+#define printk_debug
+#endif
+
 NTSTATUS
 GcKmImx8qxpDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
 {
     NTSTATUS Status;
 
-    Status = GetI2CResource(pDxgkInterface, 0, &m_ipc_id.ipc_id);
-    if (!NT_SUCCESS(Status))
-    {
-        return Status;
-    }
+    if (*m_p_refCount == 0) {
+        /* Initialize SCU resource only once for all display objects */
+        sc_ipc_id_struct_t ipc_id = {};
+        Status = GetI2CResource(pDxgkInterface, 0, &ipc_id.ipc_id);
+        if (!NT_SUCCESS(Status))
+        {
+            return Status;
+        }
 
-    if (imx_scu_probe(&m_ipc_id))
-    {
-        return STATUS_INTERNAL_ERROR;
+        if (imx_scu_probe(&ipc_id))
+        {
+            return STATUS_INTERNAL_ERROR;
+        }
     }
 
     m_clk_tree = clk_init_imx8qxp();
@@ -60,48 +75,56 @@ GcKmImx8qxpDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
     clk_dump_clock_tree_imx8qxp(m_clk_tree);
 #endif
 
-    m_dpu_pdev.name = "dpu";
-    m_dpu_pdev.plat_name = "qxp";
-    m_dpu_pdev.data = pDxgkInterface;
-    board_init(&m_dpu_pdev);
+    if (*m_p_refCount == 0) {
+        /* Initialize DPU, DPRC, PRG and INTSTEER objects only once for DPU (first display) */
+        m_p_dpu_pdev->name = "dpu";
+        m_p_dpu_pdev->plat_name = "qxp";
+        m_p_dpu_pdev->data = pDxgkInterface;
+        board_init(m_p_dpu_pdev);
 
-    m_irqsteer_pdev.name = "irqsteer";
-    m_irqsteer_pdev.plat_name = "qxp";
-    m_irqsteer_pdev.data = pDxgkInterface;
-    board_init(&m_irqsteer_pdev);
+        m_p_irqsteer_pdev->name = "irqsteer";
+        m_p_irqsteer_pdev->plat_name = "qxp";
+        m_p_irqsteer_pdev->data = pDxgkInterface;
+        board_init(m_p_irqsteer_pdev);
 
-    prg_res_init(m_prg_pdev, ARRAY_SIZE(m_prg_pdev));
-    for (int i = 0; i < ARRAY_SIZE(m_prg_pdev); i++)
-    {
-        if (prg_probe(&m_prg_pdev[i]))
+        prg_res_init(m_p_prg_pdev, PRG_CNT);
+        for (int i = 0; i < PRG_CNT; i++)
+        {
+            if (prg_probe(&m_p_prg_pdev[i]))
+            {
+                return STATUS_INTERNAL_ERROR;
+            }
+        }
+
+        dprc_res_init(m_p_dprc_pdev, DPRC_CNT);
+        for (int i = 0; i < DPRC_CNT; i++)
+        {
+            if (dprc_probe(&m_p_dprc_pdev[i], m_p_prg_pdev, PRG_CNT))
+            {
+                return STATUS_INTERNAL_ERROR;
+            }
+        }
+
+        if (dpu_probe(m_p_dpu_pdev, m_p_client_devices, CLIENT_DEVICE_CNT,
+            m_p_dprc_pdev, DPRC_CNT))
         {
             return STATUS_INTERNAL_ERROR;
         }
     }
-
-    dprc_res_init(m_dprc_pdev, ARRAY_SIZE(m_dprc_pdev));
-    for (int i = 0; i < ARRAY_SIZE(m_dprc_pdev); i++)
-    {
-        if (dprc_probe(&m_dprc_pdev[i], m_prg_pdev,
-                ARRAY_SIZE(m_prg_pdev)))
-        {
-            return STATUS_INTERNAL_ERROR;
-        }
-    }
-
-    if (dpu_probe(&m_dpu_pdev, m_client_devices,
-            ARRAY_SIZE(m_client_devices),
-            m_dprc_pdev, ARRAY_SIZE(m_dprc_pdev)))
+    (*m_p_refCount)++;
+    if (dpu_crtc_probe(&m_p_client_devices[m_di.DisplayInterfaceIndex], &m_crtc))
     {
         return STATUS_INTERNAL_ERROR;
     }
 
-    if (dpu_crtc_probe(&m_client_devices[0], &m_crtc))
-    {
-        return STATUS_INTERNAL_ERROR;
-    }
+    //Dynamic allocation of states are being freed in HWStop
+    dpu_plane_reset(&m_crtc.plane[m_PlaneId]->base);
+    dpu_drm_crtc_reset(&m_crtc.base);
+    m_crtc.base.state->enable = true;
+    // select plane attached to crtc
+    m_crtc.base.state->plane_mask |= drm_plane_mask(&m_crtc.plane[m_PlaneId]->base);
 
-    return m_LvdsTransmitter.Start(pDxgkInterface);
+    return m_LvdsTransmitter.Start(pDxgkInterface, m_di.RegistryIndex);
 }
 
 NTSTATUS
@@ -114,38 +137,44 @@ GcKmImx8qxpDisplay::HwStop(
     // is disabled/uninstalled, the desktop should continue to work
     // (with Basic Display Driver).
     if (DoCommitFwFb) {
-        SetupFramebuffer(nullptr,
-            m_PreviousPostDisplayInfo.PhysicAddress.LowPart,
-            GetDrmTileFromHwTile(Linear));
-        dpu_plane_atomic_page_flip(&m_crtc.plane[0]->base, &m_old_plane_state);
+        SetupFramebuffer(
+            m_FbPhysicalAddr.LowPart,
+            m_CurSourceModes[0].Format.Graphics.Stride,
+            TranslateD3dDdiToDrmFormat(m_CurSourceModes[0].Format.Graphics.PixelFormat),
+            Linear);
+
+        dpu_plane_atomic_page_flip(&m_crtc.plane[m_PlaneId]->base, &m_old_plane_state);
         dpu_crtc_atomic_flush(&m_crtc.base, m_crtc.base.state);
     }
 
     m_LvdsTransmitter.Stop();
 
-    dpu_drm_atomic_plane_destroy_state(&m_crtc.plane[0]->base,
-        m_crtc.plane[0]->base.state);
+    dpu_drm_atomic_plane_destroy_state(&m_crtc.plane[m_PlaneId]->base,
+        m_crtc.plane[m_PlaneId]->base.state);
 
-    dpu_crtc_remove(&m_client_devices[0]);
+    dpu_crtc_remove(&m_p_client_devices[m_di.DisplayInterfaceIndex]);
 
-    dpu_remove(&m_dpu_pdev, m_client_devices,
-        ARRAY_SIZE(m_client_devices));
+    if (*m_p_refCount == 1) {
+        /* Remove DPU, DPRC, PRGand INTSTEER objects only once for DPU(last display) */
+        dpu_remove(m_p_dpu_pdev, m_p_client_devices, CLIENT_DEVICE_CNT);
 
-    for (int i = 0; i < ARRAY_SIZE(m_prg_pdev); i++)
-    {
-        prg_remove(&m_prg_pdev[i], false);
+        for (int i = 0; i < PRG_CNT; i++)
+        {
+            prg_remove(&m_p_prg_pdev[i], false);
+        }
+
+        for (int i = 0; i < DPRC_CNT; i++)
+        {
+            dprc_remove(&m_p_dprc_pdev[i], false);
+        }
+
+        board_deinit(m_p_irqsteer_pdev);
+
+        imx_scu_remove();
     }
-
-    for (int i = 0; i < ARRAY_SIZE(m_dprc_pdev); i++)
-    {
-        dprc_remove(&m_dprc_pdev[i], false);
-    }
-
-    board_deinit(&m_irqsteer_pdev);
 
     clk_deinit_imx8qxp(m_clk_tree);
-
-    imx_scu_remove();
+    (*m_p_refCount)--;
 
     return STATUS_SUCCESS;
 }
@@ -167,7 +196,6 @@ GcKmImx8qxpDisplay::HwStopScanning(
     NT_ASSERT(enc);
     imx8qxp_ldb_encoder_disable(enc);
     (void)dpu_crtc_atomic_disable(&m_crtc.base, m_crtc.base.state);
-    m_DispctrlIsEnabled = FALSE;
 }
 
 GC_PAGED_SEGMENT_END; //========================================================
@@ -176,18 +204,15 @@ GC_NONPAGED_SEGMENT_BEGIN; //===================================================
 
 void
 GcKmImx8qxpDisplay::SetupFramebuffer(
-    const D3DKMDT_VIDPN_SOURCE_MODE* pSourceMode,
     UINT FrameBufferPhysicalAddress,
+    UINT Pitch,
+    UINT DrmFormat,
     UINT64 TileMode)
 {
-    struct drm_framebuffer *fb = &m_crtc.plane[0]->fb;
-    if (pSourceMode)
-    {
-        fb->pitches[0] = pSourceMode->Format.Graphics.Stride;
-        fb->format = drm_format_info(
-            TranslateD3dDdiToDrmFormat(
-            pSourceMode->Format.Graphics.PixelFormat));
-    }
+    struct drm_framebuffer *fb = &m_crtc.plane[m_PlaneId]->fb;
+
+    fb->pitches[0] = Pitch;
+    fb->format = drm_format_info(DrmFormat);
     fb->paddr[0] = FrameBufferPhysicalAddress;
     fb->modifier = GetDrmTileFromHwTile((Gc7LHwTileMode)TileMode);
     fb->flags = fb->modifier ? DRM_MODE_FB_MODIFIERS : 0;
@@ -201,11 +226,13 @@ GcKmImx8qxpDisplay::SetVidPnSourceAddress(
 
     m_FrontBufferSegmentOffset = pSetVidPnSourceAddress->PrimaryAddress;
 
-    SetupFramebuffer(nullptr,
+    SetupFramebuffer(
         m_LocalVidMemPhysicalBase + m_FrontBufferSegmentOffset.LowPart,
-        GetDrmTileFromHwTile((Gc7LHwTileMode)pAllocation->m_hwTileMode));
+        pAllocation->m_hwPitch,
+        TranslateDxgiToDrmFormat(pAllocation->m_format),
+        pAllocation->m_hwTileMode);
 
-    dpu_plane_atomic_page_flip(&m_crtc.plane[0]->base, &m_old_plane_state);
+    dpu_plane_atomic_page_flip(&m_crtc.plane[m_PlaneId]->base, &m_old_plane_state);
 
     return dpu_crtc_atomic_flush(&m_crtc.base, m_crtc.base.state);
 }
@@ -220,7 +247,7 @@ void GcKmImx8qxpDisplay::SetupPlaneState(
     const D3DKMDT_VIDPN_SOURCE_MODE* pSourceMode,
     const D3DKMDT_VIDPN_TARGET_MODE* pTargetMode)
 {
-    struct drm_plane_state* state = m_crtc.plane[0]->base.state;
+    struct drm_plane_state* state = m_crtc.plane[m_PlaneId]->base.state;
     state->rotation = DRM_MODE_ROTATE_0; // rotation is not supported yet
     state->alpha = 0xffff;
     state->crtc = &m_crtc.base;
@@ -234,8 +261,10 @@ void GcKmImx8qxpDisplay::SetupPlaneState(
     state->src.y2 = state->src_h;
     state->dst.x2 = pTargetMode->VideoSignalInfo.ActiveSize.cx;
     state->dst.y2 = pTargetMode->VideoSignalInfo.ActiveSize.cy;
-    state->fb = &m_crtc.plane[0]->fb;
+    state->fb = &m_crtc.plane[m_PlaneId]->fb;
     state->visible = true;
+    printk_debug("HwCommitVidPn: plane_state cw=%d ch=%d cwh=0x%x chh=0x%x sw=0x%x sh=0x%x\n",
+        state->crtc_w, state->crtc_h, state->crtc_w, state->crtc_h, state->src_w, state->src_h);
 }
 
 NTSTATUS
@@ -244,21 +273,18 @@ GcKmImx8qxpDisplay::SetupHwCommit(
     const D3DKMDT_VIDPN_TARGET_MODE* pTargetMode,
     struct videomode* vm,
     UINT FrameBufferPhysicalAddress,
+    UINT Pitch,
     UINT TileMode)
 {
     struct drm_display_mode dmode = { 0 };
     drm_display_mode_from_videomode(vm, &dmode);
     drm_mode_set_crtcinfo(&dmode, 0);
 
-    dpu_plane_reset(&m_crtc.plane[0]->base);
-    dpu_drm_crtc_reset(&m_crtc.base);
-    m_crtc.base.state->enable = true;
-
-    // select plane #0 as attached to crtc #0
-    m_crtc.base.state->plane_mask |= drm_plane_mask(&m_crtc.plane[0]->base);
-
-    SetupFramebuffer(pSourceMode,
-        FrameBufferPhysicalAddress, TileMode);
+    SetupFramebuffer(
+        FrameBufferPhysicalAddress,
+        Pitch,
+        TranslateD3dDdiToDrmFormat(pSourceMode->Format.Graphics.PixelFormat),
+        TileMode);
 
     SetupPlaneState(pSourceMode, pTargetMode);
 
@@ -287,8 +313,8 @@ GcKmImx8qxpDisplay::SetupHwCommit(
         return STATUS_NO_MEMORY;
     }
 
-    if (dpu_plane_atomic_check(&m_crtc.plane[0]->base,
-        m_crtc.plane[0]->base.state))
+    if (dpu_plane_atomic_check(&m_crtc.plane[m_PlaneId]->base,
+        m_crtc.plane[m_PlaneId]->base.state))
     {
         return STATUS_NO_MEMORY;
     }
@@ -311,9 +337,11 @@ GcKmImx8qxpDisplay::HwAtomicCommit(struct videomode* vm)
         it6263_bridge_disable(bridge);
     }
 
+    printk_debug("CRTC %d enabled: %d plane: %d\n", m_di.DisplayInterfaceIndex, dpu_crtc_is_enabled(&m_crtc.base), m_PlaneId);
+
     struct drm_encoder* enc = m_LvdsTransmitter.GetEncoder(0);
     NT_ASSERT(enc);
-    if (m_DispctrlIsEnabled) {
+    if (dpu_crtc_is_enabled(&m_crtc.base)) {
         imx8qxp_ldb_encoder_disable(enc);
 
         if (dpu_crtc_atomic_disable(&m_crtc.base, m_crtc.base.state))
@@ -338,7 +366,7 @@ GcKmImx8qxpDisplay::HwAtomicCommit(struct videomode* vm)
     m_crtc_state.imx_crtc_state.base.active = true;
 
     // TODO: old_pane_state is never used in plane helpers it can be removed
-    if (dpu_plane_atomic_update(&m_crtc.plane[0]->base, &m_old_plane_state))
+    if (dpu_plane_atomic_update(&m_crtc.plane[m_PlaneId]->base, &m_old_plane_state))
     {
         return STATUS_UNSUCCESSFUL;
     }
@@ -354,7 +382,6 @@ GcKmImx8qxpDisplay::HwAtomicCommit(struct videomode* vm)
     {
         it6263_bridge_enable(bridge);
     }
-    m_DispctrlIsEnabled = TRUE;
 
     return STATUS_SUCCESS;
 }
@@ -367,6 +394,7 @@ GcKmImx8qxpDisplay::HwCommitVidPn(
 {
     UINT FrameBufferPhysicalAddress = 0;
     UINT TileMode = 0;
+    UINT Pitch = 0;
 
     m_CurSourceModes[0] = { 0 };
     m_CurTargetModes[0] = { 0 };
@@ -376,12 +404,20 @@ GcKmImx8qxpDisplay::HwCommitVidPn(
         GcKmAllocation* pPrimaryAllocation = (GcKmAllocation*)pCommitVidPn->hPrimaryAllocation;
 
         FrameBufferPhysicalAddress = (UINT)(pPrimaryAllocation->m_gpuPhysicalAddress.SegmentOffset + m_LocalVidMemPhysicalBase);
+        Pitch = pPrimaryAllocation->m_hwPitch;
         TileMode = pPrimaryAllocation->m_hwTileMode;
     }
     else
     {
-        FrameBufferPhysicalAddress = m_PreviousPostDisplayInfo.PhysicAddress.LowPart;
+        FrameBufferPhysicalAddress = m_FbPhysicalAddr.LowPart;
         TileMode = 0;
+
+        if (!g_bUsePreviousPostDisplayInfo) {
+            Pitch = pSourceMode->Format.Graphics.Stride;
+        }
+        else {
+            Pitch = m_PreviousPostDisplayInfo.Pitch;
+        }
     }
 
     m_OldFbPhysicalAddress = FrameBufferPhysicalAddress;
@@ -405,8 +441,11 @@ GcKmImx8qxpDisplay::HwCommitVidPn(
         return STATUS_NO_MEMORY;
     }
 
+    printk_debug("HwCommitVidPn: target_mode actw=%d acth=%d pclk=%d\n",
+        pTargetMode->VideoSignalInfo.ActiveSize.cx, pTargetMode->VideoSignalInfo.ActiveSize.cy, pTargetMode->VideoSignalInfo.PixelRate);
+
     NTSTATUS Status = SetupHwCommit(pSourceMode, pTargetMode,
-        &vm, FrameBufferPhysicalAddress, TileMode);
+        &vm, FrameBufferPhysicalAddress, Pitch, TileMode);
     if (!NT_SUCCESS(Status))
     {
         return Status;
@@ -423,6 +462,8 @@ GcKmImx8qxpDisplay::HwCommitVidPn(
 
     m_bNotifyVSync = true;
 
+    m_ScanoutFormat = TranslateD3dDdiToDxgiFormat(pSourceMode->Format.Graphics.PixelFormat);
+
     return Status;
 }
 
@@ -432,7 +473,7 @@ GcKmImx8qxpDisplay::ControlInterrupt(
     IN_BOOLEAN  EnableInterrupt)
 {
     struct dpu_crtc* dpu_crtc =
-        (struct dpu_crtc*)platform_get_drvdata(&m_client_devices[0]);
+        (struct dpu_crtc*)platform_get_drvdata(&m_p_client_devices[m_di.DisplayInterfaceIndex]);
 
     switch (InterruptType)
     {
@@ -498,10 +539,13 @@ GcKmImx8qxpDisplay::SetVidPnSourceAddressWithMultiPlaneOverlay3(
 
     m_FrontBufferSegmentOffset = pSetMpo3->ppPlanes[0]->ppContextData[0]->SegmentAddress;
 
-    SetupFramebuffer(nullptr,
+    SetupFramebuffer(
         m_LocalVidMemPhysicalBase + m_FrontBufferSegmentOffset.LowPart,
+        pAllocation->m_hwPitch,
+        TranslateDxgiToDrmFormat(pAllocation->m_format),
         pAllocation->m_hwTileMode);
-    dpu_plane_atomic_page_flip(&m_crtc.plane[0]->base, &m_old_plane_state);
+
+    dpu_plane_atomic_page_flip(&m_crtc.plane[m_PlaneId]->base, &m_old_plane_state);
 
     return dpu_crtc_atomic_flush(&m_crtc.base, m_crtc.base.state);
 }
@@ -560,7 +604,7 @@ GcKmImx8qxpDisplay::InterruptRoutine(UINT MessageNumber)
         return FALSE;
     }
 
-    struct dpu_soc* dpu = (struct dpu_soc*)platform_get_drvdata(&m_dpu_pdev);
+    struct dpu_soc* dpu = (struct dpu_soc*)platform_get_drvdata(m_p_dpu_pdev);
     const struct dpu_data* data = dpu->data;
     const struct cm_reg_ofs* ofs = data->cm_reg_ofs;
 
@@ -568,37 +612,58 @@ GcKmImx8qxpDisplay::InterruptRoutine(UINT MessageNumber)
 
     status0 &= dpu_cm_read(dpu, USERINTERRUPTENABLE(ofs, 0));
 
-    if (status0 & BIT(IRQ_DISENGCFG_FRAMECOMPLETE0))
-    {
-        HandleVsyncInterrupt(0);
-        dpu_irq_ack(dpu, IRQ_DISENGCFG_FRAMECOMPLETE0);
-        ret = TRUE;
+    if (m_di.DisplayInterfaceIndex == 0) {
+        if (status0 & BIT(IRQ_DISENGCFG_FRAMECOMPLETE0))
+        {
+            HandleVsyncInterrupt(0);
+            dpu_irq_ack(dpu, IRQ_DISENGCFG_FRAMECOMPLETE0);
+            ret = TRUE;
+        }
+        if (status0 & BIT(IRQ_EXTDST0_SHDLOAD))
+        {
+            irq_handle(IRQ_EXTDST0_SHDLOAD);
+            dpu_irq_ack(dpu, IRQ_EXTDST0_SHDLOAD);
+            ret = TRUE;
+        }
+        if (status0 & BIT(IRQ_EXTDST4_SHDLOAD))
+        {
+            irq_handle(IRQ_EXTDST4_SHDLOAD);
+            dpu_irq_ack(dpu, IRQ_EXTDST4_SHDLOAD);
+            ret = TRUE;
+        }
+        if (status0 & BIT(IRQ_DISENGCFG_SHDLOAD0))
+        {
+            irq_handle(IRQ_DISENGCFG_SHDLOAD0);
+            dpu_irq_ack(dpu, IRQ_DISENGCFG_SHDLOAD0);
+            ret = TRUE;
+        }
     }
-    if (status0 & BIT(IRQ_DISENGCFG_FRAMECOMPLETE1))
-    {
-        HandleVsyncInterrupt(1);
-        dpu_irq_ack(dpu, IRQ_DISENGCFG_FRAMECOMPLETE1);
-        ret = TRUE;
+    if (m_di.DisplayInterfaceIndex == 1) {
+        if (status0 & BIT(IRQ_DISENGCFG_FRAMECOMPLETE1))
+        {
+            HandleVsyncInterrupt(1);
+            dpu_irq_ack(dpu, IRQ_DISENGCFG_FRAMECOMPLETE1);
+            ret = TRUE;
+        }
+        if (status0 & BIT(IRQ_EXTDST1_SHDLOAD))
+        {
+            irq_handle(IRQ_EXTDST1_SHDLOAD);
+            dpu_irq_ack(dpu, IRQ_EXTDST1_SHDLOAD);
+            ret = TRUE;
+        }
+        if (status0 & BIT(IRQ_EXTDST5_SHDLOAD))
+        {
+            irq_handle(IRQ_EXTDST5_SHDLOAD);
+            dpu_irq_ack(dpu, IRQ_EXTDST5_SHDLOAD);
+            ret = TRUE;
+        }
+        if (status0 & BIT(IRQ_DISENGCFG_SHDLOAD1))
+        {
+            irq_handle(IRQ_DISENGCFG_SHDLOAD1);
+            dpu_irq_ack(dpu, IRQ_DISENGCFG_SHDLOAD1);
+            ret = TRUE;
+        }
     }
-    if (status0 & BIT(IRQ_EXTDST0_SHDLOAD))
-    {
-        irq_handle(IRQ_EXTDST0_SHDLOAD);
-        dpu_irq_ack(dpu, IRQ_EXTDST0_SHDLOAD);
-        ret = TRUE;
-    }
-    if (status0 & BIT(IRQ_EXTDST4_SHDLOAD))
-    {
-        irq_handle(IRQ_EXTDST4_SHDLOAD);
-        dpu_irq_ack(dpu, IRQ_EXTDST4_SHDLOAD);
-        ret = TRUE;
-    }
-    if (status0 & BIT(IRQ_DISENGCFG_SHDLOAD0))
-    {
-        irq_handle(IRQ_DISENGCFG_SHDLOAD0);
-        dpu_irq_ack(dpu, IRQ_DISENGCFG_SHDLOAD0);
-        ret = TRUE;
-    }
-
     return ret;
 }
 

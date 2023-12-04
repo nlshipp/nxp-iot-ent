@@ -9,7 +9,9 @@
 #include "GcKmdImx8mqDisplay.h"
 #include "GcKmdImx8mpDisplay.h"
 #include "GcKmdImx8mpHdmiDisplay.h"
+#include "GcKmdImx8mpMipiDsiDisplay.h"
 #include "GcKmdImx8mpDisplayController.h"
+#include "GcKmdImx8qxpDisplayController.h"
 #include "GcKmdImx8mnDisplay.h"
 #include "GcKmdImx8qxpDisplay.h"
 #include "GcKmdUtil.h"
@@ -154,24 +156,63 @@ static GcKmDisplay* GetDisplay(
     case iMX8MP:
         if ((DisplayOnly == GcKmdGlobal::s_DriverMode) || (FALSE == EnableMultiMon))
         { 
+            struct DisplayInterface di;
+            di.UseDisplay = TRUE;
+            di.RegistryIndex = 0;
             switch (DisplaySel)
             {
             case DISP_INTERFACE_LVDS0:
-            case DISP_INTERFACE_LVDS1:
             case DISP_INTERFACE_LVDS_DUAL0:
-                return new (NonPagedPoolNx, 'PSID') GcKmImx8mpDisplay();
+                di.DisplayInterfaceIndex = 0;
+                return new (NonPagedPoolNx, 'PSID') GcKmImx8mpDisplay(&di);
+            case DISP_INTERFACE_LVDS1:
+                di.DisplayInterfaceIndex = 1;
+                return new (NonPagedPoolNx, 'PSID') GcKmImx8mpDisplay(&di);
             case DISP_INTERFACE_HDMI:
                 return new (NonPagedPoolNx, 'PSID') GcKmImx8mpHdmiDisplay();
+            case DISP_INTERFACE_MIPI_DSI0:
+                return new (NonPagedPoolNx, 'PSID') GcKmImx8mpMipiDsiDisplay(&di);
             default:
                 return nullptr;
             }
         }
         else
         {
-            return new (NonPagedPoolNx, 'PSID') GcKmImx8mpDisplayController(pDxgkInterface);
+            GcKmBaseDisplayController* dispctrl = new (NonPagedPoolNx, 'PSID') GcKmImx8mpDisplayController(pDxgkInterface);
+            if (dispctrl && dispctrl->IsInitialized() == FALSE) {
+                delete dispctrl;
+                dispctrl = nullptr;
+            }
+            return dispctrl;
         }
     case iMX8QXP:
-        return new (NonPagedPoolNx, 'PSID') GcKmImx8qxpDisplay();
+        if ((DisplayOnly == GcKmdGlobal::s_DriverMode) || (FALSE == EnableMultiMon))
+        {
+            struct DisplayInterface di;
+            di.UseDisplay = TRUE;
+            di.RegistryIndex = 0;
+            switch (DisplaySel)
+            {
+            case DISP_INTERFACE_LVDS0:
+            case DISP_INTERFACE_LVDS_DUAL0:
+                di.DisplayInterfaceIndex = 0;
+                return new (NonPagedPoolNx, 'PSID') GcKmImx8qxpDisplay(&di, nullptr);
+            case DISP_INTERFACE_LVDS1:
+                di.DisplayInterfaceIndex = 1;
+                return new (NonPagedPoolNx, 'PSID') GcKmImx8qxpDisplay(&di, nullptr);
+            default:
+                return nullptr;
+            }
+        }
+        else
+        {
+            GcKmBaseDisplayController* dispctrl = new (NonPagedPoolNx, 'PSID') GcKmImx8qxpDisplayController(pDxgkInterface);
+            if (dispctrl && dispctrl->IsInitialized() == FALSE) {
+                delete dispctrl;
+                dispctrl = nullptr;
+            }
+            return dispctrl;
+        }
     default:
         return nullptr;
     }

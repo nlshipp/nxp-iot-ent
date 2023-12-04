@@ -151,7 +151,7 @@ NTSTATUS NTAPI MpLvdsTransmitter_EDIDQueryRoutine(PWSTR ValueName, ULONG ValueTy
     return STATUS_SUCCESS;
 }
 
-NTSTATUS MpLvdsTransmitter::GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface)
+NTSTATUS MpLvdsTransmitter::GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex)
 {
     NTSTATUS status;
     DXGK_DEVICE_INFO device_info;
@@ -179,19 +179,19 @@ NTSTATUS MpLvdsTransmitter::GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface)
     /* Initialize query table - read 4 items from registry, last item in query_table is zeroed */
     RtlZeroMemory(query_table, sizeof(query_table));
     query_table[0].Flags = RTL_QUERY_REGISTRY_DIRECT | RTL_QUERY_REGISTRY_TYPECHECK;
-    query_table[0].Name = L"Display0Interface";
+    query_table[0].Name = GetRegParamString(RegParInterface, registryIndex);
     query_table[0].EntryContext = &tmp_disp_interface;
     query_table[0].DefaultType = (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
     query_table[1].Flags = RTL_QUERY_REGISTRY_DIRECT | RTL_QUERY_REGISTRY_TYPECHECK;
-    query_table[1].Name = L"Display0BusDataWidth";
+    query_table[1].Name = GetRegParamString(RegParBusDataWidth, registryIndex);
     query_table[1].EntryContext = &tmp_disp_bus_data_width;
     query_table[1].DefaultType = (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
     query_table[2].Flags = RTL_QUERY_REGISTRY_DIRECT | RTL_QUERY_REGISTRY_TYPECHECK;
-    query_table[2].Name = L"Display0BusMapping";
+    query_table[2].Name = GetRegParamString(RegParBusMapping, registryIndex);
     query_table[2].EntryContext = &tmp_disp_bus_mapping;
     query_table[2].DefaultType = (REG_DWORD << RTL_QUERY_REGISTRY_TYPECHECK_SHIFT) | REG_NONE;
     query_table[3].Flags = 0;
-    query_table[3].Name = L"Display0EDID";
+    query_table[3].Name = GetRegParamString(RegParEdid, registryIndex);
     query_table[3].EntryContext = &m_CachedEdid;
     query_table[3].DefaultType = REG_BINARY;
     query_table[3].QueryRoutine = MpLvdsTransmitter_EDIDQueryRoutine;
@@ -246,11 +246,11 @@ NTSTATUS MpLvdsTransmitter::GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface)
     return status;
 }
 
-NTSTATUS MpLvdsTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
+NTSTATUS MpLvdsTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex)
 {
     NTSTATUS status;
 
-    status = GetRegistryParams(pDxgkInterface);
+    status = GetRegistryParams(pDxgkInterface, registryIndex);
     if (!NT_SUCCESS(status)) {
         printk("LVDS display: WARNING parameters not valid. Switching to default settings: interface=%s bus_data_width=%d bus_mapping=%s\n",
             GetPrintableDispInterface(), m_bus_data_width, m_bus_mapping);

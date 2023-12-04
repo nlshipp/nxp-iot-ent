@@ -60,7 +60,7 @@ EFI_ACPI_5_1_FIXED_ACPI_DESCRIPTION_TABLE Fadt = {
   0,                                                            // UINT8      DayAlrm
   0,                                                            // UINT8      MonAlrm
   0,                                                            // UINT8      Century
-  0,                                                            // UINT16     IaPcBootArch
+  0x20,                                                         // UINT16     IaPcBootArch, CMOS RTC Not Present=1
   0,                                                            // UINT8      Reserved1
   EFI_ACPI_5_0_HW_REDUCED_ACPI |
   EFI_ACPI_5_0_LOW_POWER_S0_IDLE_CAPABLE,                       // UINT32     Flags

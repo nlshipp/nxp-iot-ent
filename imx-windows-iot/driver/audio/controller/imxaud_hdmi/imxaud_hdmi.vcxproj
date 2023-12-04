@@ -80,14 +80,12 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\shared\acpi\acpiutil.cpp" />
     <ClCompile Include="adapter.cpp" />
     <ClCompile Include="common.cpp" />
     <ClCompile Include="soc_htx.cpp" />
     <ClCompile Include="..\..\..\shared\OperatorNew.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="aud2htx_acpi_dsd.h" />
     <ClInclude Include="imx_aud2htx.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="soc_htx.h" />

@@ -793,7 +793,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (75) SDMA_REQ_SAI1_TX -> SDMA instance 2 Event 1
     {
-        imx7_mcu_2_sai_ADDR,            // Script address
+        imx7_mcu_2_shp_ADDR,            // Script address
         SDMA_REQ_SAI1_TX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -811,7 +811,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (76) SDMA_REQ_SAI1_RX -> SDMA instance 2 Event 0
     {
-        imx7_sai_2_mcu_ADDR,            // Script address
+        imx7_shp_2_mcu_ADDR,            // Script address
         SDMA_REQ_SAI1_RX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -829,7 +829,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (77) SDMA_REQ_SAI2_TX -> SDMA instance 2 Event 3
     {
-        imx7_mcu_2_sai_ADDR,            // Script address
+        imx7_mcu_2_shp_ADDR,            // Script address
         SDMA_REQ_SAI2_TX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -847,7 +847,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (78) SDMA_REQ_SAI2_RX -> SDMA instance 2 Event 2
     {
-        imx7_sai_2_mcu_ADDR,            // Script address
+        imx7_shp_2_mcu_ADDR,            // Script address
         SDMA_REQ_SAI2_RX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -865,7 +865,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (79) SDMA_REQ_SAI3_TX -> SDMA instance 2 Event 5
     {
-        imx7_mcu_2_sai_ADDR,            // Script address
+        imx7_mcu_2_shp_ADDR,            // Script address
         SDMA_REQ_SAI3_TX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -883,7 +883,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (80) SDMA_REQ_SAI3_RX -> SDMA instance 2 Event 4
     {
-        imx7_sai_2_mcu_ADDR,            // Script address
+        imx7_shp_2_mcu_ADDR,            // Script address
         SDMA_REQ_SAI3_RX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -911,7 +911,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (83) SDMA_REQ_SAI5_TX -> SDMA instance 2 Event 9
     {
-        imx7_mcu_2_sai_ADDR,            // Script address
+        imx7_mcu_2_shp_ADDR,            // Script address
         SDMA_REQ_SAI5_TX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -929,7 +929,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (84) SDMA_REQ_SAI5_RX -> SDMA instance 2 Event 8
     {
-        imx7_sai_2_mcu_ADDR,            // Script address
+        imx7_shp_2_mcu_ADDR,            // Script address
         SDMA_REQ_SAI5_RX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -947,7 +947,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (85) SDMA_REQ_SAI6_TX -> SDMA instance 2 Event 11
     {
-        imx7_mcu_2_sai_ADDR,            // Script address
+        imx7_mcu_2_shp_ADDR,            // Script address
         SDMA_REQ_SAI6_TX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -965,7 +965,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (86) SDMA_REQ_SAI6_RX -> SDMA instance 2 Event 10
     {
-        imx7_sai_2_mcu_ADDR,            // Script address
+        imx7_shp_2_mcu_ADDR,            // Script address
         SDMA_REQ_SAI6_RX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -1114,7 +1114,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (100) SDMA_REQ_SAI7_TX -> SDMA instance 2 Event 13
     {
-        imx7_mcu_2_sai_ADDR,            // Script address
+        imx7_mcu_2_shp_ADDR,            // Script address
         SDMA_REQ_SAI7_TX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel
@@ -1132,7 +1132,7 @@ SDMA_CHANNEL_CONFIG Imx8mpDmaReqToChannelConfig[] = {
     },
     // (101) SDMA_REQ_SAI7_RX -> SDMA instance 2 Event 12
     {
-        imx7_sai_2_mcu_ADDR,            // Script address
+        imx7_shp_2_mcu_ADDR,            // Script address
         SDMA_REQ_SAI7_RX,               // DMA request ID
         DMA_WIDTH_32BIT,                // Transfer width
         0,                              // Owner channel

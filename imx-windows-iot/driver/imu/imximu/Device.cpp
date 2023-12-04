@@ -239,6 +239,7 @@ OnDeviceAdd(
     SensorConfig.EvtSensorCancelHistoryRetrieval    = IMUDevice::OnCancelHistoryRetrieval;
     SensorConfig.EvtSensorEnableWake                = IMUDevice::OnEnableWake;
     SensorConfig.EvtSensorDisableWake               = IMUDevice::OnDisableWake;
+    SensorConfig.EvtSensorSetBatchLatency           = IMUDevice::OnSetBatchLatency;
 
     //
     // Set up power capabilities and IO queues
@@ -612,8 +613,15 @@ NTSTATUS IMUDevice::PowerOff()
     WdfWaitLockAcquire(m_I2CWaitLock, NULL);
     RegisterSetting = { LSM6DSOX_CTRL1_XL, LSM6DSOX_CTRL1_XL_ODR_POWER_DOWN };
     Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+
     RegisterSetting = { LSM6DSOX_CTRL2_G,  LSM6DSOX_CTRL2_G_ODR_POWER_DOWN };
     Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+
+    //Read data from datareg - empty the register to prevent firing data ready interrupt 
+    BYTE DataBuffer[LSM6DSOX_DATA_REPORT_SIZE_BYTES]; // Burst-read mode 2x amount of data
+    Status = I2CSensorReadRegister(m_I2CIoTarget, LSM6DSOX_OUTX_L_A, &DataBuffer[0], sizeof(DataBuffer));
+    //end temp
+
     WdfWaitLockRelease(m_I2CWaitLock);
     if (!NT_SUCCESS(Status))
     {

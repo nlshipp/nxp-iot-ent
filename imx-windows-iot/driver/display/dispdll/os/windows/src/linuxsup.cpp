@@ -78,7 +78,7 @@ void *kmalloc(size_t size, gfp_t flags)
 {
     void *ptr;
 
-    ptr = ExAllocatePoolWithTag(NonPagedPoolNx, size, '8XMI');
+    ptr = ExAllocatePool2(POOL_FLAG_NON_PAGED, size, '8XMI');
     if (ptr && (flags & __GFP_ZERO))
     {
         memset(ptr, 0, size);
@@ -206,6 +206,11 @@ int platform_get_irq_byname(struct platform_device* pdev, const char* name)
 {
     for (int i = 0; i < NR_IRQS; i++)
     {
+        /* irq_desc is global for all displays, so depending on enabled displays
+           some array items can be null. strcmp doesn't accept nullptr,skip it */
+        if (irq_desc[i].name == nullptr) {
+            continue;
+        }
         if (!strcmp(irq_desc[i].name, name))
         {
             return i;
@@ -765,19 +770,19 @@ unsigned long long get_jiffies(void)
 unsigned int _jiffies_to_msecs(const unsigned long long j)
 {
     ULONG Increment = KeQueryTimeIncrement();
-    return (unsigned int)(j * Increment) / 1000L;
+    return (unsigned int)(j * Increment) / 10000L;
 }
 
 unsigned long long _msecs_to_jiffies(const unsigned int m)
 {
     ULONG Increment = KeQueryTimeIncrement();
-    return (m * 10000L) / Increment;
+    return DIV_ROUND_UP(m * 10000L, Increment);
 }
 
 unsigned long long nsecs_to_jiffies(u64 n)
 {
     ULONG Increment = KeQueryTimeIncrement();
-    return (n / 100L) / Increment;
+    return DIV_ROUND_UP(n, (100L * Increment));
 }
 
 ktime_t ktime_get(void)

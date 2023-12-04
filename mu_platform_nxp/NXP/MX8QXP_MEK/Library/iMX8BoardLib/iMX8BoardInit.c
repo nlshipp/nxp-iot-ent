@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1587,6 +1587,12 @@ VOID DisplayInit()
     }
   }
   if (err == SC_ERR_NONE) {
+    err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_DC_0_PLL_1, SC_PM_PW_MODE_ON);
+    if (err != SC_ERR_NONE) {
+        sc_pm_err_resource_power_mode(err, SC_R_DC_0_PLL_0, SC_PM_PW_MODE_ON);
+    }
+  }
+  if (err == SC_ERR_NONE) {
     err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_DC_0_VIDEO0, SC_PM_PW_MODE_ON);
     if (err != SC_ERR_NONE) {
         sc_pm_err_resource_power_mode(err, SC_R_DC_0_VIDEO0, SC_PM_PW_MODE_ON);
@@ -1598,6 +1604,30 @@ VOID DisplayInit()
         sc_pm_err_resource_power_mode(err, SC_R_DC_0_VIDEO1, SC_PM_PW_MODE_ON);
     }
   }
+  if (err == SC_ERR_NONE) {
+    err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_MIPI_0, SC_PM_PW_MODE_ON);
+    if (err != SC_ERR_NONE) {
+        sc_pm_err_resource_power_mode(err, SC_R_MIPI_0, SC_PM_PW_MODE_ON);
+    }
+  }
+  if (err == SC_ERR_NONE) {
+    err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_LVDS_0, SC_PM_PW_MODE_ON);
+    if (err != SC_ERR_NONE) {
+        sc_pm_err_resource_power_mode(err, SC_R_LVDS_0, SC_PM_PW_MODE_ON);
+    }
+  }
+  if (err == SC_ERR_NONE) {
+    err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_MIPI_1, SC_PM_PW_MODE_ON);
+    if (err != SC_ERR_NONE) {
+        sc_pm_err_resource_power_mode(err, SC_R_MIPI_1, SC_PM_PW_MODE_ON);
+    }
+  }
+  if (err == SC_ERR_NONE) {
+    err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_LVDS_1, SC_PM_PW_MODE_ON);
+    if (err != SC_ERR_NONE) {
+        sc_pm_err_resource_power_mode(err, SC_R_LVDS_1, SC_PM_PW_MODE_ON);
+    }
+  }
   if (err != SC_ERR_NONE) {
     err = sc_ipc_reset(SC_IPC_HDL);
   }
@@ -1605,6 +1635,8 @@ VOID DisplayInit()
 
   /* enable LPI2C0 irq in MIPI-DSI / LVDS #0 Local Interrupt Steer */
   IRQSTEER_CHn_MASK_REG(IRQSTEER_MIPI_LVDS0_BASE_PTR, 0) = 1U << 8;
+  /* enable LPI2C0 irq in MIPI-DSI / LVDS #1 Local Interrupt Steer */
+  IRQSTEER_CHn_MASK_REG(IRQSTEER_MIPI_LVDS1_BASE_PTR, 0) = 1U << 8;
 }
 
 

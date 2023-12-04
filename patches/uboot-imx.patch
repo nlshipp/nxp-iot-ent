@@ -40,6 +40,188 @@ index 43c4e89aaa..eaccb92a17 100644
  	default:
  		return -EINVAL;
  	}
+diff --git a/board/freescale/imx8mq_evk/lpddr4_timing.c b/board/freescale/imx8mq_evk/lpddr4_timing.c
+index 1dccc07fb9..3eaa1327e1 100644
+--- a/board/freescale/imx8mq_evk/lpddr4_timing.c
++++ b/board/freescale/imx8mq_evk/lpddr4_timing.c
+@@ -20,19 +20,19 @@ struct dram_cfg_param ddr_ddrc_cfg[] = {
+ 	{ 0x3d400030, 0x1 },
+ 	{ 0x3d400000, 0xa3080020 },
+ 	{ 0x3d400028, 0x0 },
+-	{ 0x3d400020, 0x203 },
++	{ 0x3d400020, 0x202 },
+ 	{ 0x3d400024, 0x3e800 },
+-	{ 0x3d400064, 0x6100e0 },
++	{ 0x3d400064, 0x1800e0 },
+ 	{ 0x3d4000d0, 0xc003061c },
+ 	{ 0x3d4000d4, 0x9e0000 },
+ 	{ 0x3d4000dc, 0xd4002d },
+ 	{ 0x3d4000e0, 0x310008 },
+ 	{ 0x3d4000e8, 0x66004a },
+ 	{ 0x3d4000ec, 0x16004a },
+-	{ 0x3d400100, 0x1a201b22 },
+-	{ 0x3d400104, 0x60633 },
++	{ 0x3d400100, 0x1a200624 },
++	{ 0x3d400104, 0x60636 },
+ 	{ 0x3d40010c, 0xc0c000 },
+-	{ 0x3d400110, 0xf04080f },
++	{ 0x3d400110, 0x10040a10 },
+ 	{ 0x3d400114, 0x2040c0c },
+ 	{ 0x3d400118, 0x1010007 },
+ 	{ 0x3d40011c, 0x401 },
+@@ -40,7 +40,7 @@ struct dram_cfg_param ddr_ddrc_cfg[] = {
+ 	{ 0x3d400134, 0xc100002 },
+ 	{ 0x3d400138, 0xe6 },
+ 	{ 0x3d400144, 0xa00050 },
+-	{ 0x3d400180, 0xc3200018 },
++	{ 0x3d400180, 0x3200018 },
+ 	{ 0x3d400184, 0x28061a8 },
+ 	{ 0x3d400188, 0x0 },
+ 	{ 0x3d400190, 0x497820a },
+@@ -60,15 +60,15 @@ struct dram_cfg_param ddr_ddrc_cfg[] = {
+ 	{ 0x3d400204, 0x80808 },
+ 	{ 0x3d400214, 0x7070707 },
+ 	{ 0x3d400218, 0x48080707 },
+-	{ 0x3d402020, 0x1 },
++	{ 0x3d402020, 0x0 },
+ 	{ 0x3d402024, 0x7d00 },
+ 	{ 0x3d402050, 0x20d040 },
+-	{ 0x3d402064, 0xc001c },
++	{ 0x3d402064, 0x3001c },
+ 	{ 0x3d4020dc, 0x840000 },
+ 	{ 0x3d4020e0, 0x310000 },
+ 	{ 0x3d4020e8, 0x66004a },
+ 	{ 0x3d4020ec, 0x16004a },
+-	{ 0x3d402100, 0xa040305 },
++	{ 0x3d402100, 0xa040005 },
+ 	{ 0x3d402104, 0x30407 },
+ 	{ 0x3d402108, 0x203060b },
+ 	{ 0x3d40210c, 0x505000 },
+@@ -80,11 +80,11 @@ struct dram_cfg_param ddr_ddrc_cfg[] = {
+ 	{ 0x3d402134, 0xa100002 },
+ 	{ 0x3d402138, 0x1d },
+ 	{ 0x3d402144, 0x14000a },
+-	{ 0x3d402180, 0xc0640004 },
++	{ 0x3d402180, 0x640004 },
+ 	{ 0x3d402190, 0x3818200 },
+ 	{ 0x3d402194, 0x80303 },
+ 	{ 0x3d4021b4, 0x100 },
+-	{ 0x3d403020, 0x1 },
++	{ 0x3d403020, 0x0 },
+ 	{ 0x3d403024, 0x1f40 },
+ 	{ 0x3d403050, 0x20d040 },
+ 	{ 0x3d403064, 0x30007 },
+@@ -104,7 +104,7 @@ struct dram_cfg_param ddr_ddrc_cfg[] = {
+ 	{ 0x3d403134, 0xa100002 },
+ 	{ 0x3d403138, 0x8 },
+ 	{ 0x3d403144, 0x50003 },
+-	{ 0x3d403180, 0xc0190004 },
++	{ 0x3d403180, 0x190004 },
+ 	{ 0x3d403190, 0x3818200 },
+ 	{ 0x3d403194, 0x80303 },
+ 	{ 0x3d4031b4, 0x100 },
+@@ -337,7 +337,6 @@ struct dram_cfg_param ddr_ddrphy_cfg[] = {
+ 	{ 0x20113, 0x5 },
+ 	{ 0x20114, 0x0 },
+ 	{ 0x20115, 0x1 },
+-	{ 0x20021, 0x0 },
+ };
+ 
+ /* ddr phy trained csr */
+@@ -1711,15 +1710,15 @@ struct dram_cfg_param ddr_phy_pie[] = {
+ 	{ 0x400d6, 0x20a },
+ 	{ 0x400d7, 0x20b },
+ 	{ 0x2003a, 0x2 },
+-	{ 0x2000b, 0x64 },
++	{ 0x2000b, 0x384 },
+ 	{ 0x2000c, 0xc8 },
+ 	{ 0x2000d, 0x7d0 },
+ 	{ 0x2000e, 0x2c },
+-	{ 0x12000b, 0xc },
++	{ 0x12000b, 0x70 },
+ 	{ 0x12000c, 0x19 },
+ 	{ 0x12000d, 0xfa },
+ 	{ 0x12000e, 0x10 },
+-	{ 0x22000b, 0x3 },
++	{ 0x22000b, 0x1c },
+ 	{ 0x22000c, 0x6 },
+ 	{ 0x22000d, 0x3e },
+ 	{ 0x22000e, 0x10 },
+@@ -1731,12 +1730,12 @@ struct dram_cfg_param ddr_phy_pie[] = {
+ 	{ 0x90011, 0xdfbd },
+ 	{ 0x90012, 0x60 },
+ 	{ 0x90013, 0x6152 },
+-	{ 0x20010, 0x00 },
+-	{ 0x20011, 0x0 },
+-	{ 0x120010, 0x00 },
+-	{ 0x120011, 0x0 },
+-	{ 0x220010, 0x00 },
+-	{ 0x220011, 0x0 },
++	{ 0x20010, 0x0 },
++	{ 0x20011, 0x3 },
++	{ 0x120010, 0x0 },
++	{ 0x120011, 0x3 },
++	{ 0x220010, 0x0 },
++	{ 0x220011, 0x3 },
+ 	{ 0x40080, 0xe0 },
+ 	{ 0x40081, 0x12 },
+ 	{ 0x40082, 0xe0 },
+diff --git a/board/freescale/imx8mq_evk/lpddr4_timing_b0.c b/board/freescale/imx8mq_evk/lpddr4_timing_b0.c
+index b8a147d3bb..88e0a6663c 100644
+--- a/board/freescale/imx8mq_evk/lpddr4_timing_b0.c
++++ b/board/freescale/imx8mq_evk/lpddr4_timing_b0.c
+@@ -51,7 +51,7 @@ static struct dram_cfg_param ddr_ddrc_cfg[] = {
+ 	{ 0x3d4001b0, 0x11 },
+ 	{ 0x3d4001b4, 0x170a },
+ 	{ 0x3d4001c0, 0x1 },
+-	{ 0x3d4001c4, 0x1 },
++	{ 0x3d4001c4, 0x0 },
+ 	{ 0x3d4000f4, 0x639 },
+ 	{ 0x3d400108, 0x70e1617 },
+ 	{ 0x3d400200, 0x15 },
+@@ -268,6 +268,7 @@ static struct dram_cfg_param ddr_ddrphy_cfg[] = {
+ 	{ 0x20113, 0x5 },
+ 	{ 0x20114, 0x0 },
+ 	{ 0x20115, 0x1 },
++	{ 0x20021, 0x0},
+ };
+ 
+ /* ddr phy trained csr */
+@@ -1617,10 +1618,10 @@ static struct dram_cfg_param ddr_phy_pie[] = {
+ 	{ 0x90011, 0xdfbd },
+ 	{ 0x90012, 0x60 },
+ 	{ 0x90013, 0x6152 },
+-	{ 0x20010, 0x5a },
+-	{ 0x20011, 0x3 },
+-	{ 0x120010, 0x5a },
+-	{ 0x120011, 0x3 },
++	{ 0x20010, 0x00 },
++	{ 0x20011, 0x0 },
++	{ 0x120010, 0x00 },
++	{ 0x120011, 0x0 },
+ 	{ 0x40080, 0xe0 },
+ 	{ 0x40081, 0x12 },
+ 	{ 0x40082, 0xe0 },
+diff --git a/board/freescale/imx8mq_evk/spl.c b/board/freescale/imx8mq_evk/spl.c
+index 3632e53544..b5e82fd23d 100644
+--- a/board/freescale/imx8mq_evk/spl.c
++++ b/board/freescale/imx8mq_evk/spl.c
+@@ -40,10 +40,13 @@ extern struct dram_timing_info dram_timing_b0;
+ static void spl_dram_init(void)
+ {
+ 	/* ddr init */
+-	if (soc_rev() >= CHIP_REV_2_1)
++	if (soc_rev() >= CHIP_REV_2_1) {
+ 		ddr_init(&dram_timing);
+-	else
++		printf("DRAM TIMING NORMAL fixed soc_rev()=%x CHIP_REV_2_1=%x\n", soc_rev(), CHIP_REV_2_1);
++	} else { 
+ 		ddr_init(&dram_timing_b0);
++		printf("DRAM TIMING B0 fixed soc_rev()=%x CHIP_REV_2_1=%x\n", soc_rev(), CHIP_REV_2_1);
++	}
+ }
+ 
+ #define I2C_PAD_CTRL	(PAD_CTL_DSE6 | PAD_CTL_HYS | PAD_CTL_PUE)
 diff --git a/board/freescale/imx8ulp_evk/imx8ulp_evk.c b/board/freescale/imx8ulp_evk/imx8ulp_evk.c
 index 3a6bd1da5a..3daa863ead 100644
 --- a/board/freescale/imx8ulp_evk/imx8ulp_evk.c
@@ -123,10 +305,10 @@ index 0c5585b123..22b430f2a4 100644
  		return 1;
 diff --git a/configs/imx8mm_evk_nt_defconfig b/configs/imx8mm_evk_nt_defconfig
 new file mode 100644
-index 0000000000..d1ab188ae5
+index 0000000000..0ad73eb6fd
 --- /dev/null
 +++ b/configs/imx8mm_evk_nt_defconfig
-@@ -0,0 +1,210 @@
+@@ -0,0 +1,207 @@
 +CONFIG_ARM=y
 +CONFIG_BAUDRATE=921600
 +CONFIG_ARCH_IMX8M=y
@@ -185,7 +367,6 @@ index 0000000000..d1ab188ae5
 +CONFIG_CMD_GPT=y
 +CONFIG_CMD_I2C=y
 +CONFIG_CMD_MMC=y
-+CONFIG_CMD_POWEROFF=y
 +CONFIG_CMD_PART=y
 +CONFIG_CMD_DHCP=y
 +CONFIG_CMD_MII=y
@@ -221,16 +402,16 @@ index 0000000000..d1ab188ae5
 +CONFIG_DFU_TFTP=y
 +CONFIG_DFU_MMC=y
 +CONFIG_DFU_RAM=y
-+CONFIG_UDP_FUNCTION_FASTBOOT=y
++CONFIG_UDP_FUNCTION_FASTBOOT=n
 +CONFIG_MXC_GPIO=y
-+CONFIG_FASTBOOT=y
-+CONFIG_USB_FUNCTION_FASTBOOT=y
-+CONFIG_CMD_FASTBOOT=y
-+CONFIG_ANDROID_BOOT_IMAGE=y
-+CONFIG_FASTBOOT_UUU_SUPPORT=y
-+CONFIG_FASTBOOT_BUF_ADDR=0x42800000
-+CONFIG_FASTBOOT_BUF_SIZE=0x40000000
-+CONFIG_FASTBOOT_FLASH=y
++CONFIG_FASTBOOT=n
++CONFIG_USB_FUNCTION_FASTBOOT=n
++CONFIG_CMD_FASTBOOT=n
++CONFIG_ANDROID_BOOT_IMAGE=n
++CONFIG_FASTBOOT_UUU_SUPPORT=n
++CONFIG_FASTBOOT_BUF_ADDR=0x44800000
++CONFIG_FASTBOOT_BUF_SIZE=0x0
++CONFIG_FASTBOOT_FLASH=n
 +
 +CONFIG_DM_I2C=y
 +CONFIG_SPL_SYS_I2C_LEGACY=y
@@ -239,10 +420,7 @@ index 0000000000..d1ab188ae5
 +CONFIG_EFI_PARTITION=y
 +CONFIG_SUPPORT_EMMC_RPMB=y
 +CONFIG_SUPPORT_EMMC_BOOT=y
-+CONFIG_MMC_IO_VOLTAGE=y
-+CONFIG_MMC_UHS_SUPPORT=y
-+CONFIG_MMC_HS400_ES_SUPPORT=y
-+CONFIG_MMC_HS400_SUPPORT=y
++CONFIG_MMC_UHS_SUPPORT=n
 +CONFIG_FSL_USDHC=y
 +CONFIG_FSL_ESDHC_IMX=y
 +CONFIG_DM_SPI_FLASH=y
@@ -279,40 +457,34 @@ index 0000000000..d1ab188ae5
 +CONFIG_IMX_TMU=y
 +CONFIG_USB_TCPC=y
 +CONFIG_USB=y
-+CONFIG_USB_GADGET=y
++CONFIG_USB_GADGET=n
 +CONFIG_USB_STORAGE=y
 +CONFIG_DM_USB=y
 +CONFIG_CI_UDC=y
 +CONFIG_USB_EHCI_HCD=y
-+CONFIG_USB_HOST_ETHER=y
 +CONFIG_USB_ETHER_ASIX=y
 +CONFIG_USB_ETHER_RTL8152=y
-+
-+CONFIG_USB_GADGET_MANUFACTURER="FSL"
-+CONFIG_USB_GADGET_VENDOR_NUM=0x1fc9
-+CONFIG_USB_GADGET_PRODUCT_NUM=0x0152
-+
 +CONFIG_SPL_USB_HOST=y
-+CONFIG_SPL_USB_GADGET=y
++CONFIG_SPL_USB_GADGET=n
 +CONFIG_SPL_USB_SDP_SUPPORT=y
-+CONFIG_SDP_LOADADDR=0x40400000
++CONFIG_SDP_LOADADDR=0x40800000
 +
 +CONFIG_OF_LIBFDT_OVERLAY=y
 +
 +CONFIG_REGMAP=y
 +CONFIG_SYSCON=y
-+CONFIG_DM_RESET=y
-+CONFIG_RESET_DISPMIX=y
-+CONFIG_VIDEO_IMX_SEC_DSI=y
-+CONFIG_DM_VIDEO=y
++CONFIG_DM_RESET=n
++CONFIG_RESET_DISPMIX=n
++CONFIG_VIDEO_IMX_SEC_DSI=n
++CONFIG_DM_VIDEO=n
 +CONFIG_BMP_16BPP=y
 +CONFIG_BMP_24BPP=y
 +CONFIG_BMP_32BPP=y
 +CONFIG_VIDEO_MXS=y
 +CONFIG_VIDEO_LOGO=y
-+CONFIG_VIDEO_LCD_RAYDIUM_RM67191=y
-+CONFIG_VIDEO_ADV7535=y
-+CONFIG_SYS_WHITE_ON_BLACK=y
++CONFIG_VIDEO_LCD_RAYDIUM_RM67191=n
++CONFIG_VIDEO_ADV7535=n
++CONFIG_SYS_WHITE_ON_BLACK=n
 +CONFIG_SPLASH_SCREEN=y
 +CONFIG_SPLASH_SCREEN_ALIGN=y
 +CONFIG_CMD_BMP=y
@@ -337,6 +509,13 @@ index 0000000000..d1ab188ae5
 +CONFIG_EFI_ESRT=y
 +CONFIG_EFI_HAVE_CAPSULE_UPDATE=y
 +CONFIG_FIT_SIGNATURE=y
++CONFIG_BOOTDELAY=-2
++CONFIG_CMD_BOOTA=n
++CONFIG_PARTITION_TYPE_GUID=y
++CONFIG_SPL_SYS_DCACHE_OFF=y
++CONFIG_SPL_SYS_ICACHE_OFF=y
++CONFIG_USE_BOOTCOMMAND=y
++CONFIG_CMD_GLOBAL_PAGE=y
 diff --git a/configs/imx8mm_evk_nt_uuu_defconfig b/configs/imx8mm_evk_nt_uuu_defconfig
 new file mode 100644
 index 0000000000..0e9e98a9e9

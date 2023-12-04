@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
-*  Copyright 2020, 2022 NXP
+*  Copyright 2020, 2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -52,6 +52,10 @@
 #define ARM_MIPI_DSI_REG_REGISTER_PHYSICAL  0x32E10000
 #define ARM_MIPI_DSI_REG_REGISTER_LENGTH    0x00100000
 
+/* NOR SPI Flash device mapped area */
+#define NOR_SPI_FLASH_MAPPED_AREA_PHYSICAL  0x08000000
+#define NOR_SPI_FLASH_MAPPED_AREA_LENGTH    0x08000000
+
 ARM_MEMORY_REGION_DESCRIPTOR iMX8MemoryDescriptor[] =
 {
 #ifndef CONFIG_HEADLESS
@@ -69,6 +73,15 @@ ARM_MEMORY_REGION_DESCRIPTOR iMX8MemoryDescriptor[] =
     FixedPcdGet64 (PcdArmLcdDdrFrameBufferSize),
     ARM_MEMORY_REGION_ATTRIBUTE_UNCACHED_UNBUFFERED,
   },
+  // Non-Volatile UEFI Variables cache
+#if !FixedPcdGetBool(PcdEmuVariableNvModeEnable)
+  {
+    FixedPcdGet64 (PcdFlashNvStorageVariableBase),
+    FixedPcdGet64 (PcdFlashNvStorageVariableBase),
+    3*FixedPcdGet64 (PcdFlashNvStorageVariableSize),
+    ARM_MEMORY_REGION_ATTRIBUTE_UNCACHED_UNBUFFERED,
+  },
+#endif
   // GPU reserved memory
   {
     FixedPcdGet64 (PcdArmGPUReservedMemoryBase),
@@ -149,6 +162,12 @@ ARM_MEMORY_REGION_DESCRIPTOR iMX8MemoryDescriptor[] =
     ARM_MIPI_DSI_REG_REGISTER_PHYSICAL,
     ARM_MIPI_DSI_REG_REGISTER_LENGTH,
     ARM_MEMORY_REGION_ATTRIBUTE_DEVICE
+  },
+  {
+    NOR_SPI_FLASH_MAPPED_AREA_PHYSICAL,
+    NOR_SPI_FLASH_MAPPED_AREA_PHYSICAL,
+    NOR_SPI_FLASH_MAPPED_AREA_LENGTH,
+    ARM_MEMORY_REGION_ATTRIBUTE_UNCACHED_UNBUFFERED,
   },
   {
     //
@@ -234,6 +253,17 @@ ArmPlatformGetVirtualMemoryMap (
     FixedPcdGet64 (PcdArmLcdDdrFrameBufferBase),
     FixedPcdGet64 (PcdArmLcdDdrFrameBufferSize));
 
+  // Reserve Non-Volatile UEFI Variables memory
+#if !FixedPcdGetBool(PcdEmuVariableNvModeEnable)
+  BuildResourceDescriptorHob (
+    EFI_RESOURCE_MEMORY_RESERVED,
+    EFI_RESOURCE_ATTRIBUTE_PRESENT |
+    EFI_RESOURCE_ATTRIBUTE_INITIALIZED |
+    EFI_RESOURCE_ATTRIBUTE_TESTED,
+    FixedPcdGet64 (PcdFlashNvStorageVariableBase),
+    3*FixedPcdGet64 (PcdFlashNvStorageVariableSize)
+    );
+#endif
   // Reserve gpu memory
   BuildResourceDescriptorHob (
     EFI_RESOURCE_MEMORY_RESERVED,

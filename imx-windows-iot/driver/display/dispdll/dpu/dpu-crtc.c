@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020, 2022 NXP
+ * Copyright 2017-2020, 2022-2023 NXP
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -84,6 +84,16 @@ alloc_dpu_plane_states(struct dpu_crtc *dpu_crtc)
 
 	return states;
 }
+
+bool dpu_crtc_is_enabled(struct drm_crtc* crtc)
+{
+	struct dpu_crtc* dpu_crtc = to_dpu_crtc(crtc);
+	struct dpu_soc* dpu = dev_get_drvdata(dpu_crtc->dev->parent);
+	int disp_id = dpu_crtc->stream_id;
+
+	return dpu_disp_is_enabled(dpu, disp_id);
+}
+
 
 struct dpu_crtc *dpu_crtc_get_aux_dpu_crtc(struct dpu_crtc *dpu_crtc)
 {

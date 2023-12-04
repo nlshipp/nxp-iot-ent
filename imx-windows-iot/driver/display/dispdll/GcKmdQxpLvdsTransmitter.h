@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Cadence Design Systems, Inc.
  * All rights reserved worldwide.
  *
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -59,8 +59,8 @@ class QxpLvdsTransmitter : public BaseTransmitter
 public:
 
     QxpLvdsTransmitter() : m_CachedEdid{},
-        m_ldb1_pdev{},
-        m_ldb1_phy_pdev{},
+        m_ldb_pdev{},
+        m_ldb_phy_pdev{},
         m_disp_interface(0),
         m_bus_data_width(0),
         m_bus_mapping(nullptr),
@@ -68,7 +68,7 @@ public:
         m_i2c_hdmi{}
     { }
 
-    NTSTATUS Start(DXGKRNL_INTERFACE* pDxgkInterface);
+    NTSTATUS Start(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex);
 
     NTSTATUS Stop();
 
@@ -76,7 +76,7 @@ public:
 
     struct drm_encoder* GetEncoder(UINT ch)
     {
-        return imx8qxp_ldb_get_encoder(&m_ldb1_pdev, ch);
+        return imx8qxp_ldb_get_encoder(&m_ldb_pdev, ch);
     }
 
     struct i2c_client* GetBridge()
@@ -105,13 +105,13 @@ private:
     NTSTATUS GetI2CresourceNum(DXGKRNL_INTERFACE* pDxgkInterface,
         ULONG I2cIndex, LARGE_INTEGER* I2cConnectionId);
 
-    NTSTATUS GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface);
+    NTSTATUS GetRegistryParams(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex);
     CHAR* GetPrintableDispInterface();
 
     BYTE m_CachedEdid[EDID_SIZE] = { 0 };
 
-    struct platform_device m_ldb1_pdev;
-    struct platform_device m_ldb1_phy_pdev;
+    struct platform_device m_ldb_pdev;
+    struct platform_device m_ldb_phy_pdev;
 
     UINT32 m_disp_interface;
     UINT32 m_bus_data_width;

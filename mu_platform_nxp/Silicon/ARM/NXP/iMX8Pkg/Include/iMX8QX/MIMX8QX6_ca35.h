@@ -14,7 +14,7 @@
 **         processor.
 **
 **     Copyright 1997-2016 Freescale Semiconductor, Inc.
-**     Copyright 2016-2022 NXP
+**     Copyright 2016-2023 NXP
 **     All rights reserved.
 **
 **     SPDX-License-Identifier: BSD-3-Clause
@@ -103369,10 +103369,12 @@ typedef struct IRQSTEER_MemMap {
 #define IRQSTEER_BASE_PTR                        ((IRQSTEER_MemMapPtr)0x51070000u)
 /** MIPI DSI / LVDS #0 Local Interrupt Steer base pointer */
 #define IRQSTEER_MIPI_LVDS0_BASE_PTR                        ((IRQSTEER_MemMapPtr)0x56220000u)
+/** MIPI DSI / LVDS #1 Local Interrupt Steer base pointer */
+#define IRQSTEER_MIPI_LVDS1_BASE_PTR                        ((IRQSTEER_MemMapPtr)0x56240000u)
 /** MIPI CSI Local Interrupt Steer base pointer */
 #define IRQSTEER_MIPI_CSI_BASE_PTR                          ((IRQSTEER_MemMapPtr)0x58220000u)
 /** Array initializer of IRQSTEER peripheral base pointers */
-#define IRQSTEER_BASE_PTRS                       { IRQSTEER_BASE_PTR, IRQSTEER_MIPI_LVDS0_BASE_PTR, IRQSTEER_MIPI_CSI_BASE_PTR }
+#define IRQSTEER_BASE_PTRS                       { IRQSTEER_BASE_PTR, IRQSTEER_MIPI_LVDS0_BASE_PTR, IRQSTEER_MIPI_LVDS1_BASE_PTR, IRQSTEER_MIPI_CSI_BASE_PTR }
 
 /* ----------------------------------------------------------------------------
    -- IRQSTEER - Register accessor macros

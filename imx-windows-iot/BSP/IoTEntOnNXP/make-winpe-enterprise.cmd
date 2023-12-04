@@ -38,6 +38,7 @@ for /F "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1)
   set "DEL=%%a"
 )
 
+
 set CREATE_WIN_ENTERPRISE_IMAGE=1
 set CREATE_WIN_PE_LAYOUT=1
 set OUT_DIR_REL=out
@@ -47,7 +48,8 @@ set IMX_WIN_ENTRPRISE_MOUNT_DIR=%OUT_DIR_REL%\mount_enterprise
 set MSFT_WIN_ENTERPRISE_IMAGE=
 set UNATTEND=no
 
-set NO_PATCH=no
+set NO_PATCH_ENT=no
+set NO_PATCH_PE=no
 
 set CUMULATIVE_UPDATE=no
 set CUMULATIVE_UPDATE_PATH=
@@ -63,6 +65,7 @@ set SWM_IMG=%WIN_PE_DST_DIR%\install.swm
 set SPLIT_WIM_SIZE=4000
 set SPLIT_WIM_SIZE_KBYTES=%SPLIT_WIM_SIZE%000
 set TEST_SIGNING=no
+set DISM_UNSIGNED_ARG=
 set CLEAN=
 set SPLIT_WIM=no
 
@@ -83,6 +86,14 @@ set WIN_PE_STARTNET_CMD=%WIN_PE_DST_DIR%\startnet.cmd.txt
 set WIN_ENTERPRISE_INSTALL_CMD=%WIN_PE_DST_DIR%\install.cmd.txt
 set DRIVER_DIR=%SCRIPT_DIR%drivers
 
+
+set ISO_FILE=
+set MOUNT_DIR=C:\mount
+set ISO_WIM_PATH=:\sources\install.wim
+set ISO_LETTER=
+set ISO_PATH=
+set WIM_PATH=
+set EXTRACT_WIM=no
 
 :: Parse options
 :GETOPTS
@@ -109,14 +120,18 @@ if /I "%~1" == "/?" ( goto USAGE
 ) else (if /I "%~1" == "/disable_updates" ( set DISABLE_UPDATES=yes
 ) else (if /I "%~1" == "/enable_transparency" ( set DISABLE_TRANSPARENCY=no
 ) else (if /I "%~1" == "/split_wim" ( set SPLIT_WIM=yes
-) else ( if /I "%~1" == "/no_patch" ( set NO_PATCH=yes
+) else ( if /I "%~1" == "/no_patch" ( set NO_PATCH_ENT=yes
+                                      set NO_PATCH_PE=yes
+) else ( if /I "%~1" == "/no_patch_ent" ( set NO_PATCH_ENT=yes
+) else ( if /I "%~1" == "/no_patch_pe" ( set NO_PATCH_PE=yes
+) else ( if /I "%~1" == "/iso" ( set EXTRACT_WIM=yes
 ) else (if /I "%~1" == "/?" ( goto USAGE
 ) else ( if /I "%~1" == "" ( break
 ) else (
    set ERR_MSG=Unsupported option: "%~1".
    goto PrErr
 )
-))))))))))))))))))))
+)))))))))))))))))))))))
 shift
 if not (%1)==() goto GETOPTS
 :: Print newline
@@ -137,8 +152,10 @@ if not "%APPLY%" == "0" (
     goto :ErrExit
 )
 
-
-
+@REM If test signing is enabled, DISM commands injecting drivers into images must contain /ForceUnsigned argument
+if "%TEST_SIGNING%" == "yes" (
+    set DISM_UNSIGNED_ARG=/ForceUnsigned
+)
 
 if %CUMULATIVE_UPDATE% == yes (
     if '%CUMULATIVE_UPDATE_PATH%' == '' (
@@ -175,52 +192,96 @@ if not exist "%WIN_PE_SRC_DIR_ABS%\Media" (
 )
 
 if "%CREATE_WIN_ENTERPRISE_IMAGE%" == "1" (
-    if '%MSFT_WIN_ENTERPRISE_IMAGE%' == '' (
-        set WIM_COUNT=0
-        for /f "tokens=*" %%i in ('dir /b *.wim') do (
-            set /a WIM_COUNT+=1
-        )
-        if !WIM_COUNT! == 0 (
-            echo No image file was specified by /source_image parameters and no image was found in the current directory.
-            echo Copy install.wim into current directory.
-            goto ErrExit
-        )
-
-        if !WIM_COUNT! NEQ 1 (
+    if '!MSFT_WIN_ENTERPRISE_IMAGE!' == '' (
+        if not "%EXTRACT_WIM%" == "yes" (
             set WIM_COUNT=0
-            echo No image file was specified by /source_image parameters and more than one image was found in the current directory.
-            echo Specify what image to use:
             for /f "tokens=*" %%i in ('dir /b *.wim') do (
                 set /a WIM_COUNT+=1
-                echo !WIM_COUNT!. %%i
             )
-            set /p IMG_IDX=Enter index:
-            echo index: !IMG_IDX!
-            if !IMG_IDX! gtr !WIM_COUNT! (
-                echo Selected index is out of range
+            if !WIM_COUNT! == 0 (
+                echo No image file was specified by /source_image parameters and no image was found in the current directory.
+                echo Copy install.wim into current directory.
                 goto ErrExit
             )
-            if !IMG_IDX! leq 0 (
-                echo Selected index is out of range
-                goto ErrExit
+
+            if !WIM_COUNT! NEQ 1 (
+                set WIM_COUNT=0
+                echo No image file was specified by /source_image parameters and more than one image was found in the current directory.
+                echo Specify what image to use:
+                for /f "tokens=*" %%i in ('dir /b *.wim') do (
+                    set /a WIM_COUNT+=1
+                    echo !WIM_COUNT!. %%i
+                )
+                set /p IMG_IDX=Enter index:
+                echo index: !IMG_IDX!
+                if !IMG_IDX! gtr !WIM_COUNT! (
+                    echo Selected index is out of range
+                    goto ErrExit
+                )
+                if !IMG_IDX! leq 0 (
+                    echo Selected index is out of range
+                    goto ErrExit
+                )
+            ) else (
+                set IMG_IDX=1
             )
+                
+            set WIM_COUNT=0
+            for /f "tokens=*" %%i in ('dir /b *.wim') do (
+                set /a WIM_COUNT+=1
+                if !WIM_COUNT! == !IMG_IDX! (
+                    echo Selected: "%%i"
+                    echo:
+                    set MSFT_WIN_ENTERPRISE_IMAGE=%%i
+                )
+            )
+        
         ) else (
-            set IMG_IDX=1
-        )
-            
-        set WIM_COUNT=0
-        for /f "tokens=*" %%i in ('dir /b *.wim') do (
-            set /a WIM_COUNT+=1
-            if !WIM_COUNT! == !IMG_IDX! (
-                echo Selected: "%%i"
-                echo:
-                set MSFT_WIN_ENTERPRISE_IMAGE=%%i
+            set ISO_COUNT=0
+            for /f "tokens=*" %%i in ('dir /b *.iso') do (
+                set /a ISO_COUNT+=1
+            )
+            if !ISO_COUNT! == 0 (
+                echo No image file was specified by /source_image parameters and no image was found in the current directory.
+                echo Copy Windows ISO file into current directory.
+                goto ErrExit
+            )
+
+            if !ISO_COUNT! NEQ 1 (
+                set ISO_COUNT=0
+                echo No image file was specified by /source_image parameters and more than one image was found in the current directory.
+                echo Specify what image to use:
+                for /f "tokens=*" %%i in ('dir /b *.iso') do (
+                    set /a ISO_COUNT+=1
+                    echo !ISO_COUNT!. %%i
+                )
+                set /p IMG_IDX=Enter index:
+                echo index: !IMG_IDX!
+                if !IMG_IDX! gtr !ISO_COUNT! (
+                    echo Selected index is out of range
+                    goto ErrExit
+                )
+                if !IMG_IDX! leq 0 (
+                    echo Selected index is out of range
+                    goto ErrExit
+                )
+            ) else (
+                set IMG_IDX=1
+            )
+                
+            set ISO_COUNT=0
+            for /f "tokens=*" %%i in ('dir /b *.iso') do (
+                set /a ISO_COUNT+=1
+                if !ISO_COUNT! == !IMG_IDX! (
+                    echo Selected: "%%i"
+                    echo:
+                    set MSFT_WIN_ENTERPRISE_IMAGE=%%i
+                )
             )
         )
     ) else (
         set MSFT_WIN_ENTERPRISE_IMAGE=%MSFT_WIN_ENTERPRISE_IMAGE:"=%
     )
-
 )
 
 if not "%NET_DEBUG%" == "" (
@@ -303,7 +364,8 @@ echo Disable updates:                       %DISABLE_UPDATES%
 echo Disable transparency:                  %DISABLE_TRANSPARENCY%
 echo Split wim:                             %SPLIT_WIM%
 echo Cumulative update:                     %CUMULATIVE_UPDATE%, path: !CUMULATIVE_UPDATE_PATH!
-echo Skip updates from %KB_PATCH_DIR%\:            %NO_PATCH%
+echo Skip updates to Windows Enterprise:    %NO_PATCH_ENT%
+echo Skip updates to Windows PE:            %NO_PATCH_PE%
 echo:
 
 
@@ -341,9 +403,22 @@ echo:
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
 echo *** Step 1.1 Copying Windows Enterprise image !MSFT_WIN_ENTERPRISE_IMAGE! to %IMX_WIN_ENTERPRISE_IMAGE%
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
+
 mkdir "%OUT_DIR_REL%"
-echo copy "!MSFT_WIN_ENTERPRISE_IMAGE!" "%IMX_WIN_ENTERPRISE_IMAGE%"
-copy "!MSFT_WIN_ENTERPRISE_IMAGE!" "%IMX_WIN_ENTERPRISE_IMAGE%" || goto ErrExit
+
+if not "%EXTRACT_WIM%" == "yes" (    
+    echo copy "!MSFT_WIN_ENTERPRISE_IMAGE!" "%IMX_WIN_ENTERPRISE_IMAGE%"
+    copy "!MSFT_WIN_ENTERPRISE_IMAGE!" "%IMX_WIN_ENTERPRISE_IMAGE%" || goto ErrExit
+) else (
+    echo powershell -Command "(Mount-DiskImage -ImagePath '!SCRIPT_DIR!\!MSFT_WIN_ENTERPRISE_IMAGE!' | Get-Volume).DriveLetter"
+    for /f "delims=" %%a in (' powershell -Command "(Mount-DiskImage -ImagePath '!SCRIPT_DIR!\!MSFT_WIN_ENTERPRISE_IMAGE!' | Get-Volume).DriveLetter" ') do set "ISO_LETTER=%%a"
+    set WIM_PATH=!ISO_LETTER!%ISO_WIM_PATH%
+    echo copy !WIM_PATH! "%IMX_WIN_ENTERPRISE_IMAGE%"
+    copy !WIM_PATH! "%IMX_WIN_ENTERPRISE_IMAGE%"
+    echo powershell -Command "Dismount-DiskImage !SCRIPT_DIR!\!MSFT_WIN_ENTERPRISE_IMAGE!"
+    powershell -Command "Dismount-DiskImage !SCRIPT_DIR!\!MSFT_WIN_ENTERPRISE_IMAGE!" > nul
+)
+
 
 echo:
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -357,8 +432,8 @@ echo:
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
 echo *** Step 1.3 Injecting drivers from %DRIVER_DIR% into the i.MX Windows IoT Enterprise image
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
-echo dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Driver /Driver:"%DRIVER_DIR%" /Recurse /ForceUnsigned
-dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Driver /Driver:"%DRIVER_DIR%" /Recurse /ForceUnsigned || goto ErrExit
+echo dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Driver /Driver:"%DRIVER_DIR%" /Recurse !DISM_UNSIGNED_ARG!
+dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Driver /Driver:"%DRIVER_DIR%" /Recurse !DISM_UNSIGNED_ARG! || goto ErrExit
 
 if not "!CUMULATIVE_UPDATE_PATH!" == "" (
     echo:
@@ -372,7 +447,7 @@ if not "!CUMULATIVE_UPDATE_PATH!" == "" (
     echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
     echo *** Applying cumulative updates from %KB_PATCH_DIR%\ directory to i.MX Windows IoT Enterprise image
     echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
-if %NO_PATCH% == no (
+if %NO_PATCH_ENT% == no (
     set KB_COUNT=0
     for /f "tokens=*" %%i in ('dir /b %KB_PATCH_DIR%\*.msu') do (
         set /a KB_COUNT+=1
@@ -535,8 +610,23 @@ echo:
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
 echo *** Step 2.4 Injecting drivers from "%DRIVER_DIR%" into i.MX Windows PE image
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
-dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Driver /Driver:"%DRIVER_DIR%" /Recurse /ForceUnsigned || goto err
+echo dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Driver /Driver:"%DRIVER_DIR%" /Recurse !DISM_UNSIGNED_ARG!
+dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Driver /Driver:"%DRIVER_DIR%" /Recurse !DISM_UNSIGNED_ARG! || goto err
 echo:
+
+if %NO_PATCH_PE% == no (
+    echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
+    echo *** Step 2.45 Applying patches to i.MX Windows PE image
+    echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
+    for /f "tokens=*" %%i in ('dir /b %KB_PATCH_DIR%\*.msu') do (
+        echo Applying cumulative update %%i from %KB_PATCH_DIR%...
+        call :clrEcho 02 "WARNING Depending on size of the update, this processs may take up to 30 minutes, do not stop the process even if it may appear to be frozen"
+        echo:
+        echo dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\%%i"
+        dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\%%i" || goto ErrExit
+    )
+)
+
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
 echo *** Step 2.5 Creating the WinPE startnet.cmd script "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -847,7 +937,9 @@ exit /b 0
     echo.
     echo Creates a WinPE image for i.MX
     echo Options:
-    echo    /source_image                    Pass the path to the image containing IOT Enterprise. If not specified, current directory will be searched for all images.
+    echo    /source_image                    Pass the path to the image containing Windows IOT Enterprise. If not specified, current directory will be searched for all images. 
+                                             By default, script works with install.wim manually extracted from an ISO file. Using option /iso, tou can pass ISO file to this option and the install.wim will be extracted automatically.
+    echo    /iso                             Set ISO file as source of image with Windows IOT Enterprise. Script will automatically mount the ISO image and extract install.wim.
     echo    /winpedebug_serial               Optionally enable debugging over serial for WinPE.
     echo    /windebug_serial                 Optionally enable debugging over serial for Windows.
     echo    /winpedebug_net                  Optionally enable debugging over net for WinPE. Option /debug_ip is needed for specifying IP address of host machine. File kd_8003_1fc9.dll must be in same directory as this script.
@@ -855,7 +947,9 @@ exit /b 0
     echo    /debug_ip                        Specify IP address of debugger machine. Necessary for options /winpedebug_net and /windebug_net.
     echo    /test_signing                    Optionally enable driver test signing.
     echo    /split_wim                       Split wim file for install.wim ^> 4GB. This option is no longer needed, as image split is enabled automatically for big images.
-    echo    /no_patch                        Disable the application of updates from /kbpatch directory to the Windows image.
+    echo    /no_patch_ent                    Disable application of updates from /kbpatch directory to the Windows enterprise image. Use this parameter when the image is already in desired version.
+    echo    /no_patch_pe                     Disable application of updates from /kbpatch directory to the Windows PE image. Use this parameter when the image is already in desired version.
+    echo    /no_patch                        Disable application of updates from /kbpatch directory to both Windows Enterprise image and Windows PE image.
     echo    /disable_updates                 Disable automatic updates to save disk space.
     echo    /enable_transparency             Enable window transparency. Window transparency is disabled by default to improve UI responsivness and stability.
     echo    /clean                           Clean up artifacts from a previous run.

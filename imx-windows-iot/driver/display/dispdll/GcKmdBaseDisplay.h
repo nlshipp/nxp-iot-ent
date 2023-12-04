@@ -139,6 +139,13 @@ public:
         return false;
     }
 
+    virtual UINT GetFormatList(const D3DDDIFORMAT** ppFormatList) const
+    {
+        *ppFormatList = FORMAT_LIST;
+
+        return ARRAY_SIZE(FORMAT_LIST);
+    }
+
     void DisableVSyncNotification()
     {
         m_bNotifyVSync = false;
@@ -161,6 +168,9 @@ public:
         const D3DKMDT_VIDPN_PRESENT_PATH* pVidPnPath,
         D3DKMDT_HVIDPNTOPOLOGY hVidPnTopology,
         DXGK_VIDPNTOPOLOGY_INTERFACE const* pTopologyInterface);
+
+    void PrepareScanlineEmulation(
+        const D3DKMDT_VIDPN_TARGET_MODE* pTargetMode);
 
 private:
 
@@ -206,7 +216,9 @@ private:
         const DXGK_VIDPN_INTERFACE* pVidPnInterface,
         D3DKMDT_HVIDPN hVidPn,
         D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId,
-        bool bSupportStandardModes);
+        bool bSupportStandardModes,
+        const D3DDDIFORMAT* pFormatList,
+        UINT NumFormats);
 
     NTSTATUS AddNewTargetModeSet(
         const DXGK_VIDPN_INTERFACE* pVidPnInterface,
@@ -217,7 +229,9 @@ private:
     NTSTATUS AddNewSourceModeInfo(
         D3DKMDT_HVIDPNSOURCEMODESET hSourceModeSet,
         const DXGK_VIDPNSOURCEMODESET_INTERFACE* pSourceModeSetInterface,
-        bool bSupportStandardModes);
+        bool bSupportStandardModes,
+        const D3DDDIFORMAT* pFormatList,
+        UINT NumFormats);
 
     NTSTATUS AddNewTargetModeInfo(
         D3DKMDT_HVIDPNTARGETMODESET hTargetModeSet,
@@ -258,6 +272,7 @@ protected:
     D3DKMDT_VIDPN_TARGET_MODE m_CurTargetModes[1];
     D3DDDI_VIDEO_PRESENT_TARGET_ID m_TargetId;
     BOOL m_bNotifyVSync;
+    DXGI_FORMAT m_ScanoutFormat;
 
     const UINT CHILD_COUNT = 1;
     const UINT VIDEO_PRESENT_SOURCES_COUNT = 1;
@@ -266,7 +281,17 @@ protected:
 
     DXGK_CHILD_CONTAINER_ID m_ContainerId;
 
+    UINT    m_FrameInTick = 0;
+    UINT    m_ScanlineInTick = 0;
+    UINT    m_VActive = 0;
+
     const GUID GC_KMD_DISPLAY_LOGGING =
         { 0xa7bf27a0, 0x7401, 0x4733, { 0x9f, 0xed,  0xfd,  0xb5,  0x10,  0x67,  0xfe,  0xcc } };
+
+    const D3DDDIFORMAT FORMAT_LIST[2] =
+    {
+        D3DDDIFMT_A8R8G8B8, // Must be the 1st
+        D3DDDIFMT_A8B8G8R8
+    };
 };
 

@@ -490,6 +490,12 @@
     <ClCompile Include="GcKmdImx8mpDisplayController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GcKmdImx8qxpDisplayController.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GcKmdImx8mpMipiDsiDisplay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GcKmd7LIO.h">
@@ -952,6 +958,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GcKmdImx8Display.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GcKmdImx8qxpDisplayController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GcKmdImx8mpMipiDsiDisplay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
