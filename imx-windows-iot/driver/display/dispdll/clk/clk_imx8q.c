@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -201,7 +201,7 @@ static int imx8q_clk_enable(struct clk *clk, bool enable, bool recursive)
         err = set_gate_scu(clk, enable);
         break;
     default:
-        dev_warn(NULL, "[clk: %s] clk_enable() unknown clock type\n",
+        dev_err(NULL, "[clk: %s] clk_enable() unknown clock type\n",
             clk->name);
         break;
     }
@@ -229,7 +229,7 @@ static unsigned long imx8q_clk_get_rate(struct clk *clk)
         rate = (unsigned long)clk->clk_fixed.rate_hz;
         break;
     default:
-        dev_warn(NULL, "[clk: %s] clk_get_rate() unknown clock type\n",
+        dev_err(NULL, "[clk: %s] clk_get_rate() unknown clock type\n",
             clk->name);
         break;
     }
@@ -261,14 +261,14 @@ static unsigned long imx8q_clk_set_rate(struct clk *clk, unsigned long rate)
         case CLK_FIXED:
             break;
         default:
-            dev_warn(NULL, "[clk: %s] clk_set_rate() unknown clock type\n",
+            dev_err(NULL, "[clk: %s] clk_set_rate() unknown clock type\n",
                 clk->name);
             break;
     }
 
     curr_rate = imx8q_clk_get_rate(clk);
     if (curr_rate != rate) {
-        dev_warn(NULL,
+        dev_err(NULL,
             "[clk: %s] current rate differs from the requested one (%d vs %d)",
             clk->name, curr_rate, rate);
     }
@@ -293,7 +293,7 @@ static struct clk *imx8q_clk_get_parent(struct clk *clk)
     case CLK_FIXED:
         break;
     default:
-        dev_warn(NULL, "[clk: %s] clk_get_parent() unknown clock type\n",
+        dev_err(NULL, "[clk: %s] clk_get_parent() unknown clock type\n",
             clk->name);
         break;
     }
@@ -322,7 +322,7 @@ static int imx8q_clk_set_parent(struct clk *clk, struct clk *parent)
     case CLK_FIXED:
         break;
     default:
-        dev_warn(NULL, "[clk: %s] clk_set_parent() unknown clock type\n",
+        dev_err(NULL, "[clk: %s] clk_set_parent() unknown clock type\n",
             clk->name);
         break;
     }
@@ -359,7 +359,7 @@ int imx8q_clk_dump(const struct clk *clk)
                 clk->name, clk->clk_fixed.rate_hz);
             break;
         default:
-            dev_warn(NULL, "[clk: %s] clk_dump() unknown clock type\n",
+            dev_err(NULL, "[clk: %s] clk_dump() unknown clock type\n",
                 clk->name);
             break;
     }

@@ -123,7 +123,11 @@
   # | Operating System  |  ^
   # | Memory            |  |
   # |                   |  |
+  # |                   |  |
+  # |                   |  |
   # |                   |  v
+  # +-------------------+===> (0xBDF00000) PcdFlashNvStorageVariableBase
+  # | Nv UEFI Vars      |  |
   # +-------------------+===> (0xBE000000) PcdTrustZonePrivateMemoryBase (OPTEE image base address)
   # | TZ Private Memory |  ^
   # | (OPTEE)           |  |  (0x01E00000) PcdTrustZonePrivateMemorySize 30MB
@@ -133,6 +137,7 @@
   # |                   |  |  (0x00200000) PcdTrustZoneSharedMemorySize 2MB
   # |                   |  v
   # +-------------------|===>
+
 !if $(CONFIG_OPTEE) == TRUE
   gOpteeClientPkgTokenSpaceGuid.PcdTrustZonePrivateMemoryBase|0xBE000000
   gOpteeClientPkgTokenSpaceGuid.PcdTrustZonePrivateMemorySize|0x01E00000
@@ -155,9 +160,9 @@
   # System memory size (2GB)
 !if $(CONFIG_OPTEE) == TRUE
   # OpTEE is loaded at top of memory by Arm-TF. Reduce memory size to avoid collision.
-  gArmTokenSpaceGuid.PcdSystemMemorySize|0x7E000000
+  gArmTokenSpaceGuid.PcdSystemMemorySize|0x7DF00000
 !else
-  gArmTokenSpaceGuid.PcdSystemMemorySize|0x80000000
+  gArmTokenSpaceGuid.PcdSystemMemorySize|0x7FF00000
 !endif
 
 # there is 0Gb in the 1Gb bank of memory after top of 32 bit address space
@@ -187,14 +192,14 @@
 !endif
 
   #
-  # NV Storage PCDs. Use base of 0x30370000 for SNVS?
+  # NV Storage PCDs. Use base of 0xBDF00000 ... area below GPU
   #
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase|0x30370000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize|0x00004000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase|0x30374000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize|0x00004000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase|0x30378000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize|0x00004000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase|0xBDF00000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize|0x00040000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase|0xBDF40000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize|0x00040000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase|0xBDF80000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize|0x00040000
 
   # i.MX8M Mini
   gArmPlatformTokenSpaceGuid.PcdCoreCount|4
@@ -217,6 +222,12 @@
   giMX8TokenSpaceGuid.PcdDisplayI2CBaseAddr|0x30A30000
   giMX8TokenSpaceGuid.PcdDisplayReadEDID|TRUE
   giMX8TokenSpaceGuid.PcdDisplayForceConverterMaxResolution|TRUE
+
+  # Boot options
+  giMX8TokenSpaceGuid.PcdBootDevice1Path|L"VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,02000000)/SD(0x0)"
+  giMX8TokenSpaceGuid.PcdBootDevice1Description|L"Boot from SD Card"
+  giMX8TokenSpaceGuid.PcdBootDevice2Path|L"VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,03000000)/eMMC(0x0)"
+  giMX8TokenSpaceGuid.PcdBootDevice2Description|L"Boot from eMMC"
 
   #
   # iMXPlatformPkg
@@ -326,6 +337,11 @@
   # USB
   #
   giMX8TokenSpaceGuid.PcdUsb1EhciBaseAddress|0x32E40100
+
+  #
+  # FlexSPI
+  #
+  giMX8TokenSpaceGuid.PcdFlexSpiBaseAddress|0x30bb0000
 
 [PcdsPatchableInModule]
   # Use system default resolution

@@ -1,68 +1,37 @@
 diff --git a/core/arch/arm/plat-imx/conf.mk b/core/arch/arm/plat-imx/conf.mk
-index 433313a92..82ac5d709 100644
+index 0bd9ccd6b..e86851bd8 100644
 --- a/core/arch/arm/plat-imx/conf.mk
 +++ b/core/arch/arm/plat-imx/conf.mk
-@@ -532,11 +532,13 @@ CFG_EXTERNAL_DTB_OVERLAY = y
- supported-ta-targets = ta_arm64
- endif
- 
--ifneq (,$(filter y, $(CFG_MX8MN) $(CFG_MX8MP) $(CFG_MX8DX) $(CFG_MX8DXL) $(CFG_MX93)))
--CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) + 0x16000000)
-+ifneq (,$(filter y, $(CFG_MX8MP)))
-+CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) + 0x00000000BE000000)
-+else ifneq (,$(filter y, $(CFG_MX93)))
-+CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) + 0x0000000000200000)
- else ifneq (,$(filter y, $(CFG_MX8ULP)))
- CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) + 0x26000000)
--else ifneq (,$(filter y, $(CFG_MX8MM) $(CFG_MX8MQ) $(CFG_MX8QM) $(CFG_MX8QX)))
-+else ifneq (,$(filter y, $(CFG_MX8MM) $(CFG_MX8MN) $(CFG_MX8MQ) $(CFG_MX8QM) $(CFG_MX8QX)))
- CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) - 0x02000000 + $(CFG_DDR_SIZE))
- else
- CFG_TZDRAM_START ?= ($(CFG_DRAM_BASE) + 0x04000000)
-@@ -600,3 +602,9 @@ endif
- 
- # Cryptographic configuration
- include core/arch/arm/plat-imx/crypto_conf.mk
+@@ -1,4 +1,9 @@
+ PLATFORM_FLAVOR ?= mx6ulevk
++WINDOWS_BSP ?= n
 +
-+# Read 30 FAT FS entries at once from RPMB storage
-+CFG_RPMB_FS_RD_ENTRIES ?= 30
-+
-+# Enable caching. Size of 60 should be enough to cache all entries
-+CFG_RPMB_FS_CACHE_ENTRIES ?= 60
-diff --git a/core/arch/arm/plat-imx/platform_config.h b/core/arch/arm/plat-imx/platform_config.h
-index 1bb79dbc8..625007d45 100644
---- a/core/arch/arm/plat-imx/platform_config.h
-+++ b/core/arch/arm/plat-imx/platform_config.h
-@@ -77,7 +77,7 @@
- 	defined(CFG_MX8MP) || defined(CFG_MX93)
- #define DRAM0_NSEC_BASE CFG_DRAM_BASE
- #define DRAM0_NSEC_SIZE (CFG_TZDRAM_START - CFG_DRAM_BASE)
--#define DRAM1_NSEC_BASE (CFG_TZDRAM_START + 0x2000000)
-+#define DRAM1_NSEC_BASE (CFG_TZDRAM_START + 0x2000000UL)
- #define DRAM1_NSEC_SIZE (CFG_DDR_SIZE - DRAM1_NSEC_BASE + CFG_DRAM_BASE)
- #endif
++ifneq (,$(filter $(WINDOWS_BSP),y))
++CFLAGS+=-DWINDOWS_BSP
++endif
  
+ # Get SoC associated with the PLATFORM_FLAVOR
+ mx6ul-flavorlist = \
 diff --git a/core/drivers/imx_snvs.c b/core/drivers/imx_snvs.c
-index daefa1318..fcff9e329 100644
+index eaa8fb25b..2b99d9fce 100644
 --- a/core/drivers/imx_snvs.c
 +++ b/core/drivers/imx_snvs.c
-@@ -157,6 +157,9 @@ static enum snvs_ssm_mode snvs_get_ssm_mode(void)
- bool plat_rpmb_key_is_ready(void)
+@@ -163,6 +163,9 @@ bool plat_rpmb_key_is_ready(void)
  {
  	enum snvs_ssm_mode mode = SNVS_SSM_MODE_INIT;
-+#ifdef CFG_RPMB_TESTKEY
-+    enum snvs_security_cfg security = SNVS_SECURITY_CFG_OPEN;
-+#endif
  	bool ssm_secure = false;
++#if defined(WINDOWS_BSP) && defined(CFG_RPMB_TESTKEY)
++	enum snvs_security_cfg security = SNVS_SECURITY_CFG_OPEN;
++#endif
  
  	mode = snvs_get_ssm_mode();
-@@ -170,8 +173,17 @@ bool plat_rpmb_key_is_ready(void)
- 	 */
+ 	ssm_secure = (mode == SNVS_SSM_MODE_TRUSTED ||
+@@ -176,7 +179,17 @@ bool plat_rpmb_key_is_ready(void)
  	if (soc_is_imx6sdl() || soc_is_imx6dq())
  		return ssm_secure;
--
-+#ifdef CFG_RPMB_TESTKEY
-+    security = snvs_get_security_cfg();
+ 
++#if defined(WINDOWS_BSP) && defined(CFG_RPMB_TESTKEY)
++        security = snvs_get_security_cfg();
 +	return ((security == SNVS_SECURITY_CFG_CLOSED) && ssm_secure) ||
 +	       ((security == SNVS_SECURITY_CFG_OPEN) &&
 +		        (mode == SNVS_SSM_MODE_TRUSTED ||
@@ -76,70 +45,17 @@ index daefa1318..fcff9e329 100644
  #endif /* CFG_RPMB_FS */
  
 diff --git a/core/drivers/imx_uart.c b/core/drivers/imx_uart.c
-index 1733b50a2..42cb5ea50 100644
+index 6d7bd2963..610eed09b 100644
 --- a/core/drivers/imx_uart.c
 +++ b/core/drivers/imx_uart.c
-@@ -121,6 +121,10 @@ static void imx_uart_putc(struct serial_chip *chip, int ch)
+@@ -122,6 +122,10 @@ static void imx_uart_putc(struct serial_chip *chip, int ch)
  			return;
  
  	io_write32(base + UTXD, ch);
-+
++#if defined(WINDOWS_BSP)
 +	/* Wait until sent */
-+	while (!(io_read32(base + UTS) & UTS_TXEMPTY))
-+		;
++	while (!(io_read32(base + UTS) & UTS_TXEMPTY));
++#endif
  }
  
  static const struct serial_ops imx_uart_ops = {
-diff --git a/core/tee/tee_rpmb_fs.c b/core/tee/tee_rpmb_fs.c
-index a3586ac2a..14e1d4871 100644
---- a/core/tee/tee_rpmb_fs.c
-+++ b/core/tee/tee_rpmb_fs.c
-@@ -49,6 +49,14 @@
- 
- #define RPMB_MAX_RETRIES		10
- 
-+/**
-+ * Utilized when caching is enabled, i.e., when CFG_RPMB_FS_CACHE_ENTRIES > 0.
-+ * Cache size + the number of entries that are repeatedly read in and buffered
-+ * once the cache is full.
-+ */
-+#define RPMB_BUF_MAX_ENTRIES (CFG_RPMB_FS_CACHE_ENTRIES + \
-+			      CFG_RPMB_FS_RD_ENTRIES)
-+
- /**
-  * Utilized when caching is enabled, i.e., when CFG_RPMB_FS_CACHE_ENTRIES > 0.
-  * Cache size + the number of entries that are repeatedly read in and buffered
-@@ -2199,7 +2207,7 @@ static TEE_Result read_fat(struct rpmb_file_handle *fh, tee_mm_pool_t *p)
- 		 * Look for an entry, matching filenames. (read, rm,
- 		 * rename and stat.). Only store first filename match.
- 		 */
--		if ((!strcmp(fh->filename, fe->filename)) &&
-+		if (fh->filename && (!strcmp(fh->filename, fe->filename)) &&
- 		    (fe->flags & FILE_IS_ACTIVE) && !entry_found) {
- 			entry_found = true;
- 			fh->rpmb_fat_address = fat_address;
-diff --git a/scripts/gen_ld_sects.py b/scripts/gen_ld_sects.py
-index bc82dd8b6..329aa8deb 100755
---- a/scripts/gen_ld_sects.py
-+++ b/scripts/gen_ld_sects.py
-@@ -9,7 +9,7 @@ import re
- 
- 
- def usage():
--    print("Usage: {0} <section reg exp match> [<skip section>...]".format(
-+    print("Usage: {0} <section reg exp match> [<skip section>...]".format( \
-         sys.argv[0]))
-     sys.exit(1)
- 
-diff --git a/ta/ta.mk b/ta/ta.mk
-index 25d197f64..171d0cbdc 100644
---- a/ta/ta.mk
-+++ b/ta/ta.mk
-@@ -206,5 +206,7 @@ $(eval $(mk-file-export))
- 
- cleanfiles := $(cleanfiles) $(conf-mk-file-export)
- ta_dev_kit: $(conf-mk-file-export)
-+	sed -i '/#define fallthrough __attribute__((__fallthrough__))/c\#define fallthrough __fallthrough__' $(out-dir)/export-ta_arm64/include/compiler.h
- 
- all: ta_dev_kit
-+

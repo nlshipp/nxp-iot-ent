@@ -178,6 +178,12 @@ public:
         pSurfaceRequirement->AlignmentHeight = 1;
     }
 
+    virtual NTSTATUS IsGdiSurfaceSupported(
+        INOUT_PDXGKARG_GETSTANDARDALLOCATIONDRIVERDATA  pGetStandardAllocationDriverData)
+    {
+        return STATUS_SUCCESS;
+    }
+
     virtual NTSTATUS GetNodeMetaData(
         UINT                            NodeOrdinal,
         OUT_PDXGKARG_GETNODEMETADATA    pGetNodeMetadata) = NULL;

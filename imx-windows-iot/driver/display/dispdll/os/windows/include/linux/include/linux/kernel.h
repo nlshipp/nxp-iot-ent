@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Modifications Copyright 2022 NXP
+ * Modifications Copyright 2022,2024 NXP
  */
 #ifndef _LINUX_KERNEL_H
 #define _LINUX_KERNEL_H
 
 #include <stdarg.h>
+#include <linux/align.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <linux/limits.h>
@@ -40,6 +41,13 @@ static inline uint64_t _div_round_down_ull(uint64_t ll, uint32_t d)
 
 #define DIV_ROUND_UP_ULL(ll, d) \
 	DIV_ROUND_DOWN_ULL((unsigned long long)(ll) + (d) - 1, (d))
+
+#define DIV_ROUND_CLOSEST(x, divisor) _div_round_closest((x), (divisor))
+
+static inline uint32_t _div_round_closest(uint32_t x, uint32_t divisor)
+{
+	return (x+(divisor / 2)) / divisor;
+}
 
 #define DIV_ROUND_CLOSEST_ULL(x, divisor) _div_round_closest_ull((x), (divisor))
 

@@ -372,6 +372,10 @@ InternalMemAlloc (
   // cross the alignment boundary when aligning the UEFI allocated address.
   BlockSize = sizeof (OPTEE_CLIENT_MEM_HEADER) + Size + (ByteAlignment - 1);
 
+  // Align the block size to EFI_PAGE_SIZE, which is required for capabilities and atributes
+  // setting (for example in function CoreConvertSpace() in gcd.c module)
+  BlockSize = (BlockSize + (EFI_PAGE_SIZE - 1)) & ~(EFI_PAGE_SIZE - 1);
+
   LOG_TRACE (
     "Size=0x%p, ByteAlignment=0x%p (1 << 0x%p), BlockSize=0x%p",
     Size,

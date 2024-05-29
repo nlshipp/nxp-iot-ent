@@ -6,7 +6,7 @@
  * Register map access API
  *
  * Copyright 2011 Wolfson Microelectronics plc
- * Copyright 2022 NXP
+ * Copyright 2022,2024 NXP
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  */
@@ -35,6 +35,12 @@ struct reg_sequence {
     unsigned int def;
     unsigned int delay_us;
 };
+
+#define regmap_read_poll_timeout_ex(map, reg, mask, cmp_val, non_equal, sleep_us, timeout_us) \
+	_regmap_read_poll_timeout_ex(map, reg, mask, cmp_val, non_equal, \
+			sleep_us, timeout_us, false)
+int _regmap_read_poll_timeout_ex(struct regmap* map, u32 reg, u32 mask, u32 cmp_val,
+    bool non_equal, unsigned long delay_us, u64 timeout_us, bool sleep_before_read);
 
 struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c);
 void regmap_release_i2c(struct regmap *map);

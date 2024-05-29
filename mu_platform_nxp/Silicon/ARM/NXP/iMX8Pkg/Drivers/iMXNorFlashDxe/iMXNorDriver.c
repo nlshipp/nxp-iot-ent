@@ -9,9 +9,11 @@
 #include <Library/UefiRuntimeLib.h>
 
 #include "iMXNorDriver.h"
-#include "iMXNorFspi.h"
+
+#include "iMX8FlexSpiLib.h"
 
 #define SUPPORTED_SECTOR_4K            BIT(0)
+#define SUPPORTED_DUAL_READ            BIT(5)
 #define SUPPORTED_QUAD_READ            BIT(6)
 #define SUPPORTED_FLAG_STATUS_REGISTER BIT(7)
 
@@ -65,6 +67,9 @@ struct iMXNorSetup NorSetup;
 const struct FlashID FlashIDs[] =
     {
         /* Micron */
+        {
+            FLASH_DATA("n25q256a",   0x20ba19, 0, 65536, 512, SUPPORTED_SECTOR_4K | SUPPORTED_DUAL_READ | SUPPORTED_QUAD_READ | SUPPORTED_FLAG_STATUS_REGISTER)
+        },
         {
             FLASH_DATA("n25q256ax1", 0x20bb19, 0, 65536, 512, SUPPORTED_SECTOR_4K | SUPPORTED_QUAD_READ | SUPPORTED_FLAG_STATUS_REGISTER)
         },

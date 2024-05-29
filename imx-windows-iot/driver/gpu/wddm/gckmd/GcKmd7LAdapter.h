@@ -120,6 +120,9 @@ protected:
 
     virtual BOOLEAN UseGdiShaderForPaging() = NULL;
 
+    virtual NTSTATUS IsGdiSurfaceSupported(
+        INOUT_PDXGKARG_GETSTANDARDALLOCATIONDRIVERDATA  pGetStandardAllocationDriverData);
+
 public:
 
     HANDLE GetGdiUniformBufferHeap(

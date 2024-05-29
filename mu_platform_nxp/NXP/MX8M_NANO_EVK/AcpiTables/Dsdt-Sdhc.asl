@@ -2,7 +2,7 @@
 * Ultra Secured Digital Host Controllers (uSDHC)
 *
 *  Copyright (c) Microsoft Corporation. All rights reserved.
-*  Copyright 2022 NXP
+*  Copyright 2022, 2024 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License

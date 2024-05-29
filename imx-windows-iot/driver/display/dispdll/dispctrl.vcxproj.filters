@@ -496,6 +496,21 @@
     <ClCompile Include="GcKmdImx8mpMipiDsiDisplay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="mipi_dsi\nwl-dsi.c">
+      <Filter>Source Files\mipi_dsi</Filter>
+    </ClCompile>
+    <ClCompile Include="mipi_dsi\phy-fsl-imx8-mipi-dphy.c">
+      <Filter>Source Files\mipi_dsi</Filter>
+    </ClCompile>
+    <ClCompile Include="mipi_dsi\phy-core-mipi-dphy.c">
+      <Filter>Source Files\mipi_dsi</Filter>
+    </ClCompile>
+    <ClCompile Include="GcKmdNwlDsiTransmitter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GcKmdImx8qxpMipiDsiDisplay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GcKmd7LIO.h">
@@ -964,6 +979,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GcKmdImx8mpMipiDsiDisplay.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mipi_dsi\nwl-dsi.h">
+      <Filter>Header Files\mipi_dsi</Filter>
+    </ClInclude>
+    <ClInclude Include="os\windows\include\linux\include\linux\align.h">
+      <Filter>Header Files\linux</Filter>
+    </ClInclude>
+    <ClInclude Include="GcKmdNwlDsiTransmitter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GcKmdImx8qxpMipiDsiDisplay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

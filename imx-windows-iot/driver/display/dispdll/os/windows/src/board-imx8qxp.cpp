@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -490,8 +490,157 @@ static property irqsteer_properties[] = {
 };
 
 //-----------------------------------------------------------------------
+// mipi-dsi0
+//-----------------------------------------------------------------------
+
+static struct clk_init_data_desc mipi_dsi0_clock_desc[] = {
+    { "pixel", IMX8QXP_MIPI0_PIXEL_CLK, 0, 0, 0 },
+    { "bypass", IMX8QXP_MIPI0_BYPASS_CLK, 0, 0, 0 },
+    { "phy_ref", IMX8QXP_MIPI0_PHY_REF_CLK, 0, 0, 0 },
+    { "tx_esc", IMX8QXP_MIPI0_TX_ESC_CLK, 0, 0, 0 },
+    { "rx_esc", IMX8QXP_MIPI0_RX_ESC_CLK, 0, 0, 0 },
+    { "phy_parent", IMX8QXP_MIPI_PLL_DIV2_CLK, 0, 0, 0 },
+    {""}
+};
+
+static resource mipi_dsi0_res_list[] = {
+    { 0x56228000, 0x56229000, "mipi0-reg", IORESOURCE_MEM },
+    { 0x56221000, 0x56222000, "mipi0-csr", IORESOURCE_MEM },
+};
+
+static int instance0 = 0;
+static int clk_drop_lvl_0 = 0;
+static property mipi_dsi0_properties[] = {
+    { "compatible", 1, "fsl,imx8qx-nwl-dsi" },
+    { "mipi-dsi-id", 1, &instance0 },
+    { "fsl,clock-drop-level", 1, &clk_drop_lvl_0 },
+    { "" },
+};
+//-----------------------------------------------------------------------
+// mipi-dsi-phy0
+//-----------------------------------------------------------------------
+
+static struct clk_init_data_desc mipi_dsi_phy0_clock_desc[] = {
+    { "phy_ref", IMX8QXP_MIPI0_PHY_REF_CLK, 0, 0, 0 },
+    {""}
+};
+
+static resource mipi_dsi_phy0_res_list[] = {
+    { 0x56228300, 0x56228400, "mipi-phy0-reg", IORESOURCE_MEM },
+};
+
+static property mipi_dsi_phy0_properties[] = {
+    { "compatible", 1, "fsl,imx8qx-mipi-dphy" },
+    { "" },
+};
+
+//-----------------------------------------------------------------------
+// mipi-dsi1
+//-----------------------------------------------------------------------
+
+static struct clk_init_data_desc mipi_dsi1_clock_desc[] = {
+    { "pixel", IMX8QXP_MIPI1_PIXEL_CLK, 0, 0, 0 },
+    { "bypass", IMX8QXP_MIPI1_BYPASS_CLK, 0, 0, 0 },
+    { "phy_ref", IMX8QXP_MIPI1_PHY_REF_CLK, 0, 0, 0 },
+    { "tx_esc", IMX8QXP_MIPI1_TX_ESC_CLK, 0, 0, 0 },
+    { "rx_esc", IMX8QXP_MIPI1_RX_ESC_CLK, 0, 0, 0 },
+    { "phy_parent", IMX8QXP_MIPI_PLL_DIV2_CLK, 0, 0, 0 },
+    {""}
+};
+
+static resource mipi_dsi1_res_list[] = {
+    { 0x56248000, 0x56249000, "mipi1-reg", IORESOURCE_MEM },
+    { 0x56241000, 0x56242000, "mipi1-csr", IORESOURCE_MEM },
+};
+
+static int instance1 = 1;
+static int clk_drop_lvl_1 = 0;
+static property mipi_dsi1_properties[] = {
+    { "compatible", 1, "fsl,imx8qx-nwl-dsi" },
+    { "mipi-dsi-id", 1, &instance1 },
+    { "fsl,clock-drop-level", 1, &clk_drop_lvl_1 },
+    { "" },
+};
+//-----------------------------------------------------------------------
+// mipi-dsi-phy1
+//-----------------------------------------------------------------------
+
+static struct clk_init_data_desc mipi_dsi_phy1_clock_desc[] = {
+    { "phy_ref", IMX8QXP_MIPI1_PHY_REF_CLK, 0, 0, 0 },
+    {""}
+};
+
+static resource mipi_dsi_phy1_res_list[] = {
+    { 0x56248300, 0x56248400, "mipi-phy1-reg", IORESOURCE_MEM },
+};
+
+static property mipi_dsi_phy1_properties[] = {
+    { "compatible", 1, "fsl,imx8qx-mipi-dphy" },
+    { "" },
+};
+
+//-----------------------------------------------------------------------
 // Init functions
 //-----------------------------------------------------------------------
+/*
+static void mipi_irq_init(unsigned int mipi_index)
+{
+    if (mipi_index == 1)
+    {
+        irq_desc[IRQ_DESC_MIPI_DSI0].name = "mipi-dsi";
+        irq_desc[IRQ_DESC_MIPI_DSI0].irq_data.hwirq = 16;
+        irq_desc[IRQ_DESC_MIPI_DSI0].handler = nullptr;
+        irq_desc[IRQ_DESC_MIPI_DSI0].irq_data.chip.type = IRQCHIP_TYPE_IRQ_STEER;
+    }
+    if (mipi_index == 2)
+    {
+        irq_desc[IRQ_DESC_MIPI_DSI1].name = "mipi-dsi";
+        irq_desc[IRQ_DESC_MIPI_DSI1].irq_data.hwirq = 16;
+        irq_desc[IRQ_DESC_MIPI_DSI1].handler = nullptr;
+        irq_desc[IRQ_DESC_MIPI_DSI1].irq_data.chip.type = IRQCHIP_TYPE_IRQ_STEER;
+    }
+}
+*/
+static void mipi_res_init(platform_device* pdev, int mipi)
+{
+    if (mipi == 1)
+    {
+        pdev->resource = &mipi_dsi0_res_list[0];
+        pdev->num_resources = ARRAYSIZE(mipi_dsi0_res_list);
+        pdev->dev.of_node.properties = mipi_dsi0_properties;
+        pdev->dev.of_clk = (struct clk_init_data_desc*)&mipi_dsi0_clock_desc;
+        pdev->dev.get_clock_item = &clk_get_item_imx8qxp;
+    }
+
+    if (mipi == 2)
+    {
+        pdev->resource = &mipi_dsi1_res_list[0];
+        pdev->num_resources = ARRAYSIZE(mipi_dsi1_res_list);
+        pdev->dev.of_node.properties = mipi_dsi1_properties;
+        pdev->dev.of_clk = (struct clk_init_data_desc*)&mipi_dsi1_clock_desc;
+        pdev->dev.get_clock_item = &clk_get_item_imx8qxp;
+    }
+}
+
+static void mipi_dphy_res_init(platform_device* pdev, int phy)
+{
+    if (phy == 1)
+    {
+        pdev->resource = &mipi_dsi_phy0_res_list[0];
+        pdev->num_resources = ARRAYSIZE(mipi_dsi_phy0_res_list);
+        pdev->dev.of_node.properties = mipi_dsi_phy0_properties;
+        pdev->dev.of_clk = (struct clk_init_data_desc*)&mipi_dsi_phy0_clock_desc;
+        pdev->dev.get_clock_item = &clk_get_item_imx8qxp;
+    }
+    if (phy == 2)
+    {
+        pdev->resource = &mipi_dsi_phy1_res_list[0];
+        pdev->num_resources = ARRAYSIZE(mipi_dsi_phy1_res_list);
+        pdev->dev.of_node.properties = mipi_dsi_phy1_properties;
+        pdev->dev.of_clk = (struct clk_init_data_desc*)&mipi_dsi_phy1_clock_desc;
+        pdev->dev.get_clock_item = &clk_get_item_imx8qxp;
+    }
+}
 
 void ldb_prop_init(unsigned int ldb_index, unsigned int data_width, const char *bus_mapping)
 {
@@ -550,7 +699,7 @@ static inline void irqsteer_res_deinit(platform_device* pdev)
     pdev->dev.of_node.properties = nullptr;
 }
 
-static inline void ldb_res_init(platform_device* pdev, int ldb)
+static void ldb_res_init(platform_device* pdev, int ldb)
 {
     if (ldb == 1)
     {
@@ -577,7 +726,7 @@ static inline void ldb_res_init(platform_device* pdev, int ldb)
     }
 }
 
-static inline void phy_res_init(platform_device *pdev, int phy)
+static void phy_res_init(platform_device *pdev, int phy)
 {
     if (phy == 1)
     {
@@ -624,6 +773,22 @@ void qxp_board_init(platform_device* pdev)
     else if (!strcmp(pdev->name, "ldb2_phy"))
     {
         phy_res_init(pdev, 2);
+    }
+    else if (!strcmp(pdev->name, "mipi0_dsi_host"))
+    {
+        mipi_res_init(pdev, 1);
+    }
+    else if (!strcmp(pdev->name, "mipi1_dsi_host"))
+    {
+        mipi_res_init(pdev, 2);
+    }
+    else if (!strcmp(pdev->name, "mipi0_dphy"))
+    {
+        mipi_dphy_res_init(pdev, 1);
+    }
+    else if (!strcmp(pdev->name, "mipi1_dphy"))
+    {
+        mipi_dphy_res_init(pdev, 2);
     }
 }
 

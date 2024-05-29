@@ -95,6 +95,9 @@ set ISO_PATH=
 set WIM_PATH=
 set EXTRACT_WIM=no
 
+set WINNAME=
+set WINVER=
+
 :: Parse options
 :GETOPTS
 if /I "%~1" == "/?" ( goto USAGE
@@ -419,6 +422,25 @@ if not "%EXTRACT_WIM%" == "yes" (
     powershell -Command "Dismount-DiskImage !SCRIPT_DIR!\!MSFT_WIN_ENTERPRISE_IMAGE!" > nul
 )
 
+@REM Identify Windows version from .wim image
+
+for /f "tokens=1,* delims=: " %%a in ('dism /Get-WimInfo /WimFile:!IMX_WIN_ENTERPRISE_IMAGE! /index:2 ^| findstr /i "name"') do (
+set WINNAME=%%b
+
+for /f "tokens=1,2 delims= " %%c in ("!WINNAME!") do (
+        set WINVER=%%d
+)
+
+) 
+
+if not "!WINVER!" == "10" (
+    if not "!WINVER!" == "11" (
+        echo "Cannot identify Windows image version!"
+        goto ErrExit
+    )
+)
+
+echo "Identified Windows !WINVER! from .wim file"
 
 echo:
 echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -445,17 +467,19 @@ if not "!CUMULATIVE_UPDATE_PATH!" == "" (
 )
 
     echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
-    echo *** Applying cumulative updates from %KB_PATCH_DIR%\ directory to i.MX Windows IoT Enterprise image
+    echo *** Applying cumulative updates from %KB_PATCH_DIR%\win!WINVER!\ directory to i.MX Windows IoT Enterprise image
     echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
 if %NO_PATCH_ENT% == no (
-    set KB_COUNT=0
-    for /f "tokens=*" %%i in ('dir /b %KB_PATCH_DIR%\*.msu') do (
-        set /a KB_COUNT+=1
-        echo Applying cumulative update %%i from %KB_PATCH_DIR%...
-        call :clrEcho 02 "WARNING Depending on size of the update, this processs may take up to 30 minutes, do not stop the process even if it may appear to be frozen"
-        echo:
-        echo dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\%%i"
-        dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\%%i" || goto ErrExit
+    if exist %KB_PATCH_DIR%\win!WINVER! (
+        set KB_COUNT=0
+        for /f "tokens=*" %%i in ('dir /b %KB_PATCH_DIR%\win!WINVER!\*.msu') do (
+            set /a KB_COUNT+=1
+            echo Applying cumulative update %%i from %KB_PATCH_DIR%\win!WINVER!...
+            call :clrEcho 02 "WARNING Depending on size of the update, this processs may take up to 30 minutes, do not stop the process even if it may appear to be frozen"
+            echo:
+            echo dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\win!WINVER!\%%i"
+            dism /Image:"%IMX_WIN_ENTRPRISE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\win!WINVER!\%%i" || goto ErrExit
+        )
     )
 )
 
@@ -615,15 +639,17 @@ dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Driver /Driver:"%DRIVER_DIR%" /Recurse !DI
 echo:
 
 if %NO_PATCH_PE% == no (
-    echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
-    echo *** Step 2.45 Applying patches to i.MX Windows PE image
-    echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
-    for /f "tokens=*" %%i in ('dir /b %KB_PATCH_DIR%\*.msu') do (
-        echo Applying cumulative update %%i from %KB_PATCH_DIR%...
-        call :clrEcho 02 "WARNING Depending on size of the update, this processs may take up to 30 minutes, do not stop the process even if it may appear to be frozen"
-        echo:
-        echo dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\%%i"
-        dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\%%i" || goto ErrExit
+    if exist %KB_PATCH_DIR%\win10 (
+        echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
+        echo *** Step 2.45 Applying patches to i.MX Windows PE image
+        echo ---------------------------------------------------------------------------------------------------------------------------------------------------------
+        for /f "tokens=*" %%i in ('dir /b %KB_PATCH_DIR%\win10\*.msu') do (
+            echo Applying cumulative update %%i from %KB_PATCH_DIR%\win10...
+            call :clrEcho 02 "WARNING Depending on size of the update, this processs may take up to 30 minutes, do not stop the process even if it may appear to be frozen"
+            echo:
+            echo dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\win10\%%i"
+            dism /Image:"%WIN_PE_MOUNT_DIR%" /Add-Package /PackagePath="%KB_PATCH_DIR%\win10\%%i" || goto ErrExit
+        )
     )
 )
 
@@ -816,6 +842,14 @@ echo ^) >> "%WIN_ENTERPRISE_INSTALL_CMD%"
 REM ****************************
 REM E - VPU driver configuration
 REM ****************************
+
+REM ****************************
+REM Login Screen FPS drop fix
+REM ****************************
+
+echo echo Login Screen FPS drop fix >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+echo REG ADD "HKLM\Software\Policies\Microsoft\Windows\System" /V DisableAcrylicBackgroundOnLogon /T REG_DWORD /D 1 /F >> "%WIN_ENTERPRISE_INSTALL_CMD%"
+
 echo echo Remove OneDrive >>  "%WIN_ENTERPRISE_INSTALL_CMD%"
 echo del /f /q W:\windows\SysWOW64\OneDriveSetup.exe >>  "%WIN_ENTERPRISE_INSTALL_CMD%"
 

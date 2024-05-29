@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -398,7 +398,7 @@ GcKmImx8mnDisplay::InterruptRoutine(UINT MessageNumber)
         {
             m_InterruptData.InterruptType = DXGK_INTERRUPT_DISPLAYONLY_VSYNC;
         }
-        m_InterruptData.CrtcVsync.VidPnTargetId = BaseTransmitter::MIPI_DSI_CHILD_UID;
+        m_InterruptData.CrtcVsync.VidPnTargetId = BaseTransmitter::MIPI_DSI0_CHILD_UID;
         m_InterruptData.CrtcVsync.PhysicalAddress = m_FrontBufferSegmentOffset;
         m_InterruptData.CrtcVsync.PhysicalAdapterMask = 1;
         m_InterruptData.Flags.ValidPhysicalAdapterMask = TRUE;

@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Cadence Design Systems, Inc.
  * All rights reserved worldwide.
  *
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -52,6 +52,7 @@ extern "C" {
 #include <drm/drm_fourcc.h>
 #include <edidtst.h>
 #include "mipi_dsi/panel-raydium-rm67191.h"
+#include <linux/gpio/consumer.h>
 }
 
 #define printk(x, ...) DbgPrintEx(DPFLTR_IHVVIDEO_ID, DPFLTR_ERROR_LEVEL, x, __VA_ARGS__)
@@ -99,7 +100,7 @@ void SecDsiTransmitter::GetChildDescriptor(DXGK_CHILD_DESCRIPTOR* pDescriptor)
     pDescriptor->ChildCapabilities.Type.VideoOutput.SupportsSdtvModes = FALSE;
     /* child device is not an ACPI device */
     pDescriptor->AcpiUid = 0;
-    pDescriptor->ChildUid = MIPI_DSI_CHILD_UID;
+    pDescriptor->ChildUid = MIPI_DSI0_CHILD_UID;
 }
 
 RTL_QUERY_REGISTRY_ROUTINE SecDsiTransmitter_EDIDQueryRoutine;
@@ -199,10 +200,13 @@ static property mn_adv_properties[] = {
     { "" /* mark end of the list */ }
 };
 
-static LONG cid[2];
+static LONG cid[3];
+static int instance = 1;
 static property mn_panel_raydium_properties[] = {
     { "compatible", 1, "raydium,rm67191" },
-    { "reset", 2, &cid }, /*GPIO1_IO8 - reset pin: pin name, 2, gpio connection_id LowPart=cid[0] HighPart=cid[1], */
+    { "instance", 1, &instance },
+    /* GPIO1_IO8 - reset pin: pin name, number of params, gpio connection_id LowPart=cid[0] HighPart=cid[1] PinType=cid[2], */
+    { "reset", 3, &cid },
     { "" /* mark end of the list */ }
 };
 
@@ -284,6 +288,7 @@ NTSTATUS SecDsiTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface, const char*
         }
         cid[0] = m_gpio_connection_id.LowPart;
         cid[1] = m_gpio_connection_id.HighPart;
+        cid[2] = FLAG_DEV_GPIO; /* "true" GPIO pin */
 
         /* IMX - DSI - OLED panel */
         panel_pdev.dev.of_node.properties = (property*)&mn_panel_raydium_properties;

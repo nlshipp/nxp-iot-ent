@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013, NVIDIA Corporation.  All rights reserved.
- * Copyright 2022 NXP
+ * Copyright 2022,2024 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -228,13 +228,30 @@ int drm_panel_get_modes(struct drm_panel *panel)
 struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
 	int i;
+	const char *np_cmptbl = NULL;
+	const char *host_cmptbl = NULL;
+	int np_cmptbl_len = 0, host_cmptbl_len = 0;
+	u32 np_instance = 0, host_instance = 0;
+
+	int ret;
 
 	if (!np)
 		return ERR_PTR(-ENODEV);
 
+	np_cmptbl = (const char*)of_get_property(np, "compatible", &np_cmptbl_len);
+	ret = of_property_read_u32_array(np, "instance", &np_instance, 1);
+	if (ret || !np_cmptbl)
+		return ERR_PTR(-ENODEV);
+
 	for (i = 0; i < DRM_PANEL_MAX_NUM; i++) {
 		if (panel_list[i] && panel_list[i]->dev) {
-			if (panel_list[i]->dev->of_node.properties == np->properties) {
+			host_cmptbl = (const char *)of_get_property(&panel_list[i]->dev->of_node, "compatible", &host_cmptbl_len);
+			ret = of_property_read_u32_array(&panel_list[i]->dev->of_node, "instance", &host_instance, 1);
+			if (ret || !host_cmptbl || (host_cmptbl_len != np_cmptbl_len)) {
+				continue;
+			}
+			ret = strcmp(np_cmptbl, host_cmptbl);
+			if (!ret && (np_instance == host_instance)) {
 				return panel_list[i];
 			}
 		}

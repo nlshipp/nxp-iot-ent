@@ -1,5 +1,5 @@
 /*
-* Copyright 2023 NXP
+* Copyright 2023-2024 NXP
 *
 * SPDX-License-Identifier: BSD-3-Clause
 */
@@ -174,7 +174,7 @@ EFI_STATUS Imx8xLdbStop(imxDisplayInterfaceType displayInterface)
     MmioWrite32(gpr + LDB_PHY_OFFSET + LVDS_PHY_CTRL_REG, 0);
     MmioWrite32(gpr + LDB_PHY_OFFSET + LVDS_CTRL, LVDS_CTRL_CH0_MODE__DISABLED);
 
-    /* Power up PLL in MIPI DSI PHY */
+    /* Power down MIPI DSI PHY and PLL */
     MmioWrite32(gpr + MIPI_PHY_OFFSET + DPHY_PD_DPHY, 1);
     MmioWrite32(gpr + MIPI_PHY_OFFSET + DPHY_PD_PLL, 1);
   }

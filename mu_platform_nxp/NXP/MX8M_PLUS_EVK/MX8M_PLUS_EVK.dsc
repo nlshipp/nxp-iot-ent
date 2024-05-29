@@ -366,6 +366,11 @@
   #
   giMX8TokenSpaceGuid.PcdFlexSpiBaseAddress|0x30bb0000
 
+  # Boot options
+  giMX8TokenSpaceGuid.PcdBootDevice1Path|L"VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,02000000)/SD(0x0)"
+  giMX8TokenSpaceGuid.PcdBootDevice1Description|L"Boot from SD Card"
+  giMX8TokenSpaceGuid.PcdBootDevice2Path|L"VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,03000000)/eMMC(0x0)"
+  giMX8TokenSpaceGuid.PcdBootDevice2Description|L"Boot from eMMC"
 [PcdsPatchableInModule]
   # Use system default resolution
   gEfiMdeModulePkgTokenSpaceGuid.PcdVideoHorizontalResolution|0

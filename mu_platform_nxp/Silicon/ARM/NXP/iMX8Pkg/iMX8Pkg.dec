@@ -173,7 +173,11 @@
   gArmPlatformTokenSpaceGuid.PcdPowerButtonEnabled|FALSE|BOOLEAN|0x0000004F
   gEfiMdePkgTokenSpaceGuid.PcdUefiRuntimeDebugEnable|FALSE|BOOLEAN|0x00000050
   giMXPlatformTokenSpaceGuid.PcdSerialRegisterBase|0x00000000|UINT64|0x00000051
-  gEfiMdeModulePkgTokenSpaceGuid.PcdEmuVariableNvModeEnable|FALSE|BOOLEAN|0x00000051
-  giMX8TokenSpaceGuid.PcdFlexSpiBaseAddress|0x00000000|UINT64|0x00000052
+  gEfiMdeModulePkgTokenSpaceGuid.PcdEmuVariableNvModeEnable|FALSE|BOOLEAN|0x00000052
+  giMX8TokenSpaceGuid.PcdFlexSpiBaseAddress|0x00000000|UINT64|0x00000054
   
-  
+# Boot manager options
+  giMX8TokenSpaceGuid.PcdBootDevice1Path|L""|VOID*|0x00000055
+  giMX8TokenSpaceGuid.PcdBootDevice1Description|L""|VOID*|0x00000056
+  giMX8TokenSpaceGuid.PcdBootDevice2Path|L""|VOID*|0x00000057
+  giMX8TokenSpaceGuid.PcdBootDevice2Description|L""|VOID*|0x00000058

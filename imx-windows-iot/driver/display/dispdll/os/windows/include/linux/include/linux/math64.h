@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Modifications Copyright 2022 NXP
+ * Modifications Copyright 2022,2024 NXP
  */
 #ifndef _LINUX_MATH64_H
 #define _LINUX_MATH64_H
@@ -115,5 +115,25 @@ static inline u64 mul_u32_u32(u32 a, u32 b)
 	return (u64)a * b;
 }
 #endif
+
+ static inline u64 DIV64_U64_ROUND_UP(u64 ll, u64 d)
+ {
+	return div64_u64(ll + d - 1, d);
+ }
+
+/**
+ * DIV64_U64_ROUND_CLOSEST - unsigned 64bit divide with 64bit divisor rounded to nearest integer
+ * @dividend: unsigned 64bit dividend
+ * @divisor: unsigned 64bit divisor
+ *
+ * Divide unsigned 64bit dividend by unsigned 64bit divisor
+ * and round to closest integer.
+ *
+ * Return: dividend / divisor rounded to nearest integer
+ */
+ static inline u64 DIV64_U64_ROUND_CLOSEST(u64 dividend, u64 divisor)
+ {
+	return div64_u64(dividend + divisor / 2, divisor);
+ }
 
 #endif /* _LINUX_MATH64_H */

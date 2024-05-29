@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022,2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -42,6 +42,7 @@
 #define IMX_CLK_FREQ_594M       594000000U
 #define IMX_CLK_FREQ_519_7M     519750000U
 #define IMX_CLK_FREQ_500M       500000000U
+#define IMX_CLK_FREQ_432M       432000000U
 #define IMX_CLK_FREQ_400M       400000000U
 #define IMX_CLK_FREQ_333_3M     333333333U
 #define IMX_CLK_FREQ_266_6M     266666666U

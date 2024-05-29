@@ -1,6 +1,7 @@
 /** @file
 *
 *  Copyright (c) 2013-2015, ARM Limited. All rights reserved.
+*  Copyright (c) 2018, Linaro Ltd. All rights reserved.
 *  Copyright (c) Microsoft Corporation. All rights reserved.
 *  Copyright 2022 - 2023 NXP
 *
@@ -20,6 +21,8 @@
 #include <Protocol/DevicePathFromText.h>
 #include <Protocol/PciIo.h>
 #include <Protocol/PciRootBridgeIo.h>
+#include <Library/UefiBootManagerLib.h>
+#include <Protocol/PlatformBootManager.h>
 
 #include <Guid/EventGroup.h>
 #include <Guid/GlobalVariable.h>
@@ -33,7 +36,7 @@
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/IoLib.h>
 #include <Library/PrintLib.h>
-#include <Library/UefiBootManagerLib.h>
+#include <Library/UefiBootServicesTableLib.h>
 
 // 7E374E25-8E01-4FEE-87F2-390C23C606CD is the global GUID for the AcpiTable.  
 STATIC CONST EFI_GUID mImx8AcpiTableFile = { 0x7E374E25, 0x8E01, 0x4FEE, {0x87, 0xF2, 0x39, 0x0C, 0x23, 0xC6, 0x06, 0xCD} };
@@ -70,6 +73,105 @@ STATIC PLATFORM_USB_KEYBOARD mUsbKeyboard = {
     END_DEVICE_PATH_TYPE, END_ENTIRE_DEVICE_PATH_SUBTYPE,
     DP_NODE_LEN (EFI_DEVICE_PATH_PROTOCOL)
   }
+};
+
+STATIC
+EFI_STATUS
+CreatePlatformBootOptionFromPath (
+  IN     CHAR16                          *PathStr,
+  IN     CHAR16                          *Description,
+  IN OUT EFI_BOOT_MANAGER_LOAD_OPTION    *BootOption
+  )
+{
+  EFI_STATUS                   Status;
+  EFI_DEVICE_PATH              *DevicePath;
+
+  DevicePath = (EFI_DEVICE_PATH *)ConvertTextToDevicePath (PathStr);
+  ASSERT (DevicePath != NULL);
+  Status = EfiBootManagerInitializeLoadOption (
+             BootOption,
+             LoadOptionNumberUnassigned,
+             LoadOptionTypeBoot,
+             LOAD_OPTION_ACTIVE,
+             Description,
+             DevicePath,
+             NULL,
+             0
+             );
+  FreePool (DevicePath);
+  return Status;
+}
+
+#define IMX_BOOT_OPTION_CNT 2
+STATIC
+EFI_STATUS
+GetPlatBootOptionsAndKeys (
+  OUT UINTN                              *BootCount,
+  OUT EFI_BOOT_MANAGER_LOAD_OPTION       **BootOptions,
+  OUT EFI_INPUT_KEY                      **BootKeys
+  )
+{
+  CHAR16                                 *PathStr;
+  CHAR16                                 *DevDescription;
+  EFI_STATUS                             Status;
+  UINTN                                  Size;
+  UINTN                                  BootOptCount;
+
+  BootOptCount = 0;
+  /* Allocate pool for boot options */
+  Size = sizeof (EFI_BOOT_MANAGER_LOAD_OPTION) * IMX_BOOT_OPTION_CNT;
+  *BootOptions = (EFI_BOOT_MANAGER_LOAD_OPTION *)AllocateZeroPool (Size);
+  if (*BootOptions == NULL) {
+    DEBUG ((DEBUG_ERROR, "Failed to allocate memory for BootOptions\n"));
+    return EFI_OUT_OF_RESOURCES;
+  }
+  /* Allocate pool for boot keys */
+  Size = sizeof (EFI_INPUT_KEY) * IMX_BOOT_OPTION_CNT;
+  *BootKeys = (EFI_INPUT_KEY *)AllocateZeroPool (Size);
+  if (*BootKeys == NULL) {
+    DEBUG ((DEBUG_ERROR, "Failed to allocate memory for BootKeys\n"));
+    Status = EFI_OUT_OF_RESOURCES;
+    goto Error;
+  }
+  /* Get info for 1. Boot device from PCD and create new Boot Option.
+   * This must be defined.
+   */
+  PathStr = (CHAR16 *)PcdGetPtr (PcdBootDevice1Path);
+  DevDescription = (CHAR16 *)PcdGetPtr (PcdBootDevice1Description);
+  ASSERT (PathStr != NULL);
+  Status = CreatePlatformBootOptionFromPath (
+             PathStr,
+             DevDescription,
+             &(*BootOptions)[0]
+             );
+  ASSERT_EFI_ERROR (Status);
+  BootOptCount++;
+  /* Get info for 2. Boot device from PCD and create new Boot Option
+   * This is optional.
+   */
+  PathStr = (CHAR16 *)PcdGetPtr (PcdBootDevice2Path);
+  DevDescription = (CHAR16 *)PcdGetPtr (PcdBootDevice2Description);
+  if (PathStr != NULL) {
+    Status = CreatePlatformBootOptionFromPath (
+             PathStr,
+             DevDescription,
+             &(*BootOptions)[1]
+             );
+    ASSERT_EFI_ERROR (Status);
+    BootOptCount++;
+  } else {
+    DEBUG ((DEBUG_INFO, "Secondary imx boot device not specified. Skipping.\n"));
+  }
+  *BootCount =   BootOptCount;
+
+  return EFI_SUCCESS;
+Error:
+  FreePool (*BootOptions);
+  return Status;
+}
+
+PLATFORM_BOOT_MANAGER_PROTOCOL mPlatformBootManager = {
+  GetPlatBootOptionsAndKeys
 };
 
 
@@ -217,6 +319,17 @@ iMX8EntryPoint (
   Status = ShellDynCmdRunAxfInstall (ImageHandle);
   if (EFI_ERROR (Status)) {
     DEBUG ((EFI_D_ERROR, "iMX8Dxe: Failed to install ShellDynCmdRunAxf\n"));
+  }
+
+  // Install PlatformBootManagerProtocol
+  Status = gBS->InstallProtocolInterface (
+                  &ImageHandle,
+                  &gPlatformBootManagerProtocolGuid,
+                  EFI_NATIVE_INTERFACE,
+                  &mPlatformBootManager
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "Failed to allocate memory for BootOptions\n"));
   }
 
   return Status;

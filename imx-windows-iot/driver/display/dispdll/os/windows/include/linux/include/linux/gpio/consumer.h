@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Modifications Copyright 2023 NXP
+ * Modifications Copyright 2023-2024 NXP
  */
 
 #ifndef __LINUX_GPIO_CONSUMER_H
@@ -16,6 +16,13 @@ struct gpio_desc {
 /* flag symbols are bit numbers */
 #define FLAG_ACTIVE_LOW	BIT(6)	/* value has active low */
 
+	unsigned long		device;
+	/* Types of GPIO devices */
+#define FLAG_DEV_I2C_EXPANDER	BIT(30)	/* GPIO driven by I2C expander */
+#define FLAG_DEV_GPIO			BIT(31)	/* "true" GPIO pin */
+
+	unsigned long		expander_data_reg;
+	unsigned long		expander_pin_mask;
 	struct iotarget_handles io_target;
 };
 

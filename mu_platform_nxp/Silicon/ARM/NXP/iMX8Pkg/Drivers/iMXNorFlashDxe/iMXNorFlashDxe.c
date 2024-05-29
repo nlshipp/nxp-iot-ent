@@ -25,7 +25,7 @@
 #include <Guid/SystemNvDataGuid.h>
 
 #include "iMXNorFlashHw.h"
-#include "iMXNorFspi.h"
+#include "iMX8FlexSpiLib.h"
 
 static EFI_GUID gLocalEfiAuthenticatedVariableGuid = { 0xaaf32c78, 0x947b,
     0x439a, { 0xa1, 0x80, 0x2e, 0x14, 0x4e, 0xc3, 0x77, 0x92 } };

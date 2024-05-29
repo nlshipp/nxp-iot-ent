@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -187,7 +187,10 @@ Device (I2C8)   // I2C0_MIPI_LVDS0
   {
     Name (RBUF, ResourceTemplate () {
       MEMORY32FIXED(ReadWrite, 0x56226000, 0x1000, )
-      Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 91 }       // GIC SPI
+/* MIPI-DSI panel with LP communication need the i2C interrupt be commented-out here,
+   because it interferes with MIPI-DSI interrupt (irq steer not supported)
+   For other displays, i2c interrupt can be enabled here and commented-out in Dsdt-Gfx.asl instead */
+//      Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 91 }       // GIC SPI
       I2CSerialBus(0x58, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.SCFW")
     })
     Return(RBUF)
@@ -209,7 +212,10 @@ Device (I2C9)   // I2C0_MIPI_LVDS1
   {
     Name (RBUF, ResourceTemplate () {
       MEMORY32FIXED(ReadWrite, 0x56246000, 0x1000, )
-      Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 92 }       // GIC SPI
+/* MIPI-DSI panel with LP communication need the i2C interrupt be commented-out here,
+   because it interferes with MIPI-DSI interrupt (irq steer not supported)
+   For other displays, i2c interrupt can be enabled here and commented-out in Dsdt-Gfx.asl instead */
+//      Interrupt(ResourceConsumer, Level, ActiveHigh, Exclusive) { 92 }       // GIC SPI
       I2CSerialBus(0x59, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.SCFW")
     })
     Return(RBUF)

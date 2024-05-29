@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc. All Rights Reserved.
- * Copyright 2017, 2023 NXP
+ * Copyright 2017, 2023-2024 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -22,6 +22,7 @@ EFI_STATUS mipi_dsi_northwest_init(
 			    enum dsi_pixel_format fmt,
 			    imxDisplayInterfaceType displayInterface);
 EFI_STATUS mipi_dsi_northwest_host_attach(VOID);
+EFI_STATUS mipi_dsi_northwest_host_dpi_rst_deassert(VOID);
 EFI_STATUS mipi_dsi_northwest_enable(VOID);
 EFI_STATUS mipi_dsi_northwest_disable(VOID);
 EFI_STATUS mipi_dsi_northwest_host_transfer(uint8_t Type, uint8_t Chan, uint32_t Flg, const void *Data, uint16_t Size);

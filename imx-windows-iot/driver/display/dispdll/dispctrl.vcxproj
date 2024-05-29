@@ -183,6 +183,7 @@
     <ClCompile Include="GcKmdImx8mqDisplay.cpp" />
     <ClCompile Include="GcKmdImx8qxpDisplay.cpp" />
     <ClCompile Include="GcKmdImx8qxpDisplayController.cpp" />
+    <ClCompile Include="GcKmdImx8qxpMipiDsiDisplay.cpp" />
     <ClCompile Include="GcKmdLogging.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">precomp.h</PrecompiledHeaderFile>
@@ -190,6 +191,7 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">precomp.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="GcKmdMpLvdsTransmitter.cpp" />
+    <ClCompile Include="GcKmdNwlDsiTransmitter.cpp" />
     <ClCompile Include="GcKmdSecDsiTransmitter.cpp" />
     <ClCompile Include="GcKmdQxpLvdsTransmitter.cpp" />
     <ClCompile Include="GcKmdUtil.cpp">
@@ -217,7 +219,10 @@
     <ClCompile Include="mipi_dsi\adv7511_drv.c" />
     <ClCompile Include="mipi_dsi\adv7533.c" />
     <ClCompile Include="mipi_dsi\drm_mipi_dsi.c" />
+    <ClCompile Include="mipi_dsi\nwl-dsi.c" />
     <ClCompile Include="mipi_dsi\panel-raydium-rm67191.c" />
+    <ClCompile Include="mipi_dsi\phy-core-mipi-dphy.c" />
+    <ClCompile Include="mipi_dsi\phy-fsl-imx8-mipi-dphy.c" />
     <ClCompile Include="mipi_dsi\sec-dsim.c" />
     <ClCompile Include="mipi_dsi\sec_mipi_dsim-imx.c" />
     <ClCompile Include="os\windows\src\board-imx8mn.cpp" />
@@ -299,8 +304,10 @@
     <ClInclude Include="GcKmdImx8mqDisplay.h" />
     <ClInclude Include="GcKmdImx8qxpDisplay.h" />
     <ClInclude Include="GcKmdImx8qxpDisplayController.h" />
+    <ClInclude Include="GcKmdImx8qxpMipiDsiDisplay.h" />
     <ClInclude Include="GcKmdLogging.h" />
     <ClInclude Include="GcKmdMpLvdsTransmitter.h" />
+    <ClInclude Include="GcKmdNwlDsiTransmitter.h" />
     <ClInclude Include="GcKmdQxpLvdsTransmitter.h" />
     <ClInclude Include="GcKmdSecDsiTransmitter.h" />
     <ClInclude Include="GcKmdUtil.h" />
@@ -317,6 +324,7 @@
     <ClInclude Include="mipi_dsi\adv7511.h" />
     <ClInclude Include="mipi_dsi\drm_mipi_dsi.h" />
     <ClInclude Include="mipi_dsi\mipi_display.h" />
+    <ClInclude Include="mipi_dsi\nwl-dsi.h" />
     <ClInclude Include="mipi_dsi\panel-raydium-rm67191.h" />
     <ClInclude Include="mipi_dsi\sec_mipi_dphy_ln14lpp.h" />
     <ClInclude Include="mipi_dsi\sec_mipi_dsim.h" />
@@ -351,6 +359,7 @@
     <ClInclude Include="os\windows\include\linux\include\drm\drm_rect.h" />
     <ClInclude Include="os\windows\include\linux\include\drm\drm_scdc_helper.h" />
     <ClInclude Include="os\windows\include\linux\include\dt-bindings\firmware\imx\rsrc.h" />
+    <ClInclude Include="os\windows\include\linux\include\linux\align.h" />
     <ClInclude Include="os\windows\include\linux\include\linux\atomic.h" />
     <ClInclude Include="os\windows\include\linux\include\linux\bitmap.h" />
     <ClInclude Include="os\windows\include\linux\include\linux\bitops.h" />

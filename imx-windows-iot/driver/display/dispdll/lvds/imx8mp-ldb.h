@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright 2022 NXP
+ * Copyright 2022,2024 NXP
  */
 
 #ifndef __IMX8MP_LDB__
@@ -10,7 +10,7 @@
 
  /* Display interfaces */
 typedef enum {
-	imx_interface_unknown = 0,
+	imx_lvds_interface_unknown = 0,
 	imx_lvds0,
 	imx_lvds1,
 	imx_lvds0_dual,

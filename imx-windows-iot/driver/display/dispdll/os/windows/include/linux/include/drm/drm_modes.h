@@ -5,7 +5,7 @@
  *   Jesse Barnes <jesse.barnes@intel.com>
  * Copyright © 2014 Intel Corporation
  *   Daniel Vetter <daniel.vetter@ffwll.ch>
- * Copyright 2022 NXP
+ * Copyright 2022,2024 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -372,6 +372,7 @@ struct drm_display_mode {
 
 #define obj_to_mode(x) container_of(x, struct drm_display_mode, base)
 
+void drm_mode_debug_printmodeline(const struct drm_display_mode *mode);
 bool drm_mode_is_420_only(const struct drm_display_info *display,
 	const struct drm_display_mode *mode);
 

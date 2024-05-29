@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#ifndef IMX_NOR_FSPI_H_
-#define IMX_NOR_FSPI_H_
+#ifndef IMX_FLEX_SPI_LIB_H_
+#define IMX_FLEX_SPI_LIB_H_
 
 #include <Library/BaseLib.h>
 #include <Library/DebugLib.h>
@@ -68,6 +68,7 @@ struct nxp_fspi_devtype_data {
   UINT32 rxfifo;
   UINT32 txfifo;
   UINT32 ahb_buf_size;
+  UINT32 quirks;
 };
 
 struct FspiData {
@@ -79,6 +80,7 @@ struct FspiData {
   struct nxp_fspi_devtype_data *devtype_data;
 #define IMX_FSPI_DTR_ODD_ADDR       (1 << 0)
   int flags;
+  int selected;
 };
 
 struct FspiData* GetFspiData();
@@ -87,5 +89,5 @@ int FspiAdjustCommandSize(FspiCommand *cmd);
 
 #define IMX_FLEXSPI_BASE_ADDR           0x30bb0000
 
-#endif //IMX_NOR_FSPI_H_
+#endif //IMX_FLEX_SPI_LIB_H_
 

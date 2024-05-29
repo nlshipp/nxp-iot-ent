@@ -4,7 +4,7 @@
 * Copyright (c) 2015 Microsoft
 * SPDX-License-Identifier: MS-PL
 * NXP modifications are licensed under the same license
-* Copyright 2020, 2022 NXP
+* Copyright 2020, 2022, 2024 NXP
 *
 */
 
@@ -216,6 +216,8 @@ NTSTATUS EvtDeviceD0Entry(_In_ WDFDEVICE hDevice, _In_ WDF_POWER_DEVICE_STATE Pr
             }
         }
         TCPC_PHY_ReadAllRegs(pDevContext,__FUNCTION__);
+        Alert.R = 0x7FFF;
+        WrRegSync(TCPC_PHY_ALERT_MASK, Alert.R, IMX_EvtDeviceD0Entry);                /* Unmask all */
         if (!NT_SUCCESS(ntStatus = I2C_RegsIo(pDevContext, DevCapabilities_I2C_IO_Cmds))) {
             DBG_PRINT_ERROR_WITH_STATUS(ntStatus, "Get TCPC controller DevCapabilities() failed.");
         }

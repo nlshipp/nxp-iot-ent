@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) Microsoft Corporation. All rights reserved.
-*  Copyright 2022-2023 NXP
+*  Copyright 2022-2024 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -62,6 +62,10 @@ Device (GPU1)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 82 }
     // DPR #1
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 83 }
+    //MIPI-DSI0 - shared with I2C8
+    Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 91 }
+    //MIPI-DSI1 - shared with I2C9
+    Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 92 }
     // SCFW
     I2CSerialBus(0x41, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.SCFW")
     // I2C interface for IMX-LVDS-HDMI converter (IT6263) connected to MIPI-DSI/LVDS #0
@@ -70,5 +74,17 @@ Device (GPU1)
     // I2C interface for IMX-LVDS-HDMI converter (IT6263) connected to MIPI-DSI/LVDS #1
     I2CSerialBus(0x4C, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C9") // IT6263 HDMI memory region
     I2CSerialBus(0x33, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C9") // IT6263 LVDS memory region
+    // I2C interface for the IMX-MIPI-HDMI converter (ADV7535) connected to MIPI-DSI/LVDS #0
+    I2CSerialBus(0x3d, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C8") //ADV7535 Main memory region
+    I2CSerialBus(0x3b, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C8") //ADV7535 CEC memory region
+    I2CSerialBus(0x41, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C8") //ADV7535 EDID memory region
+    // I2C interface for the IMX-MIPI-HDMI converter (ADV7535) connected to MIPI-DSI/LVDS #1
+    I2CSerialBus(0x3d, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C9") //ADV7535 Main memory region
+    I2CSerialBus(0x3b, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C9") //ADV7535 CEC memory region
+    I2CSerialBus(0x41, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C9") //ADV7535 EDID memory region
+    //I2C interface for Expander driven GPIO pin MIPI_DSI0_EN
+    I2CSerialBus(0x1A, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C1") //U25 PCA9557PW
+    //I2C interface for Expander driven GPIO pin MIPI_DSI1_EN
+    I2CSerialBus(0x1D, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C1") //U187 PCA9557PW
   })
 }

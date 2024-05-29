@@ -124,7 +124,11 @@
   # | Operating System  |  ^
   # | Memory            |  |
   # |                   |  |
+  # |                   |  |
+  # |                   |  |
   # |                   |  v
+  # +-------------------+===> (0xF5F00000) PcdFlashNvStorageVariableBase
+  # | Nv UEFI Vars      |  |
   # +-------------------+===> (0xF6000000) PcdArmGPUReservedMemoryBase
   # | GPU Reserved      |  ^
   # | Memory            |  |  (0x08000000) PcdArmGPUReservedMemorySize
@@ -166,8 +170,8 @@
 !if $(CONFIG_HEADLESS) == TRUE
   gArmTokenSpaceGuid.PcdSystemMemorySize|0xBE000000
 !else
-  #The SystemMemorySize must exclude GPU reserved memory
-  gArmTokenSpaceGuid.PcdSystemMemorySize|0xB6000000
+  #The SystemMemorySize must exclude GPU reserved memory and 3*NvStorageVariableSize
+  gArmTokenSpaceGuid.PcdSystemMemorySize|0xB5F00000
 !endif
 !else
   gArmTokenSpaceGuid.PcdSystemMemorySize|0xC0000000
@@ -203,14 +207,14 @@
 !endif
 
   #
-  # NV Storage PCDs. Use base of 0x30370000 for SNVS?
+  # NV Storage PCDs. Use base of 0xF5F00000 ... area below GPU
   #
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase|0x30370000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize|0x00004000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase|0x30374000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize|0x00004000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase|0x30378000
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize|0x00004000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase|0xF5F00000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize|0x00040000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase|0xF5F40000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize|0x00040000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase|0xF5F80000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize|0x00040000
 
   # i.MX8M Quad
   gArmPlatformTokenSpaceGuid.PcdCoreCount|4
@@ -353,6 +357,17 @@
   #
   giMX8TokenSpaceGuid.PcdUsb1XhciBaseAddress|0x38100000
   giMX8TokenSpaceGuid.PcdUsb2XhciBaseAddress|0x38200000
+
+  #
+  # FlexSPI
+  #
+  giMX8TokenSpaceGuid.PcdFlexSpiBaseAddress|0x30bb0000
+
+  # Boot options
+  giMX8TokenSpaceGuid.PcdBootDevice1Path|L"VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,02000000)/SD(0x0)"
+  giMX8TokenSpaceGuid.PcdBootDevice1Description|L"Boot from SD Card"
+  giMX8TokenSpaceGuid.PcdBootDevice2Path|L"VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,01000000)/eMMC(0x0)"
+  giMX8TokenSpaceGuid.PcdBootDevice2Description|L"Boot from eMMC"
 
 [PcdsPatchableInModule]
   # Use system default resolution

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -1191,6 +1191,67 @@ int _readl_poll_timeout(u32 *addr, u32 mask, u32 cmp_val,
     return -ETIMEDOUT;
 }
 
+/*
+* Polls specific regmap register until condition is met or timeout occurs
+* param map - regmap
+* param reg - register to poll
+* param mask - mask to apply on the value read from address
+* param cmp_val - value compared against masked read from address: (_read_val & mask) == cmp_val
+* param non_equal - TRUE = compare condition changed to (_read_val & mask) != cmp_val
+* param delay_us - delay in us to wait after each poll
+* param timeout_us - timeout in us after which the polling is terminated
+* param sleep_before_read - delay (delay_us) applied also before first poll
+*/
+int _regmap_read_poll_timeout_ex(struct regmap* map, u32 reg, u32 mask, u32 cmp_val,
+    bool non_equal, unsigned long delay_us, u64 timeout_us, bool sleep_before_read)
+{
+    u32 _read_val;
+    int ret;
+    ktime_t __timeout = ktime_add_us(ktime_get(), timeout_us);
+    if (sleep_before_read && delay_us) {
+        usleep_range(delay_us, delay_us);
+    }
+    for (;;) {
+        ret = regmap_read(map, reg, &_read_val);
+        if (ret) {
+            return ret;
+        }
+        if (non_equal) {
+            if ((_read_val & mask) != cmp_val) {
+                break;
+            }
+        }
+        else
+        {
+            if ((_read_val & mask) == cmp_val) {
+                break;
+            }
+        }
+        if (timeout_us && ktime_compare(ktime_get(), __timeout) > 0) {
+            ret = regmap_read(map, reg, &_read_val);
+            if (ret) {
+                return ret;
+            }
+            break;
+        }
+        if (delay_us) {
+            usleep_range(delay_us, delay_us);
+        }
+    }
+    if (non_equal) {
+        if ((_read_val & mask) != cmp_val) {
+            return 0;
+        }
+    }
+    else
+    {
+        if ((_read_val & mask) == cmp_val) {
+            return 0;
+        }
+    }
+    return -ETIMEDOUT;
+}
+
 //
 // Preemption
 //
@@ -1225,27 +1286,41 @@ struct gpio_desc* devm_gpiod_get(struct device* dev,
     const char* con_id, unsigned long flags)
 {
     LARGE_INTEGER gpio_connection_id;
-    LONG cid[2] = {0};
+    LONG cid[5] = {0};
     NTSTATUS status;
     struct gpio_desc* gpio;
+    ACCESS_MASK acc_msk = GENERIC_WRITE;
 
     if (!dev || !con_id) {
         return nullptr;
     }
-    if (of_property_read_long_array(&dev->of_node, con_id, (LONG*)&cid, 2) != 0) {
+    if (of_property_read_long_array(&dev->of_node, con_id, (LONG*)&cid, 3) != 0) {
         return nullptr;
     }
     gpio_connection_id.LowPart = cid[0];
     gpio_connection_id.HighPart = cid[1];
+
+    if (cid[2] == FLAG_DEV_I2C_EXPANDER) {
+        /* For i2c expander, there are two more data bytes to be read, so repeat the reading with lenght = 5 */
+        if (of_property_read_long_array(&dev->of_node, con_id, (LONG*)&cid, 5) != 0) {
+            return nullptr;
+        }
+    }
 
     gpio = (struct gpio_desc*)kmalloc(sizeof(*gpio), GFP_KERNEL | __GFP_ZERO);
     if (gpio == NULL) {
         return (struct gpio_desc*)ERR_PTR(-ENOMEM);
     }
     gpio->flags = flags;
+    gpio->device = cid[2];
+    if (cid[2] == FLAG_DEV_I2C_EXPANDER) {
+        gpio->expander_data_reg = cid[3];
+        gpio->expander_pin_mask = cid[4];
+        acc_msk = GENERIC_READ | GENERIC_WRITE;
+    }
 
     comm_clear_handle(&gpio->io_target);
-    status = comm_initialize(gpio_connection_id, &gpio->io_target, GENERIC_WRITE);
+    status = comm_initialize(gpio_connection_id, &gpio->io_target, acc_msk);
     if (!NT_SUCCESS(status))
     {
         _dev_err(nullptr, "comm_initialize (gpio) failed, status-0x%lx\n", status);
@@ -1273,7 +1348,35 @@ void gpiod_set_value(struct gpio_desc* desc, int value)
     if (desc->flags & FLAG_ACTIVE_LOW) {
         value = !value;
     }
-    (void)gpio_write(&desc->io_target, value);
+    if (desc->device == FLAG_DEV_GPIO) {
+        (void)gpio_write(&desc->io_target, value);
+    }
+    else if (desc->device == FLAG_DEV_I2C_EXPANDER) {
+        unsigned char port_state;
+        NTSTATUS err;
+
+        /* NOTE: simply write data register to the expander. It is assumed the pin is pre-configured to output elsewhere (uefi firmware) */
+        err = i2c_read(&desc->io_target, desc->expander_data_reg, &port_state, 1);
+        if (!NT_SUCCESS(err)) {
+            return;
+        }
+        if (value) {
+            port_state |= desc->expander_pin_mask;
+        }
+        else {
+            port_state &= ~(desc->expander_pin_mask);
+        }
+        (void)i2c_write(&desc->io_target, desc->expander_data_reg, &port_state, 1);
+    }
+}
+
+unsigned long __bf_shf(unsigned long mask)
+{
+    unsigned long index;
+    unsigned char ret;
+
+    ret = _BitScanForward(&index, mask);
+    return (ret ? index : 0);
 }
 
 } // extern "C"

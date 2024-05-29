@@ -3,6 +3,7 @@
  * phy.h -- generic phy header file
  *
  * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright 2024 NXP
  *
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
  */
@@ -17,6 +18,8 @@
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+
+#include <linux/phy/phy-mipi-dphy.h>
 
 struct phy;
 
@@ -41,6 +44,19 @@ enum phy_mode {
 	PHY_MODE_SATA,
 	PHY_MODE_LVDS,
 	PHY_MODE_DP
+};
+
+/**
+ * union phy_configure_opts - Opaque generic phy configuration
+ *
+ * @mipi_dphy:	Configuration set applicable for phys supporting
+ *		the MIPI_DPHY phy mode.
+ * @dp:		Configuration set applicable for phys supporting
+ *		the DisplayPort protocol.
+ */
+union phy_configure_opts {
+	struct phy_configure_opts_mipi_dphy	mipi_dphy;
+/*	struct phy_configure_opts_dp		dp; */
 };
 
 /**

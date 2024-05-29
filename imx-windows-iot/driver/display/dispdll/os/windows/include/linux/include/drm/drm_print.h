@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Red Hat
- * Copyright 2022 NXP
+ * Copyright 2022,2024 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -82,11 +82,17 @@ void __drm_warn(const char *format, ...);
 void __drm_dbg(enum drm_debug_category category, const char *format, ...);
 void __drm_err(const char *format, ...);
 
+#define DRM_DEV_ERROR_RATELIMITED(dev, fmt, ...) \
+	DRM_DEV_ERROR(dev, fmt, ##__VA_ARGS__)
+
 #define DRM_DEV_ERROR(dev, fmt, ...)					\
 	__drm_err(fmt, ##__VA_ARGS__)
 
 #define DRM_DEV_DEBUG(dev, fmt, ...)					\
 	__drm_dbg(DRM_UT_CORE, fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_INFO(dev, fmt, ...)				\
+	__drm_info(fmt, ##__VA_ARGS__)
 
 #define DRM_INFO(fmt, ...)						\
 	__drm_info(fmt, ##__VA_ARGS__)
@@ -105,5 +111,8 @@ void __drm_err(const char *format, ...);
 
 #define DRM_DEBUG_KMS(fmt, ...)						\
 	__drm_dbg(DRM_UT_KMS, fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_DRIVER(dev, fmt, ...)				\
+	__drm_dbg(DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
 
 #endif /* DRM_PRINT_H_ */

@@ -31,14 +31,14 @@ DefaultDestDir = 12,UMDF
 imxecompass.dll   = 1,,
 
 [Manufacturer]
-%ManufacturerName% = imxecompass_Device, NT$ARCH$
+%ManufacturerName% = imxecompass_Device, NT$ARCH$.10.0...19041
 
 
 ;*******************************
 ; imxecompass Install Section
 ;*******************************
 
-[imxecompass_Device.NT$ARCH$]
+[imxecompass_Device.NT$ARCH$.10.0...19041]
 ; DisplayName       Section          DeviceId
 ; -----------       -------          --------
 %imxecompass_DevDesc% = imxecompass_Inst, ACPI\NXP0870

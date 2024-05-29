@@ -5,7 +5,7 @@
  *   Jesse Barnes <jesse.barnes@intel.com>
  * Copyright 2005-2006 Luc Verhaegen
  * Copyright (c) 2001, Andy Ritger  aritger@nvidia.com
- * Copyright 2022 NXP
+ * Copyright 2022,2024 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,10 +35,22 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_modes.h>
+#include <drm/drm_print.h>
 
 #include <uapi/linux/fb.h>
 
 #include <stdio.h>
+
+/**
+ * drm_mode_debug_printmodeline - print a mode to dmesg
+ * @mode: mode to print
+ *
+ * Describe @mode using DRM_DEBUG.
+ */
+void drm_mode_debug_printmodeline(const struct drm_display_mode *mode)
+{
+	DRM_DEBUG_KMS("Modeline " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+}
 
 /**
  * drm_display_mode_from_videomode - fill in @dmode using @vm,

@@ -57,6 +57,7 @@
   gEfiBlockIoProtocolGuid
   gEfiDevicePathFromTextProtocolGuid
   gEfiSimpleFileSystemProtocolGuid
+  gPlatformBootManagerProtocolGuid  ## CONSUMES
 
 [FixedPcd]
   gArmTokenSpaceGuid.PcdSystemMemoryBase
@@ -70,6 +71,11 @@
   giMX8TokenSpaceGuid.PcdUsb1EhciBaseAddress
   giMX8TokenSpaceGuid.PcdUsb2EhciBaseAddress
   giMX8TokenSpaceGuid.PcdFlexSpiBaseAddress
+
+  giMX8TokenSpaceGuid.PcdBootDevice1Path        ## PRODUCES
+  giMX8TokenSpaceGuid.PcdBootDevice1Description ## PRODUCES
+  giMX8TokenSpaceGuid.PcdBootDevice2Path        ## PRODUCES
+  giMX8TokenSpaceGuid.PcdBootDevice2Description ## PRODUCES
 
   gEfiMdePkgTokenSpaceGuid.PcdUefiRuntimeDebugEnable
   giMXPlatformTokenSpaceGuid.PcdSerialRegisterBase

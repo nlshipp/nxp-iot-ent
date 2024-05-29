@@ -31,14 +31,14 @@ DefaultDestDir = 12,UMDF
 imximu.dll   = 1,,
 
 [Manufacturer]
-%ManufacturerName% = imximu_Device, NT$ARCH$
+%ManufacturerName% = imximu_Device, NT$ARCH$.10.0...19041
 
 
 ;*******************************
 ; imximu Install Section
 ;*******************************
 
-[imximu_Device.NT$ARCH$]
+[imximu_Device.NT$ARCH$.10.0...19041]
 ; DisplayName       Section          DeviceId
 ; -----------       -------          --------
 %imximu_DevDesc% = imximu_Inst, ACPI\NXP0670

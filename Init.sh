@@ -41,7 +41,8 @@ if [ -d "$SUBMODULE_CACHE/modules" ]; then
 fi
 
 echo "Populating source files in submodules ..."
-git submodule update --init --recursive
+git submodule update --init --force --recursive --depth 1
+
 
 echo "Patching external submodules ..."
 patch_dir=$(pwd)/patches;

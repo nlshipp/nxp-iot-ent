@@ -113,6 +113,7 @@ optee_core_v="CFG_TEE_CORE_DEBUG=n TRACE_LEVEL=0 CFG_TEE_CORE_LOG_LEVEL=0"
 optee_ta_v="CFG_TA_DEBUG=n CFG_TEE_CORE_TA_TRACE=0 CFG_TEE_TA_LOG_LEVEL=0"
 # (OpTEE) Use test key by default
 rpmb_key="CFG_RPMB_TESTKEY=y"
+optee_cfg_tzdram_start=""
 
 # uboot is by default built with UUU support, the name of output firmware for this build type:
 firmware_out_file_name="firmware_uuu"
@@ -351,6 +352,15 @@ generate_spl_csf () {
     $CST_ROOT/linux64/bin/cst --o $MKIMAGE_WORK_DIR/csf_spl.bin --i $MKIMAGE_WORK_DIR/csf_spl.txt
 }
 
+# Requires paths to spl_uboot.log and firmware binary as parameters.
+generate_fit_fdt_csf () {
+    awk -v binary_path="$2" -v indentation=4 '/fit-fdt hab block/ { printf "%*sBlocks = %s %s %s \"%s\"\n", indentation, "", $4, $5, $6, binary_path }' $1 \
+        | cat $IMX8_REPO_ROOT/imx-windows-iot/build/firmware/csf_templates/mx8/csf_fit_fdt.txt.template - \
+        | sed -e "s#{KEY_ROOT}#$KEY_ROOT#g" > $MKIMAGE_WORK_DIR/csf_fit_fdt.txt
+    $CST_ROOT/linux64/bin/cst --o $MKIMAGE_WORK_DIR/csf_fit_fdt.bin --i $MKIMAGE_WORK_DIR/csf_fit_fdt.txt
+}
+
+
 # Requires paths to spl_uboot.log, fit_hab.log, and firmware binary as parameters.
 generate_fit_csf () {
     { \
@@ -378,10 +388,16 @@ generate_uefi_csf () {
 sign_uboot_binary () {
     SIGNED_UBOOT_BIN=$(dirname $2)/signed_$(basename $2) ;\
     cp $2 $SIGNED_UBOOT_BIN ;\
-    SPL_CSF_OFF=$(awk '/ csf_off/ { print $2 }' $1) ;\
+    SPL_CSF_OFF=$(awk '/^ csf_off/ { print $2 }' $1) ;\
+    FIT_FDT_CSF_OFF=$(awk '/fit-fdt csf_off/ { print $3 }' $1) ;\
     FIT_CSF_OFF=$(awk '/ sld_csf_off/ { print $2 }' $1) ;\
     dd if=$MKIMAGE_WORK_DIR/csf_spl.bin of=$SIGNED_UBOOT_BIN seek=$(printf '%d' $SPL_CSF_OFF) bs=1 conv=notrunc ;\
     dd if=$MKIMAGE_WORK_DIR/csf_fit.bin of=$SIGNED_UBOOT_BIN seek=$(printf '%d' $FIT_CSF_OFF) bs=1 conv=notrunc
+    # Needs to be done after FIT signiture is entered in flash.bin as it is in FIT FDT sidned data
+    # more details in https://github.com/nxp-imx/uboot-imx/commit/25fdc42caa30faa586a277162ae5373d3e2bc2be
+    # and https://jira.sw.nxp.com/browse/LFU-573
+    generate_fit_fdt_csf $1 $SIGNED_UBOOT_BIN || exit $?
+    dd if=$MKIMAGE_WORK_DIR/csf_fit_fdt.bin of=$SIGNED_UBOOT_BIN seek=$(printf '%d' $FIT_FDT_CSF_OFF) bs=1 conv=notrunc ;\
 }
 
 # Requires UEFI size as parameters.
@@ -443,11 +459,14 @@ build_board () {
     else
         TARGET_WINDOWS_BSP_PREFIX=imx-windows-iot
     fi
-    TARGET_FIRMWARE_COMPONENTS_DIR="${TARGET_WINDOWS_BSP_PREFIX}/components/Arm64BootFirmware/$bsp_folder" # eg. imx-windows-iot/components/Arm64BootFirmware/MX8M_EVK
+    TARGET_FIRMWARE_COMPONENTS_DIR="imx-windows-iot/components/Arm64BootFirmware/$bsp_folder" # eg. imx-windows-iot/components/Arm64BootFirmware/MX8M_EVK
     TARGET_FIRMWARE_DIR="${TARGET_WINDOWS_BSP_PREFIX}/BSP/firmware/$bsp_folder" # eg. imx-windows-iot/BSP/firmware/MX8M_EVK
 
     # Build U-Boot
     if [ $build_uboot -eq 1 ]; then
+        if [ $build_uboot_with_uuu_support -eq 1 ]; then
+            echo "$(tput setaf 1) Building uBoot image with uuu support! Defconfig: $uboot_defconfig $(tput sgr 0)"
+        fi
         pushd uboot-imx/ || exit $?
         if [ $clean -eq 1 ]; then
             make distclean
@@ -463,7 +482,7 @@ build_board () {
         if [ $clean -eq 1 ]; then
             make PLAT=$atf_plat clean || exit $?
         fi
-        make -s PLAT=$atf_plat SPD=opteed bl31 || exit $?
+        make -s PLAT=$atf_plat SPD=opteed WINDOWS_BSP=y bl31 || exit $?
         popd
     fi
 
@@ -475,8 +494,21 @@ build_board () {
             make clean PLATFORM=imx PLATFORM_FLAVOR=$optee_plat || exit $?
             rm -r ./out
         fi
-        echo "make -s -j12 PLATFORM=imx PLATFORM_FLAVOR=$optee_plat $rpmb_write_key $rpmb_reset_fat $optee_core_v $rpmb_key CFG_RPMB_FS=y CFG_REE_FS=n CFG_IMXCRYPT=y CFG_CORE_HEAP_SIZE=131072"
-        make -s -j12 PLATFORM=imx PLATFORM_FLAVOR=$optee_plat $rpmb_write_key $rpmb_reset_fat $optee_core_v $rpmb_key CFG_RPMB_FS=y CFG_REE_FS=n CFG_IMXCRYPT=y CFG_CORE_HEAP_SIZE=131072 || exit $?
+        echo "make -s -j12 PLATFORM=imx PLATFORM_FLAVOR=$optee_plat WINDOWS_BSP=y $optee_cfg_tzdram_start $rpmb_write_key $rpmb_reset_fat $optee_core_v $rpmb_key CFG_RPMB_FS=y CFG_REE_FS=n CFG_IMXCRYPT=y CFG_CORE_HEAP_SIZE=131072 CFG_RPMB_FS_RD_ENTRIES=30 CFG_RPMB_FS_CACHE_ENTRIES=60"
+        make -s -j12 PLATFORM=imx \
+            PLATFORM_FLAVOR=$optee_plat \
+            WINDOWS_BSP=y \
+            $optee_cfg_tzdram_start \
+            $rpmb_write_key \
+            $rpmb_reset_fat \
+            $optee_core_v \
+            $rpmb_key \
+            CFG_RPMB_FS=y \
+            CFG_REE_FS=n \
+            CFG_IMXCRYPT=y \
+            CFG_CORE_HEAP_SIZE=131072 \
+            CFG_RPMB_FS_RD_ENTRIES=30 \
+            CFG_RPMB_FS_CACHE_ENTRIES=60 || exit $?
 
         popd
         export CROSS_COMPILE=$AARCH64_TOOLCHAIN_PATH
@@ -487,13 +519,21 @@ build_board () {
         export TA_CROSS_COMPILE=$AARCH64_TOOLCHAIN_PATH
         export TA_DEV_KIT_DIR=$IMX8_REPO_ROOT/imx-optee-os/out/arm-plat-imx/export-ta_arm64
         export TA_CPU=cortex-a53
-        
+
+        # Apply patches on wolfssl subrepo in order to fix build error caused by fall_through attribute decleration
+        pushd MSRSec/external/wolfssl || exit $?
+        git apply $IMX8_REPO_ROOT/patches/fall_through_issue.patch
+        popd
+        pushd MSRSec/external/ms-tpm-20-ref/external/wolfssl || exit $?
+        git apply $IMX8_REPO_ROOT/patches/fall_through_issue.patch
+        popd
+
         pushd MSRSec/TAs/optee_ta || exit $?
         if [ $clean -eq 1 ]; then
             rm -r ./out
         fi
-        echo "CFG_ARM64_ta_arm64=y $optee_ta_v CFG_FTPM_USE_WOLF=y CFG_AUTHVARS_USE_WOLF=y"
-        make CFG_ARM64_ta_arm64=y $optee_ta_v CFG_FTPM_USE_WOLF=y CFG_AUTHVARS_USE_WOLF=y || exit $?
+        echo "CFG_TA_OPTEE_CORE_API_COMPAT_1_1=y CFG_ARM64_ta_arm64=y $optee_ta_v CFG_FTPM_USE_WOLF=y CFG_AUTHVARS_USE_WOLF=y"
+        make CFG_TA_OPTEE_CORE_API_COMPAT_1_1=y CFG_ARM64_ta_arm64=y $optee_ta_v CFG_FTPM_USE_WOLF=y CFG_AUTHVARS_USE_WOLF=y || exit $?
         popd
 
         mkdir -p mu_platform_nxp/Microsoft/OpteeClientPkg/Bin/AuthvarsTa/Arm64/Test || exit $?
@@ -532,7 +572,6 @@ build_board () {
         fi
         export GCC5_AARCH64_PREFIX=$AARCH64_TOOLCHAIN_PATH
 
-        python3 NXP/"${uefi_folder}"/PlatformBuild.py --setup || exit $?
         python3 NXP/"${uefi_folder}"/PlatformBuild.py --update || exit $?
         python3 NXP/"${uefi_folder}"/PlatformBuild.py -v TARGET=$build_configuration \
         PROFILE=${build_uefi_profile} MAX_CONCURRENT_THREAD_NUMBER=10 TOOL_CHAIN_TAG=GCC5 BUILDREPORTING=TRUE BUILDREPORT_TYPES="PCD" || exit $?
@@ -572,7 +611,7 @@ build_board () {
             cp -f uboot-imx/u-boot.bin  $MKIMAGE_WORK_DIR                                       && \
             cp -f ${TARGET_FIRMWARE_COMPONENTS_DIR}/scfw_tcm.bin $MKIMAGE_WORK_DIR            || exit $?
         elif [ $mkimage_SOC == "iMX9" ]; then
-            cp -f ${TARGET_FIRMWARE_COMPONENTS_DIR}/mx93a0-ahab-container.img $MKIMAGE_WORK_DIR && \
+            cp -f ${TARGET_FIRMWARE_COMPONENTS_DIR}/mx93a*-ahab-container.img $MKIMAGE_WORK_DIR && \
             cp -f uboot-imx/u-boot.bin  $MKIMAGE_WORK_DIR                                       && \
             cp -f firmware-imx/firmware/ddr/synopsys/lpddr4_imem_*.bin $MKIMAGE_WORK_DIR        && \
             cp -f firmware-imx/firmware/ddr/synopsys/lpddr4_dmem_*.bin $MKIMAGE_WORK_DIR      || exit $?
@@ -596,7 +635,7 @@ build_board () {
             make SOC=$mkimage_SOC flash_ddr4_evk 2>&1 | tee $MKIMAGE_WORK_DIR/spl_uboot.log || exit $?
         elif [ $atf_plat == "imx93" ]; then
             echo "Building container 3"
-            make SOC=$mkimage_SOC REV=C0 u-boot-atf-optee-uefi-container.img 2>&1 > $MKIMAGE_WORK_DIR/container3.log || exit $?
+            make SOC=$mkimage_SOC REV=A1 u-boot-atf-optee-uefi-container.img 2>&1 > $MKIMAGE_WORK_DIR/container3.log || exit $?
             if [ $build_secure -eq 1 ]; then
                 pushd $MKIMAGE_WORK_DIR
                 # Parse mkimage log, generate CSF and sign container 3
@@ -610,7 +649,7 @@ build_board () {
                 popd
             fi
             echo "Building container 1+2"
-            make SOC=$mkimage_SOC flash_singleboot_uefi 2>&1 | tee $MKIMAGE_WORK_DIR/container12.log || exit $?
+            make SOC=$mkimage_SOC REV=A1 flash_singleboot_uefi 2>&1 | tee $MKIMAGE_WORK_DIR/container12.log || exit $?
             if [ $build_secure -eq 1 ]; then
                 pushd $MKIMAGE_WORK_DIR
                 # Parse mkimage log, generate CSF and sign container 1+2
@@ -753,33 +792,14 @@ if [ $build_8m -eq 1 ]; then
     echo "Board type IMX8M EVK"
     bsp_folder="MX8M_EVK"
     uefi_folder="MX8M_EVK"
-    uboot_defconfig="imx8mq_evk_nt_defconfig"
-    if [ $build_uboot_with_uuu_support -eq 1 ]; then
-        uboot_defconfig="imx8mq_evk_nt_uuu_defconfig"
-        if [ $build_uboot -eq 1 ]; then
-            echo "$(tput setaf 1) Building uBoot image with uuu support! Defconfig: $uboot_defconfig $(tput sgr 0)"
-        fi
-    fi
+    uboot_defconfig=`scripts/PrepareUBootDefconfig.sh imx8M "$build_uboot_with_uuu_support" "$build_secure"`
     atf_plat="imx8mq"
     optee_plat="mx8mqevk"
     uboot_dtb="imx8mq-evk.dtb"
     mkimage_SOC="iMX8M"
     export MKIMAGE_WORK_DIR=$IMX8_REPO_ROOT/imx-mkimage/iMX8M
     uefi_offset_kb=1940
-    # Create temporary u-boot config which enables HAB checks
-    if [ "$build_secure" == "1" ]; then
-        # Remove lines starting with CONFIG_IMX_HAB or CONFIG_FIT_SIGNATURE (if present) or CONFIG_SPL_FIT_SIGNATURE
-        # take result and add CONFIG_IMX_HAB=y and CONFIG_FIT_SIGNATURE=y CONFIG_SPL_FIT_SIGNATURE=y to temporary defconfig file
-        # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
-        uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
-        sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_IMX_HAB=y\nCONFIG_SPL_FIT_SIGNATURE=y' \
-            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
-            "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
-        uboot_defconfig="$uboot_defconfig_temp"
-    echo "Created temporary uboot defconfig file ${uboot_defconfig}"
-    fi
+    optee_cfg_tzdram_start="CFG_TZDRAM_START=0xFE000000"
 
     build_board
     CMD_RET=$?
@@ -792,34 +812,14 @@ if [ $build_8m_mini -eq 1 ]; then
     echo "Board type IMX8MM EVK"
     bsp_folder="MX8M_MINI_EVK"
     uefi_folder="MX8M_MINI_EVK"
-    uboot_defconfig="imx8mm_evk_nt_defconfig"
-    if [ $build_uboot_with_uuu_support -eq 1 ]; then
-        uboot_defconfig="imx8mm_evk_nt_uuu_defconfig"
-        if [ $build_uboot -eq 1 ]; then
-            echo -e "$(tput setaf 1) Building uBoot image with uuu support! Defconfig: $uboot_defconfig $(tput sgr 0)"
-        fi
-    fi
+    uboot_defconfig=`scripts/PrepareUBootDefconfig.sh imx8Mm "$build_uboot_with_uuu_support" "$build_secure"`
     atf_plat="imx8mm"
     optee_plat="mx8mmevk"
     uboot_dtb="imx8mm-evk.dtb"
     mkimage_SOC="iMX8MM"
     export MKIMAGE_WORK_DIR=$IMX8_REPO_ROOT/imx-mkimage/iMX8M
     uefi_offset_kb=1940
-    # Create temporary u-boot config which enables HAB checks
-    if [ "$build_secure" == "1" ]; then
-        # Remove lines starting with CONFIG_IMX_HAB or CONFIG_FIT_SIGNATURE (if present) or CONFIG_SPL_FIT_SIGNATURE
-        # take result and add CONFIG_IMX_HAB=y and CONFIG_FIT_SIGNATURE=y CONFIG_SPL_FIT_SIGNATURE=y to temporary defconfig file
-        # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
-        uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
-        sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_IMX_HAB=y' \
-            -e '$aCONFIG_SPL_FIT_SIGNATURE=y' \
-            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
-            "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
-        uboot_defconfig="$uboot_defconfig_temp"
-    echo "Created temporary uboot defconfig file ${uboot_defconfig}"
-    fi
+    optee_cfg_tzdram_start="CFG_TZDRAM_START=0xBE000000"
 
     build_board
     CMD_RET=$?
@@ -832,38 +832,19 @@ if [ $build_8m_nano -eq 1 ]; then
     echo "Board type IMX8MN EVK"
     bsp_folder="MX8M_NANO_EVK"
     uefi_folder=${bsp_folder}
-    uboot_defconfig="imx8mn_evk_nt_defconfig"
-    if [ $build_uboot_with_uuu_support -eq 1 ]; then
-        uboot_defconfig="imx8mn_evk_nt_uuu_defconfig"
-        if [ $build_uboot -eq 1 ]; then
-            echo -e "$(tput setaf 1) Building uBoot image with uuu support! Defconfig: $uboot_defconfig $(tput sgr 0)"
-        fi
-    fi
+    uboot_defconfig=`scripts/PrepareUBootDefconfig.sh imx8Mn "$build_uboot_with_uuu_support" "$build_secure"`
     atf_plat="imx8mn"
     optee_plat="mx8mnevk"
     uboot_dtb="imx8mn-evk.dtb"
     mkimage_SOC="iMX8MN"
     export MKIMAGE_WORK_DIR=$IMX8_REPO_ROOT/imx-mkimage/iMX8M
     uefi_offset_kb=1940
-    # Create temporary u-boot config which enables HAB checks
-    if [ "$build_secure" == "1" ]; then
-        # Remove lines starting with CONFIG_IMX_HAB or CONFIG_FIT_SIGNATURE (if present) or CONFIG_SPL_FIT_SIGNATURE
-        # take result and add CONFIG_IMX_HAB=y and CONFIG_FIT_SIGNATURE=y CONFIG_SPL_FIT_SIGNATURE=y to temporary defconfig file
-        # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
-        uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
-        sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_IMX_HAB=y' \
-            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
-            "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
-        uboot_defconfig="$uboot_defconfig_temp"
-    echo "Created temporary uboot defconfig file ${uboot_defconfig}"
-    fi
+    optee_cfg_tzdram_start="CFG_TZDRAM_START=0xBE000000"
 
     build_board
     CMD_RET=$?
     echo "$mkimage_SOC Build has returned $CMD_RET !"
-    BUILD_RV=$((BUILD_RV + CMD_RET))
+        BUILD_RV=$((BUILD_RV + CMD_RET))
 fi
 
 # i.MX 8M Nano DDR4 EVK config
@@ -871,33 +852,14 @@ if [ $build_8mn_ddr4 -eq 1 ]; then
     echo "Board type IMX8MN DDR4 EVK"
     bsp_folder="MX8M_NANO_EVK"
     uefi_folder=${bsp_folder}
-    uboot_defconfig="imx8mn_ddr4_evk_nt_defconfig"
-    if [ $build_uboot_with_uuu_support -eq 1 ]; then
-        uboot_defconfig="imx8mn_ddr4_evk_nt_uuu_defconfig"
-        if [ $build_uboot -eq 1 ]; then
-            echo -e "$(tput setaf 1) Building uBoot image with uuu support! Defconfig: $uboot_defconfig $(tput sgr 0)"
-        fi
-    fi
+    uboot_defconfig=`scripts/PrepareUBootDefconfig.sh imx8Mnddr4 "$build_uboot_with_uuu_support" "$build_secure"`
     atf_plat="imx8mn"
     optee_plat="mx8mnevk"
     uboot_dtb="imx8mn-ddr4-evk.dtb"
     mkimage_SOC="iMX8MN"
     export MKIMAGE_WORK_DIR=$IMX8_REPO_ROOT/imx-mkimage/iMX8M
     uefi_offset_kb=1940
-    # Create temporary u-boot config which enables HAB checks
-    if [ "$build_secure" == "1" ]; then
-        # Remove lines starting with CONFIG_IMX_HAB or CONFIG_FIT_SIGNATURE (if present) or CONFIG_SPL_FIT_SIGNATURE
-        # take result and add CONFIG_IMX_HAB=y and CONFIG_FIT_SIGNATURE=y CONFIG_SPL_FIT_SIGNATURE=y to temporary defconfig file
-        # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
-        uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
-        sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_IMX_HAB=y' \
-            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
-            "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
-        uboot_defconfig="$uboot_defconfig_temp"
-    echo "Created temporary uboot defconfig file ${uboot_defconfig}"
-    fi
+    optee_cfg_tzdram_start="CFG_TZDRAM_START=0xBE000000"
 
     build_board
     CMD_RET=$?
@@ -910,33 +872,14 @@ if [ $build_8m_plus -eq 1 ]; then
     echo "Board type IMX8MP EVK"
     bsp_folder="MX8M_PLUS_EVK"
     uefi_folder=${bsp_folder}
-    uboot_defconfig="imx8mp_evk_nt_defconfig"
-    if [ $build_uboot_with_uuu_support -eq 1 ]; then
-        uboot_defconfig="imx8mp_evk_nt_uuu_defconfig"
-        if [ $build_uboot -eq 1 ]; then
-            echo -e "$(tput setaf 1) Building uBoot image with uuu support! Defconfig: $uboot_defconfig $(tput sgr 0)"
-        fi
-    fi
+    uboot_defconfig=`scripts/PrepareUBootDefconfig.sh imx8Mp "$build_uboot_with_uuu_support" "$build_secure"`
     atf_plat="imx8mp"
     optee_plat="mx8mpevk"
     uboot_dtb="imx8mp-evk.dtb"
     mkimage_SOC="iMX8MP"
     export MKIMAGE_WORK_DIR=$IMX8_REPO_ROOT/imx-mkimage/iMX8M
     uefi_offset_kb=1940
-    # Create temporary u-boot config which enables HAB checks
-    if [ "$build_secure" == "1" ]; then
-        # Remove lines starting with CONFIG_IMX_HAB or CONFIG_FIT_SIGNATURE (if present) or CONFIG_SPL_FIT_SIGNATURE
-        # take result and add CONFIG_IMX_HAB=y and CONFIG_FIT_SIGNATURE=y CONFIG_SPL_FIT_SIGNATURE=y to temporary defconfig file
-        # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
-        uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
-        sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_IMX_HAB=y' \
-            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
-            "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
-        uboot_defconfig="$uboot_defconfig_temp"
-    echo "Created temporary uboot defconfig file ${uboot_defconfig}"
-    fi
+    optee_cfg_tzdram_start="CFG_TZDRAM_START=0xFE000000"
 
     build_board
     CMD_RET=$?
@@ -949,33 +892,14 @@ if [ $build_8qxp -eq 1 ]; then
 echo "Board type IMX8QXP MEK"
     bsp_folder="MX8QXP_MEK"
     uefi_folder=${bsp_folder}
-    uboot_defconfig="imx8qxp_mek_nt_defconfig"
-    if [ $build_uboot_with_uuu_support -eq 1 ]; then
-        uboot_defconfig="imx8qxp_mek_nt_uuu_defconfig"
-        if [ $build_uboot -eq 1 ]; then
-            echo -e "$(tput setaf 1) Building uBoot image with uuu support! Defconfig: $uboot_defconfig $(tput sgr 0)"
-        fi
-    fi
+    uboot_defconfig=`scripts/PrepareUBootDefconfig.sh imx8X "$build_uboot_with_uuu_support" "$build_secure"`
     atf_plat="imx8qx"
     optee_plat="mx8qxpmek"
     uboot_dtb="fsl-imx8qxp-mek.dtb"
     mkimage_SOC="iMX8QX"
     export MKIMAGE_WORK_DIR=$IMX8_REPO_ROOT/imx-mkimage/${mkimage_SOC}
     uefi_offset_kb=1940
-    # Create temporary u-boot config which enables HAB checks
-    if [ "$build_secure" == "1" ]; then
-        # Remove lines starting with CONFIG_AHAB_BOOT (if present)
-        # take result and add CONFIG_AHAB_BOOT=y to temporary defconfig file
-        # imx8qxp_mek_nt_defconfig -> imx8qxp_mek_nt_signed_TEMP_defconfig
-        uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
-        sed -n -E \
-            -e '/(^CONFIG_AHAB_BOOT=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_AHAB_BOOT=y' \
-            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
-            "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
-        uboot_defconfig="$uboot_defconfig_temp"
-    echo "Created temporary uboot defconfig file ${uboot_defconfig}"
-    fi
+    optee_cfg_tzdram_start="CFG_TZDRAM_START=0xFE000000"
 
     build_board
     CMD_RET=$?
@@ -988,33 +912,14 @@ if [ $build_93 -eq 1 ]; then
 echo "Board type IMX93 11x11 EVK"
     bsp_folder="MX93_11X11_EVK"
     uefi_folder=${bsp_folder}
-    uboot_defconfig="imx93_11x11_evk_nt_defconfig"
-    if [ $build_uboot_with_uuu_support -eq 1 ]; then
-        uboot_defconfig="imx93_11x11_evk_nt_uuu_defconfig"
-        if [ $build_uboot -eq 1 ]; then
-            echo -e "$(tput setaf 1) Building uBoot image with uuu support! Defconfig: $uboot_defconfig $(tput sgr 0)"
-        fi
-    fi
+    uboot_defconfig=`scripts/PrepareUBootDefconfig.sh imx93 "$build_uboot_with_uuu_support" "$build_secure"`
     atf_plat="imx93"
     optee_plat="mx93evk"
     uboot_dtb="imx93-11x11-evk.dts"
     mkimage_SOC="iMX9"
     export MKIMAGE_WORK_DIR=$IMX8_REPO_ROOT/imx-mkimage/${mkimage_SOC}
     uefi_offset_kb=1940
-    # Create temporary u-boot config which enables HAB checks
-    if [ "$build_secure" == "1" ]; then
-        # Remove lines starting with CONFIG_AHAB_BOOT (if present)
-        # take result and add CONFIG_AHAB_BOOT=y to temporary defconfig file
-        # imx8qxp_mek_nt_defconfig -> imx8qxp_mek_nt_signed_TEMP_defconfig
-        uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
-        sed -n -E \
-            -e '/(^CONFIG_AHAB_BOOT=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
-            -e '$aCONFIG_AHAB_BOOT=y' \
-            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
-            "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
-        uboot_defconfig="$uboot_defconfig_temp"
-    echo "Created temporary uboot defconfig file ${uboot_defconfig}"
-    fi
+    optee_cfg_tzdram_start="CFG_TZDRAM_START=0x80200000"
 
     build_board
     CMD_RET=$?

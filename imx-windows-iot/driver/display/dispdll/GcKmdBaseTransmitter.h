@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Cadence Design Systems, Inc.
  * All rights reserved worldwide.
  *
- * Copyright 2022 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -61,5 +61,6 @@ public:
     static const UINT HDMI_CHILD_UID = 0x00000101;
     static const UINT LVDS0_CHILD_UID = 0x00000201;
     static const UINT LVDS1_CHILD_UID = 0x00000202;
-    static const UINT MIPI_DSI_CHILD_UID = 0x00000301;
+    static const UINT MIPI_DSI0_CHILD_UID = 0x00000301;
+    static const UINT MIPI_DSI1_CHILD_UID = 0x00000302;
 };

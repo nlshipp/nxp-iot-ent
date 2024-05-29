@@ -45,8 +45,6 @@
   iMXNorFlashDxe.c
   iMXNorFlashFvb.c
   iMXNorFlashHw.c
-
-  iMXNorFspi.c
   iMXNorDriver.c
 
 [Packages]
@@ -68,6 +66,7 @@
   BaseLib
   PcdLib
   DxeServicesLib
+  iMX8FlexSpiLib
 
 [Guids]
   gPcdDataBaseHobGuid                           ## SOMETIMES_CONSUMES  ## HOB

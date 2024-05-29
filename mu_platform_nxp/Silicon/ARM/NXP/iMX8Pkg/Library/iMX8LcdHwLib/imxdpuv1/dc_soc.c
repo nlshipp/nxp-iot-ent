@@ -1,5 +1,5 @@
 /*
-* Copyright 2023 NXP
+* Copyright 2023-2024 NXP
 *
 * SPDX-License-Identifier: BSD-3-Clause
 */
@@ -181,7 +181,7 @@ EFI_STATUS DcSocInit(imxDisplayInterfaceType displayInterface, UINT32 PixelClk)
 }
 
 EFI_STATUS DcVideoInit(imxDisplayInterfaceType displayInterface, IMX_DISPLAY_TIMING *Timing,
-                   EFI_PHYSICAL_ADDRESS  FrameBaseAddress)
+                   EFI_PHYSICAL_ADDRESS  FrameBaseAddress, BOOLEAN WaitFrmCntrMove)
 {
   struct imxdpuv1_videomode mode;
   imxdpuv1_channel_params_t channel;
@@ -212,6 +212,12 @@ EFI_STATUS DcVideoInit(imxDisplayInterfaceType displayInterface, IMX_DISPLAY_TIM
   imxdpuv1_disp_setup_frame_gen(imxdpuv1_id, disp_id,
     (const struct imxdpuv1_videomode *)&mode,
     0x3ff, 0, 0, 1, IMXDPUV1_DISABLE);
+
+  if (!WaitFrmCntrMove) {
+    /* For oled panel start TCON early*/
+    imxdpuv1_disp_setup_tcon_operation_mode(imxdpuv1_id, disp_id);
+  }
+
   imxdpuv1_disp_init(imxdpuv1_id, disp_id);
   imxdpuv1_disp_setup_constframe(imxdpuv1_id, disp_id, 0, 0, 0xff, 0);
 
@@ -267,9 +273,11 @@ EFI_STATUS DcVideoInit(imxDisplayInterfaceType displayInterface, IMX_DISPLAY_TIM
 
   imxdpuv1_disp_enable_frame_gen(imxdpuv1_id, disp_id, IMXDPUV1_ENABLE);
 
-  imxdpuv1_disp_framegen_wait_frm_cntr_move(imxdpuv1_id, disp_id);
-
-  imxdpuv1_disp_setup_tcon_operation_mode(imxdpuv1_id, disp_id);
+  if (WaitFrmCntrMove) {
+    /* ADV7535 converter needs this to synchronize image */
+    imxdpuv1_disp_framegen_wait_frm_cntr_move(imxdpuv1_id, disp_id);
+    imxdpuv1_disp_setup_tcon_operation_mode(imxdpuv1_id, disp_id);
+  }
 
   return EFI_SUCCESS;
 }

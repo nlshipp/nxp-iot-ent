@@ -163,10 +163,9 @@
   }
 !endif
 
+  INF MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf
 !if $(CONFIG_MEASURED_BOOT) == TRUE
   INF Microsoft/OpteeClientPkg/Drivers/AuthVarOpteeRuntimeDxe/AuthVarsDxe.inf
-!else
-  INF MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf
 !endif
 
 !if $(CONFIG_EDK_TESTS) == TRUE

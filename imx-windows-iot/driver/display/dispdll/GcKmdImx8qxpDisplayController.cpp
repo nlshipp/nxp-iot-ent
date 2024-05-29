@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -16,6 +16,12 @@ GcKmImx8qxpDisplayController::~GcKmImx8qxpDisplayController()
             delete m_p_LvdsDisplay[i];
         }
     }
+    for (UINT i = 0; i < QXP_MAX_MIPI_DSI_DISPLAYS; i++) {
+        if (m_p_DsiDisplay[i] != nullptr) {
+            delete m_p_DsiDisplay[i];
+        }
+    }
+
 }
 
 GcKmImx8qxpDisplayController::GcKmImx8qxpDisplayController(
@@ -31,6 +37,9 @@ GcKmImx8qxpDisplayController::GcKmImx8qxpDisplayController(
     for (UINT i = 0; i < QXP_MAX_LVDS_DISPLAYS; i++) {
         m_p_LvdsDisplay[i] = nullptr;
     }
+    for (UINT i = 0; i < QXP_MAX_MIPI_DSI_DISPLAYS; i++) {
+        m_p_DsiDisplay[i] = nullptr;
+    }
 
     /* Iterate over possible maximum multi-displays config on QXP, indexes bigger than that will be ingnored */
     for (UINT i = 0; i <= QXP_MAX_MULTIPLE_DISPLAYS; i++) {
@@ -39,6 +48,7 @@ GcKmImx8qxpDisplayController::GcKmImx8qxpDisplayController(
             switch (Interface) {
             case DISP_INTERFACE_LVDS0:
             case DISP_INTERFACE_LVDS_DUAL0:
+            case DISP_INTERFACE_MIPI_DSI0:
                 if (!di[Interface].UseDisplay) {
                     di[Interface].UseDisplay = TRUE;
                     di[Interface].RegistryIndex = i;
@@ -46,6 +56,7 @@ GcKmImx8qxpDisplayController::GcKmImx8qxpDisplayController(
                 }
                 break;
             case DISP_INTERFACE_LVDS1:
+            case DISP_INTERFACE_MIPI_DSI1:
                 if (!di[Interface].UseDisplay) {
                     di[Interface].UseDisplay = TRUE;
                     di[Interface].RegistryIndex = i;
@@ -102,6 +113,16 @@ GcKmImx8qxpDisplayController::GcKmImx8qxpDisplayController(
         }
 
     }
+    if (di[DISP_INTERFACE_MIPI_DSI0].UseDisplay && m_IsInitialized) {
+        m_p_DsiDisplay[0] = new (NonPagedPoolNx, 'PSID') GcKmImx8qxpMipiDsiDisplay(&di[DISP_INTERFACE_MIPI_DSI0], &m_dpu0_pdevs);
+        if (m_p_DsiDisplay[0] == nullptr) {
+            m_IsInitialized = FALSE;
+        }
+        else {
+            RegisterDisplayPipeline(m_p_DsiDisplay[0]);
+        }
+
+    }
     if (di[DISP_INTERFACE_LVDS1].UseDisplay && m_IsInitialized) {
         m_p_LvdsDisplay[1] = new (NonPagedPoolNx, 'PSID') GcKmImx8qxpDisplay(&di[DISP_INTERFACE_LVDS1], &m_dpu0_pdevs);
         if (m_p_LvdsDisplay[1] == nullptr) {
@@ -109,6 +130,15 @@ GcKmImx8qxpDisplayController::GcKmImx8qxpDisplayController(
         }
         else {
             RegisterDisplayPipeline(m_p_LvdsDisplay[1]);
+        }
+    }
+    if (di[DISP_INTERFACE_MIPI_DSI1].UseDisplay && m_IsInitialized) {
+        m_p_DsiDisplay[1] = new (NonPagedPoolNx, 'PSID') GcKmImx8qxpMipiDsiDisplay(&di[DISP_INTERFACE_MIPI_DSI1], &m_dpu0_pdevs);
+        if (m_p_DsiDisplay[1] == nullptr) {
+            m_IsInitialized = FALSE;
+        }
+        else {
+            RegisterDisplayPipeline(m_p_DsiDisplay[1]);
         }
     }
 }

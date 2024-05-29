@@ -204,6 +204,7 @@ enum spi_nor_option_flags {
 #define UINT_MAX  (~0U)
 #endif
 
+#define SZ_128      0x00000080
 #define SZ_512      0x00000200
 #define SZ_1K       0x00000400
 #define SZ_2K       0x00000800

@@ -19,8 +19,8 @@
 #include <Library/UefiRuntimeLib.h>
 
 #include "iMXNorFlashHw.h"
-#include "iMXNorFspi.h"
 #include "iMXNorDriver.h"
+#include "iMX8FlexSpiLib.h"
 
 #define TEST_BUF_LEN 32
 static UINT8 TestBuf[TEST_BUF_LEN];

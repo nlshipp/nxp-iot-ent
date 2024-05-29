@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -81,7 +81,19 @@
 #define IMX8QXP_LVDS1_BYPASS_CLK                     40
 #define IMX8QXP_LVDS1_PHY_CLK                        41
 
-#define IMX8QXP_DC_CLK_END                           42
+#define IMX8QXP_MIPI0_PIXEL_CLK                      42
+#define IMX8QXP_MIPI0_BYPASS_CLK                     43
+#define IMX8QXP_MIPI0_PHY_REF_CLK                    44
+#define IMX8QXP_MIPI0_TX_ESC_CLK                     45
+#define IMX8QXP_MIPI0_RX_ESC_CLK                     46
+#define IMX8QXP_MIPI_PLL_DIV2_CLK                    47
+#define IMX8QXP_MIPI1_PIXEL_CLK                      48
+#define IMX8QXP_MIPI1_BYPASS_CLK                     49
+#define IMX8QXP_MIPI1_PHY_REF_CLK                    50
+#define IMX8QXP_MIPI1_TX_ESC_CLK                     51
+#define IMX8QXP_MIPI1_RX_ESC_CLK                     52
+
+#define IMX8QXP_DC_CLK_END                           53
 /* Clock tree items - END */
 
 /**

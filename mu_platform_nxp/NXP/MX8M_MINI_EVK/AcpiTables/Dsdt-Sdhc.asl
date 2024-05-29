@@ -106,7 +106,9 @@ Device (SDH3)
        Package () {
          Package (2) {"RegisterBasePA", 0x30B60000},
          Package (2) {"BaseClockFrequencyHz", 400000000},
-         Package (2) {"Regulator1V8Exist", 1}
+         Package (2) {"Regulator1V8Exist", 1},
+         Package (2) {"TuningStartTap", 20},
+         Package (2) {"TuningStep", 2}
        }
    })
 }

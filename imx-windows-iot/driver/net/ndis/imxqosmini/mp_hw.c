@@ -169,12 +169,14 @@ VOID EnetDpc(NDIS_HANDLE  MiniportInterruptContext, PVOID MiniportDpcContext, PV
         }
 
     } while (0);
-    if (!pRecvThrottleParameters->MoreNblsPending) {
-      NdisMSynchronizeWithInterruptEx(pAdapter->NdisInterruptHandle, 0, EnetEnableRxAndTxInterrupts, pAdapter);
-    }
+
     NdisDprAcquireSpinLock(&pAdapter->Dev_SpinLock);
     pAdapter->DpcRunning = FALSE;
     NdisDprReleaseSpinLock(&pAdapter->Dev_SpinLock);
+
+    if (!pRecvThrottleParameters->MoreNblsPending) {
+      NdisMSynchronizeWithInterruptEx(pAdapter->NdisInterruptHandle, 0, EnetEnableRxAndTxInterrupts, pAdapter);
+    }
     DBG_ENET_DEV_DPC_METHOD_END();
 }
 
@@ -406,6 +408,12 @@ NTSTATUS EnetQos_Init(PMP_ADAPTER pAdapter)
     pAdapter->ENETRegBase->DMA_CH[0].DMA_CHX_INT_EN.R = IMX_ENET_QOS_DMA_CHX_INT_EN_NIE_MASK |  // Normal summary Interrupt
                                                         IMX_ENET_QOS_DMA_CHX_INT_EN_RIE_MASK |  // Receive Interrupt
                                                         IMX_ENET_QOS_DMA_CHX_INT_EN_TIE_MASK;   // Transmit Interrupt
+
+    pAdapter->ENETRegBase->MAC_MMC_TX_INTERRUPT_MASK.R = 0x0FFFFFFF; // Mask all interrupts from Tx counters
+    pAdapter->ENETRegBase->MAC_MMC_RX_INTERRUPT_MASK.R = 0x0FFFFFFF; // Mask all interrupts from Rx counters
+    pAdapter->ENETRegBase->MAC_MMC_IPC_RX_INTERRUPT_MASK.R = 0x3FFF3FFF; // Mask all interrupts from MMC IP checksum ofload counters
+    pAdapter->ENETRegBase->MAC_MMC_FPE_TX_INTERRUPT_MASK.R = 0x03; // Mask all interrupts from MMC Tx Frame preemption counters
+    pAdapter->ENETRegBase->MAC_MMC_FPE_RX_INTERRUPT_MASK.R = 0x0F; // Mask all interrupts from MMC Rx Frame preemption counters
 
     // Init DMA
     MpTxInit(pAdapter);                                                        // Initialize Tx data structures

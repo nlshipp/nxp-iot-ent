@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
    Licensed under the MIT License. */
 
 #pragma once
@@ -20,19 +20,6 @@ extern "C" {
 #include "video/imx8-prefetch.h"
 
 }
-
-struct Imx8qxpDisplayPDEVs {
-    struct platform_device *p_prg_pdev;
-    struct platform_device *p_dprc_pdev;
-    struct platform_device *p_dpu_pdev;
-    struct platform_device *p_client_devices;
-    struct platform_device *p_irqsteer_pdev;
-    UINT* p_refCount;
-};
-
-static const INT PRG_CNT = 9;
-static const INT DPRC_CNT = 6;
-static const INT CLIENT_DEVICE_CNT = 3;
 
 class GcKmImx8qxpDisplay : public GcKmBaseDisplay
 {

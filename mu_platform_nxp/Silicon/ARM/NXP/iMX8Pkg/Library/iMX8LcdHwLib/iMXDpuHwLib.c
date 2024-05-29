@@ -1,7 +1,7 @@
 /** @file
 
   Copyright (c) 2020, Linaro, Ltd. All rights reserved.
-  Copyright 2020, 2022-2023 NXP
+  Copyright 2020, 2022-2024 NXP
 
   This program and the accompanying materials
   are licensed and made available under the terms and conditions of the BSD License
@@ -59,15 +59,15 @@ IMX_DISPLAY_TIMING PreferredTiming;
 /* Predefined modes - one selected is copied to PreferredTiming in LcdDisplayDetect */
 /* 1080x1920@60Hz */
 const IMX_DISPLAY_TIMING PreferredTiming_1080x1920_60 = {
-  .PixelClock = 108000000,
+  .PixelClock = 121000000,
   .HActive = 1080,
   .HBlank = 56,
   .VActive = 1920,
   .VBlank = 16,
   .HSync = 2,
   .VSync = 2,
-  .HSyncOffset = 34,
-  .VSyncOffset = 4,
+  .HSyncOffset = 20,
+  .VSyncOffset = 10,
   .HImageSize = 296,
   .VImageSize = 527,
   .HBorder = 0,
@@ -706,10 +706,19 @@ LcdSetMode (
     if (converter == ADV7535) {
       /* ADV7535 set timing mode */
       CHECK_STATUS_RETURN_ERR(Adv7535SetMode(Timing), "ADV7535 config");
+      CHECK_STATUS_RETURN_ERR(mipi_dsi_northwest_host_dpi_rst_deassert(), "MIPI DSI DPI rst");
+      CHECK_STATUS_RETURN_ERR(DcVideoInit(displayInterface, Timing, FrameBaseAddressStorage, TRUE), "DPU init");
     } else {
+      /* Enable pixel link to allow panel LP init */
+      CHECK_STATUS_RETURN_ERR(DcPixelLinkEnDi(displayInterface, TRUE), "PixelLink Enable");
       /* MIPI-DSI panel init must be called after mipi_dsi_northwest_host_attach */
       CHECK_STATUS_RETURN_ERR(Rm67191Init(displayInterface), "RM67191 config");
+      /* Disable pixel link again */
+      CHECK_STATUS_RETURN_ERR(DcPixelLinkEnDi(displayInterface, FALSE), "PixelLink disable");
+      CHECK_STATUS_RETURN_ERR(mipi_dsi_northwest_host_dpi_rst_deassert(), "MIPI DSI DPI rst");
+      CHECK_STATUS_RETURN_ERR(DcVideoInit(displayInterface, Timing, FrameBaseAddressStorage, FALSE), "DPU init");
     }
+    CHECK_STATUS_RETURN_ERR(DcPixelLinkEnDi(displayInterface, TRUE), "PixelLink enable");
   } else if ((displayInterface == imxLvds0) || (displayInterface == imxLvds1) || (displayInterface == imxLvds0dual)) {
   /*--------------------------LVDS----------------------------------------------*/
     CHECK_STATUS_RETURN_ERR(DcPixelLinkEnDi(displayInterface, TRUE), "PixelLink enable");
@@ -719,17 +728,16 @@ LcdSetMode (
       /* IT6263 set timing mode */
       CHECK_STATUS_RETURN_ERR(It6263SetMode(Timing, displayInterface), "IT6263 config");
     }
+    CHECK_STATUS_RETURN_ERR(DcVideoInit(displayInterface, Timing, FrameBaseAddressStorage, FALSE), "DPU init");
   } else {
     DEBUG ((DEBUG_ERROR, "Unsupported display interface %d\n", (int)displayInterface));
     return EFI_INVALID_PARAMETER;
   }
 
-  CHECK_STATUS_RETURN_ERR(DcVideoInit(displayInterface, Timing, FrameBaseAddressStorage), "DPU init");
-
-  if ((displayInterface == imxMipiDsi) || (displayInterface == imxMipiDsi1)) {
-  /*--------------------------MIPI----------------------------------------------*/
-    CHECK_STATUS_RETURN_ERR(DcPixelLinkEnDi(displayInterface, TRUE), "PixelLink enable");
-  }
+  /* IRQSTEER is pre-set for I2C interrupt from board init.
+     Discard that setting, and enable mipi-dsi interrupt instead. */
+  IRQSTEER_CHn_MASK_REG(IRQSTEER_MIPI_LVDS0_BASE_PTR, 0) = 1U << 16;
+  IRQSTEER_CHn_MASK_REG(IRQSTEER_MIPI_LVDS1_BASE_PTR, 0) = 1U << 16;
 
   return EFI_SUCCESS;
 }

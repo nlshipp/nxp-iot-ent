@@ -31,14 +31,14 @@ DefaultDestDir = 12,UMDF
 imxgyro_fxas21002.dll   = 1,,
 
 [Manufacturer]
-%ManufacturerName% = imxgyro_fxas21002_Device, NT$ARCH$
+%ManufacturerName% = imxgyro_fxas21002_Device, NT$ARCH$.10.0...19041
 
 
 ;*******************************
 ; imxgyro_fxas21002 Install Section
 ;*******************************
 
-[imxgyro_fxas21002_Device.NT$ARCH$]
+[imxgyro_fxas21002_Device.NT$ARCH$.10.0...19041]
 ; DisplayName       Section          DeviceId
 ; -----------       -------          --------
 %imxgyro_fxas21002_DevDesc% = imxgyro_fxas21002_Inst, ACPI\NXP0210

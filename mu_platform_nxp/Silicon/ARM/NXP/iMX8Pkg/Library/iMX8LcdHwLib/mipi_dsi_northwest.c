@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019, 2023 NXP
+ * Copyright 2016-2019, 2023-2024 NXP
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -22,7 +22,7 @@
 #include "MipiDsi_packet.h"
 
 #define DSIIMX8X_DEBUG_LEVEL DEBUG_INFO
-#define TX_DEBUG
+/* #define TX_DEBUG */
 #define NWL_CLK_DEBUG
 
 #define MIPI_TX_ESCAPE_CLOCK_FREQ    18000000U
@@ -31,7 +31,7 @@
 #define MIPI_DSI_MIN_HS_BIT_CLOCK    80000000U
 
 #define MIPI_LCD_SLEEP_MODE_DELAY	(120)
-#define MIPI_FIFO_TIMEOUT		50000 /* 500ms */
+#define MIPI_FIFO_TIMEOUT		500000 /* 500ms */
 #define	PS2KHZ(ps)	(1000000000UL / (ps))
 
 #define DIV_ROUND_CLOSEST_ULL(x, divisor)(		\
@@ -81,6 +81,7 @@ struct mipi_dsi_northwest_info {
 static struct mipi_dsi_northwest_info mipi_dsi_dev = {0};
 
 struct nwl_dsi_platform_ops {
+	EFI_STATUS (*pclk_reset)(struct mipi_dsi_northwest_info *mipi, bool reset);
 	EFI_STATUS (*mipi_reset)(struct mipi_dsi_northwest_info *mipi, bool reset);
 	EFI_STATUS (*dpi_reset)(struct mipi_dsi_northwest_info *mipi, bool reset);
 	EFI_STATUS (*config)(struct mipi_dsi_northwest_info *mipi);
@@ -479,27 +480,24 @@ static EFI_STATUS mipi_dsi_dphy_init(struct mipi_dsi_northwest_info *mipi_dsi)
 		MmioWrite32(mipi_dsi->mmio_base + DPHY_M_PRG_HS_PREPARE, 0x0);
 	}
 	MmioWrite32(mipi_dsi->mmio_base + DPHY_MC_PRG_HS_PREPARE, 0x0);
-	MmioWrite32(mipi_dsi->mmio_base + DPHY_M_PRG_HS_ZERO, 0x9);
 	{
-		uint32_t step, step_num, step_max;
-
-		step_max = 48;
-		step = (MIPI_DSI_MAX_HS_BIT_CLOCK - MIPI_DSI_MIN_HS_BIT_CLOCK) / step_max;
-		step_num = ((req_bit_clk - MIPI_DSI_MIN_HS_BIT_CLOCK) / step) + 1;
-		MmioWrite32(mipi_dsi->mmio_base + DPHY_MC_PRG_HS_ZERO, step_num);
-	}
-	if (req_bit_clk <= 200000000u) {
-		MmioWrite32(mipi_dsi->mmio_base + DPHY_M_PRG_HS_TRAIL, 2);
-		MmioWrite32(mipi_dsi->mmio_base + DPHY_MC_PRG_HS_TRAIL, 2);
-	} else if (req_bit_clk <= 500000000u) {
-		MmioWrite32(mipi_dsi->mmio_base + DPHY_M_PRG_HS_TRAIL, 5);
-		MmioWrite32(mipi_dsi->mmio_base + DPHY_MC_PRG_HS_TRAIL, 5);
-	} else if (req_bit_clk <= 1000000000u) {
-		MmioWrite32(mipi_dsi->mmio_base + DPHY_M_PRG_HS_TRAIL, 12);
-		MmioWrite32(mipi_dsi->mmio_base + DPHY_MC_PRG_HS_TRAIL, 12);
-	} else {
-		MmioWrite32(mipi_dsi->mmio_base + DPHY_M_PRG_HS_TRAIL, 15);
-		MmioWrite32(mipi_dsi->mmio_base + DPHY_MC_PRG_HS_TRAIL, 15);
+		uint32_t n;
+		/* hs_zero: formula from NXP BSP */
+		n = (144 * (req_bit_clk / 1000000) - 47500) / 10000;
+		MmioWrite32(mipi_dsi->mmio_base + DPHY_M_PRG_HS_ZERO, n < 1 ? 1 : (uint8_t)n);
+		/* clk_zero: formula from NXP BSP */
+		n = (34 * (req_bit_clk / 1000000) - 2500) / 1000;
+		MmioWrite32(mipi_dsi->mmio_base + DPHY_MC_PRG_HS_ZERO, n < 1 ? 1 : (uint8_t)n);
+		/* clk_trail, hs_trail: formula from NXP BSP */
+		n = (103 * (req_bit_clk / 1000000) + 10000) / 10000;
+		if (n > 15) {
+			n = 15;
+		}
+		if (n < 1) {
+			n = 1;
+		}
+		MmioWrite32(mipi_dsi->mmio_base + DPHY_M_PRG_HS_TRAIL, (uint8_t)n);
+		MmioWrite32(mipi_dsi->mmio_base + DPHY_MC_PRG_HS_TRAIL, (uint8_t)n);
 	}
 
 	MmioWrite32(mipi_dsi->mmio_base + DPHY_LOCK_BYP, 0x0);
@@ -533,6 +531,12 @@ static EFI_STATUS mipi_dsi_dphy_init(struct mipi_dsi_northwest_info *mipi_dsi)
 static EFI_STATUS mipi_dsi_host_init(struct mipi_dsi_northwest_info *mipi_dsi)
 { 
 	uint32_t lane_num;
+	uint64_t n;
+	IMX_DISPLAY_TIMING *timings = &(mipi_dsi->timings);
+	int bpp = mipi_dsi_pixel_format_to_bpp(mipi_dsi->format);
+	if (bpp < 0) {
+		return EFI_INVALID_PARAMETER;
+	}
 
 	switch (mipi_dsi->max_data_lanes) {
 	case 1:
@@ -550,20 +554,28 @@ static EFI_STATUS mipi_dsi_host_init(struct mipi_dsi_northwest_info *mipi_dsi)
 		return EFI_INVALID_PARAMETER;
 	}
 
-	DEBUG((DSIIMX8X_DEBUG_LEVEL, "MIPI_DSI_NW: HOST init - lanes = %d, reg = %d\n", mipi_dsi->max_data_lanes, lane_num));
+	DEBUG((DSIIMX8X_DEBUG_LEVEL, "MIPI_DSI_NW: HOST init: lanes=%d, reg=%d, pclk=%d\n",
+		mipi_dsi->max_data_lanes, lane_num, timings->PixelClock));
 
 	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_NUM_LANES, lane_num);
 	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_NONCONTINUOUS_CLK, 0x0);
 	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_T_PRE, 0x1);
-	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_T_POST, 0x34);
-	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_TX_GAP, 0xD);
+	n = (360000ULL * (uint64_t)bpp * timings->PixelClock) / (mipi_dsi->max_data_lanes * 8ULL * 1000000000000ULL);
+	n += 2;
+	DEBUG((DSIIMX8X_DEBUG_LEVEL, "MIPI_DSI_NW: HOST_CFG_T_POST = %d (0x%x)\n", n, n));
+	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_T_POST, n);
+	n = (100000ULL * (uint64_t)bpp * timings->PixelClock) / (mipi_dsi->max_data_lanes * 8ULL * 1000000000000ULL);
+	n += 1;
+	DEBUG((DSIIMX8X_DEBUG_LEVEL, "MIPI_DSI_NW: HOST_CFG_TX_GAP = %d (0x%x)\n", n, n));
+	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_TX_GAP, n);
 	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_AUTOINSERT_EOTP, 0x0);
 	/*lx=1, other=0*/
-	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_EXTRA_CMDS_AFTER_EOTP, 0x0);
+	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_EXTRA_CMDS_AFTER_EOTP, 0x1);
 	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_HTX_TO_COUNT, 0);
 	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_LRX_H_TO_COUNT, 0);
 	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_BTA_H_TO_COUNT, 0);
-	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_TWAKEUP, 0x3A98);
+	/* Previously 0x3A98 */
+	MmioWrite32(mipi_dsi->mmio_base + HOST_CFG_TWAKEUP, 0x4650);
 
 	return EFI_SUCCESS;
 }
@@ -619,8 +631,7 @@ static EFI_STATUS mipi_dsi_dpi_init(struct mipi_dsi_northwest_info *mipi_dsi)
 	MmioWrite32(mipi_dsi->mmio_base + DPI_BLLP_MODE, 0x1);
 	MmioWrite32(mipi_dsi->mmio_base + DPI_USE_NULL_PKT_BLLP, 0x0);
 
-	/* Prevoiusly VActive - 1 */
-	MmioWrite32(mipi_dsi->mmio_base + DPI_VACTIVE, timings->VActive);
+	MmioWrite32(mipi_dsi->mmio_base + DPI_VACTIVE, timings->VActive - 1);
 
 	MmioWrite32(mipi_dsi->mmio_base + DPI_VC, 0x0);
 
@@ -646,9 +657,10 @@ static void mipi_dsi_wr_tx_header(struct mipi_dsi_northwest_info *mipi_dsi,
 		      HOST_PKT_CONTROL_DT(di)	      |
 		      HOST_PKT_CONTROL_HS_SEL(mode)   |
 		      HOST_PKT_CONTROL_BTA_TX(need_bta);
-
-	DEBUG((DSIIMX8X_DEBUG_LEVEL, "MIPI_DSI_NW: pkt_control = 0x%x adr=0x%x\n",
+#ifdef TX_DEBUG
+	DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: pkt_control = 0x%x adr=0x%x\n",
 		pkt_control, mipi_dsi->mmio_base + HOST_PKT_CONTROL));
+#endif
 	MmioWrite32(mipi_dsi->mmio_base + HOST_PKT_CONTROL, pkt_control);
 }
 
@@ -706,10 +718,10 @@ static EFI_STATUS wait_for_pkt_done(struct mipi_dsi_northwest_info *mipi_dsi, un
 	do {
 		pkt_status = MmioRead32(mipi_dsi->mmio_base + HOST_PKT_STATUS);
 		if (!(pkt_status & HOST_IRQ_STATUS_SM_NOT_IDLE)) {
-			return EFI_SUCCESS;
+			break;
 		}
 
-		MicroSecondDelay(10);
+		MicroSecondDelay(1);
 	} while (--timeout);
 
 	while(timeout--) {
@@ -718,8 +730,9 @@ static EFI_STATUS wait_for_pkt_done(struct mipi_dsi_northwest_info *mipi_dsi, un
 			return EFI_SUCCESS;
 		}
 
-		MicroSecondDelay(10);
+		MicroSecondDelay(1);
 	}
+
 	return EFI_TIMEOUT;
 }
 
@@ -729,11 +742,8 @@ static EFI_STATUS mipi_dsi_pkt_write(struct mipi_dsi_northwest_info *mipi_dsi,
 	EFI_STATUS ret = EFI_SUCCESS;
 	const uint8_t *data = (const uint8_t *)buf;
 
-	DEBUG((DSIIMX8X_DEBUG_LEVEL, "MIPI_DSI_NW: mipi_dsi_pkt_write data_type 0x%x, buf 0x%lx, len %u, data0=0x%x, data1=0x%x\n",
-		data_type, (unsigned long)buf, len, data[0], data[1]));
-
 	if (len == 0) {
-		/* handle generic long write command */
+		/* handle short write command */
 		mipi_dsi_wr_tx_header(mipi_dsi, data_type, data[0], data[1], DSI_LP_MODE, 0);
 	} else {
 		/* handle generic long write command */
@@ -753,15 +763,34 @@ static EFI_STATUS mipi_dsi_pkt_write(struct mipi_dsi_northwest_info *mipi_dsi,
 	return ret;
 }
 
-static EFI_STATUS reset_dsi_domains(struct mipi_dsi_northwest_info *mipi_dsi, bool reset)
+static EFI_STATUS reset_dpi_domain(struct mipi_dsi_northwest_info *mipi_dsi, bool reset)
+{
+	EFI_STATUS ret = EFI_SUCCESS;
+
+	if (mipi_dsi->plat_ops->dpi_reset) {
+		ret = mipi_dsi->plat_ops->dpi_reset(mipi_dsi, reset);
+	}
+
+	return ret;
+}
+
+static EFI_STATUS reset_mipi_domain(struct mipi_dsi_northwest_info *mipi_dsi, bool reset)
 {
 	EFI_STATUS ret = EFI_SUCCESS;
 
 	if (mipi_dsi->plat_ops->mipi_reset) {
 		ret = mipi_dsi->plat_ops->mipi_reset(mipi_dsi, reset);
 	}
-	if ((ret == EFI_SUCCESS) && mipi_dsi->plat_ops->dpi_reset) {
-		ret = mipi_dsi->plat_ops->dpi_reset(mipi_dsi, reset);
+
+	return ret;
+}
+
+static EFI_STATUS reset_pclk_domain(struct mipi_dsi_northwest_info *mipi_dsi, bool reset)
+{
+	EFI_STATUS ret = EFI_SUCCESS;
+
+	if (mipi_dsi->plat_ops->pclk_reset) {
+		ret = mipi_dsi->plat_ops->pclk_reset(mipi_dsi, reset);
 	}
 
 	return ret;
@@ -777,7 +806,9 @@ static void mipi_dsi_shutdown(struct mipi_dsi_northwest_info *mipi_dsi)
 		(void)mipi_dsi->plat_ops->clock_disable(mipi_dsi);
 	}
 
-	reset_dsi_domains(mipi_dsi, true);
+	reset_mipi_domain(mipi_dsi, true);
+	reset_dpi_domain(mipi_dsi, true);
+	reset_pclk_domain(mipi_dsi, true);
 }
 
 EFI_STATUS mipi_dsi_northwest_host_attach(VOID)
@@ -786,7 +817,15 @@ EFI_STATUS mipi_dsi_northwest_host_attach(VOID)
 	EFI_STATUS ret;
 
 	/* Assert resets */
-	ret = reset_dsi_domains(mipi_dsi, true);
+	ret = reset_pclk_domain(mipi_dsi, true);
+	if (ret != EFI_SUCCESS) {
+		return ret;
+	}
+	ret = reset_mipi_domain(mipi_dsi, true);
+	if (ret != EFI_SUCCESS) {
+		return ret;
+	}
+	ret = reset_dpi_domain(mipi_dsi, true);
 	if (ret != EFI_SUCCESS) {
 		return ret;
 	}
@@ -799,6 +838,11 @@ EFI_STATUS mipi_dsi_northwest_host_attach(VOID)
 		}
 	}
 
+	/* Deasser pclk reset */
+	ret = reset_pclk_domain(mipi_dsi, false);
+	if (ret != EFI_SUCCESS) {
+		return ret;
+	}
 	/* Disable all interrupts, since we use polling */
 	mipi_dsi_init_interrupt(mipi_dsi);
 
@@ -826,7 +870,21 @@ EFI_STATUS mipi_dsi_northwest_host_attach(VOID)
 	}
 
 	/* Deassert resets */
-	ret = reset_dsi_domains(mipi_dsi, false);
+	ret = reset_mipi_domain(mipi_dsi, false);
+	if (ret != EFI_SUCCESS) {
+		return ret;
+	}
+
+	return EFI_SUCCESS;
+}
+
+EFI_STATUS mipi_dsi_northwest_host_dpi_rst_deassert(VOID)
+{
+	struct mipi_dsi_northwest_info *mipi_dsi = &mipi_dsi_dev;
+	EFI_STATUS ret;
+
+	/* Deassert resets */
+	ret = reset_dpi_domain(mipi_dsi, false);
 	if (ret != EFI_SUCCESS) {
 		return ret;
 	}
@@ -842,7 +900,7 @@ EFI_STATUS mipi_dsi_northwest_host_transfer(uint8_t Type, uint8_t Chan, uint32_t
 	uint16_t i = 0;
 	uint8_t *p = (uint8_t *)Data;
 
-	DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: sec_mipi_dsi_host_transfer\n"));
+	DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: sec_mipi_dsi_host_transfer: "));
 	for (i = 0; i < Size; i++) {
 		DEBUG((DEBUG_ERROR, "0x%.2x ", *(uint8_t *)p));
 		p++;
@@ -894,6 +952,50 @@ static EFI_STATUS imx8x_dsi_dpi_reset(struct mipi_dsi_northwest_info *mipi, bool
 	return EFI_SUCCESS;
 }
 
+static EFI_STATUS imx8x_dsi_pclk_reset(struct mipi_dsi_northwest_info *mipi, bool reset)
+{
+	EFI_STATUS err;
+	sc_rsrc_t DcResource = SC_R_DC_0;
+	uint32_t dsi_reset_value = reset ? 1 : 0;
+	uint32_t pxl_reset_value = reset ? 0 : 1;
+	sc_ctrl_t LinkValid = (mipi->resource == SC_R_MIPI_1) ? SC_C_PXL_LINK_MST2_VLD : SC_C_PXL_LINK_MST1_VLD;
+	sc_ctrl_t Sync = (mipi->resource == SC_R_MIPI_1) ? SC_C_SYNC_CTRL1 : SC_C_SYNC_CTRL0;
+
+	DEBUG((DSIIMX8X_DEBUG_LEVEL, "MIPI_DSI_NW: imx8x_dsi_pclk_reset rsrc=%d reset=%d\n", mipi->resource, reset));
+
+	err = sc_misc_set_control(SC_IPC_HDL, mipi->resource, SC_C_MODE, dsi_reset_value);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: sc_misc_set_control SC_C_MODE failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
+	err = sc_misc_set_control(SC_IPC_HDL, mipi->resource, SC_C_DUAL_MODE, dsi_reset_value);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: sc_misc_set_control SC_C_DUAL_MODE failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
+	err = sc_misc_set_control(SC_IPC_HDL, mipi->resource, SC_C_PXL_LINK_SEL, dsi_reset_value);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: sc_misc_set_control SC_C_PXL_LINK_SEL failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
+	err = sc_misc_set_control(SC_IPC_HDL, DcResource, LinkValid, pxl_reset_value);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: MSTx_VLD failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
+	err = sc_misc_set_control(SC_IPC_HDL, DcResource, Sync, pxl_reset_value);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: SYNC_CTRLx failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
+	return EFI_SUCCESS;
+}
+
 static EFI_STATUS imx8x_dsi_clock_enable(struct mipi_dsi_northwest_info *mipi)
 {
 	EFI_STATUS err;
@@ -905,44 +1007,12 @@ static EFI_STATUS imx8x_dsi_clock_enable(struct mipi_dsi_northwest_info *mipi)
 		return EFI_INVALID_PARAMETER;
 	}
 
-	err = sc_pm_set_clock_rate(SC_IPC_HDL, mipi->resource, SC_PM_CLK_BYPASS, &PixelClock);
+	err = sc_pm_set_clock_parent(SC_IPC_HDL, mipi->resource, SC_PM_CLK_PHY, 2);
 	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW:set rate SC_PM_CLK_BYPASS failed! (error = %d)\n", err));
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: set parent SC_PM_CLK_PHY failed! (error = %d)\n", err));
 		return EFI_DEVICE_ERROR;
 	}
-	err = sc_pm_clock_enable(SC_IPC_HDL, mipi->resource, SC_PM_CLK_BYPASS, true, false);
-	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: enable clock SC_PM_CLK_BYPASS failed! (error = %d)\n", err));
-		return EFI_DEVICE_ERROR;
-	}
-
-	err = sc_pm_set_clock_rate(SC_IPC_HDL, mipi->resource, SC_PM_CLK_PER, &PixelClock);
-	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW:set rate SC_PM_CLK_PER failed! (error = %d)\n", err));
-		return EFI_DEVICE_ERROR;
-	}
-	err = sc_pm_clock_enable(SC_IPC_HDL, mipi->resource, SC_PM_CLK_PER, true, false);
-	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: enable clock SC_PM_CLK_PER failed! (error = %d)\n", err));
-		return EFI_DEVICE_ERROR;
-	}
-
-	err = sc_misc_set_control(SC_IPC_HDL, mipi->resource, SC_C_MODE, 0);
-	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: sc_misc_set_control SC_C_MODE failed! (error = %d)\n", err));
-		return EFI_DEVICE_ERROR;
-	}
-	err = sc_misc_set_control(SC_IPC_HDL, mipi->resource, SC_C_DUAL_MODE, 0);
-	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: sc_misc_set_control SC_C_DUAL_MODE failed! (error = %d)\n", err));
-		return EFI_DEVICE_ERROR;
-	}
-	err = sc_misc_set_control(SC_IPC_HDL, mipi->resource, SC_C_PXL_LINK_SEL, 0);
-	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: sc_misc_set_control SC_C_PXL_LINK_SEL failed! (error = %d)\n", err));
-		return EFI_DEVICE_ERROR;
-	}
-
+	
 	err = sc_pm_set_clock_parent(SC_IPC_HDL, mipi->resource, SC_PM_CLK_MST_BUS, 2);
 	if (err) {
 		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: set parent SC_PM_CLK_MST_BUS failed! (error = %d)\n", err));
@@ -954,15 +1024,16 @@ static EFI_STATUS imx8x_dsi_clock_enable(struct mipi_dsi_northwest_info *mipi)
 		return EFI_DEVICE_ERROR;
 	}
 
+	err = sc_pm_set_clock_rate(SC_IPC_HDL, mipi->resource, SC_PM_CLK_PHY, &RefClock);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW:set rate SC_PM_CLK_PHY failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
 	Rate = MIPI_TX_ESCAPE_CLOCK_FREQ;
 	err = sc_pm_set_clock_rate(SC_IPC_HDL, mipi->resource, SC_PM_CLK_MST_BUS, &Rate);
 	if (err) {
 		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW:set rate SC_PM_CLK_MST_BUS failed! (error = %d)\n", err));
-		return EFI_DEVICE_ERROR;
-	}
-	err = sc_pm_clock_enable(SC_IPC_HDL, mipi->resource, SC_PM_CLK_MST_BUS, true, false);
-	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: enable clock SC_PM_CLK_MST_BUS failed! (error = %d)\n", err));
 		return EFI_DEVICE_ERROR;
 	}
 
@@ -972,15 +1043,40 @@ static EFI_STATUS imx8x_dsi_clock_enable(struct mipi_dsi_northwest_info *mipi)
 		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW:set rate SC_PM_CLK_SLV_BUS failed! (error = %d)\n", err));
 		return EFI_DEVICE_ERROR;
 	}
-	err = sc_pm_clock_enable(SC_IPC_HDL, mipi->resource, SC_PM_CLK_SLV_BUS, true, false);
+
+	err = sc_pm_set_clock_rate(SC_IPC_HDL, mipi->resource, SC_PM_CLK_BYPASS, &PixelClock);
 	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: enable clock SC_PM_CLK_SLV_BUS failed! (error = %d)\n", err));
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW:set rate SC_PM_CLK_BYPASS failed! (error = %d)\n", err));
 		return EFI_DEVICE_ERROR;
 	}
 
-	err = sc_pm_set_clock_rate(SC_IPC_HDL, mipi->resource, SC_PM_CLK_PHY, &RefClock);
+	err = sc_pm_set_clock_rate(SC_IPC_HDL, mipi->resource, SC_PM_CLK_PER, &PixelClock);
 	if (err) {
-		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW:set rate SC_PM_CLK_PHY failed! (error = %d)\n", err));
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW:set rate SC_PM_CLK_PER failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
+	err = sc_pm_clock_enable(SC_IPC_HDL, mipi->resource, SC_PM_CLK_BYPASS, true, false);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: enable clock SC_PM_CLK_BYPASS failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
+	err = sc_pm_clock_enable(SC_IPC_HDL, mipi->resource, SC_PM_CLK_PER, true, false);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: enable clock SC_PM_CLK_PER failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
+	err = sc_pm_clock_enable(SC_IPC_HDL, mipi->resource, SC_PM_CLK_MST_BUS, true, false);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: enable clock SC_PM_CLK_MST_BUS failed! (error = %d)\n", err));
+		return EFI_DEVICE_ERROR;
+	}
+
+	err = sc_pm_clock_enable(SC_IPC_HDL, mipi->resource, SC_PM_CLK_SLV_BUS, true, false);
+	if (err) {
+		DEBUG((DEBUG_ERROR, "MIPI_DSI_NW: enable clock SC_PM_CLK_SLV_BUS failed! (error = %d)\n", err));
 		return EFI_DEVICE_ERROR;
 	}
 
@@ -1070,6 +1166,7 @@ static EFI_STATUS imx8x_config(struct mipi_dsi_northwest_info *mipi)
 }
 
 static struct nwl_dsi_platform_ops imx8x_ops = {
+	.pclk_reset = &imx8x_dsi_pclk_reset,
 	.mipi_reset = &imx8x_dsi_mipi_reset,
 	.dpi_reset = &imx8x_dsi_dpi_reset,
 	.clock_enable = &imx8x_dsi_clock_enable,

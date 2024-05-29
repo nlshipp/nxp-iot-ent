@@ -923,6 +923,33 @@ void GcKm7LAdapter::UpdateTextureDescriptor(
     pTexDesc[GC_7L_TEX_DESC_TEX_GPUVA] = (UINT)TexGpuVa;
 }
 
+NTSTATUS GcKm7LAdapter::IsGdiSurfaceSupported(
+    INOUT_PDXGKARG_GETSTANDARDALLOCATIONDRIVERDATA  pGetStandardAllocationDriverData)
+{
+    switch (pGetStandardAllocationDriverData->StandardAllocationType)
+    {
+    case D3DKMDT_STANDARDALLOCATION_GDISURFACE:
+    {
+        D3DKMDT_GDISURFACEDATA* pGdiSurfInfo = pGetStandardAllocationDriverData->pCreateGdiSurfaceData;
+
+        //
+        // https://learn.microsoft.com/en-us/windows/win32/direct3d11/overviews-direct3d-11-devices-downlevel-intro
+        // D3D11 FL 9.3 driver has Max Texture Dimension of 4096 limit
+        //
+
+        if (((pGdiSurfInfo->Type == D3DKMDT_GDISURFACE_TEXTURE_CPUVISIBLE) ||
+             (pGdiSurfInfo->Type == D3DKMDT_GDISURFACE_TEXTURE)) &&
+            ((pGdiSurfInfo->Width > 4096) ||
+             (pGdiSurfInfo->Height > 4096)))
+        {
+            return STATUS_NOT_SUPPORTED;
+        }
+    }
+    break;
+    }
+
+    return STATUS_SUCCESS;
+}
 
 NTSTATUS
 GcKm7LMQAdapter::CreateDevice(

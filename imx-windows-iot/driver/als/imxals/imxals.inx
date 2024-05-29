@@ -34,13 +34,13 @@ DefaultDestDir = 12,UMDF
 imxals.dll   = 1,,
 
 [Manufacturer]
-%ManufacturerName% = imxals_Device, NT$ARCH$
+%ManufacturerName% = imxals_Device, NT$ARCH$.10.0...19041
 
 ;*******************************
 ; Custom Sensor Install Section
 ;*******************************
 
-[imxals_Device.NT$ARCH$]
+[imxals_Device.NT$ARCH$.10.0...19041]
 ; DisplayName       Section          DeviceId
 ; -----------       -------          --------
 %imxals_DevDesc% = imxals_Inst, ACPI\NXP0290

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -35,6 +35,7 @@
 #include "clk_imx8qxp_lpcg.h"
 #include "linux/dev_printk.h"
 #include "linux/kernel.h"
+#include "linux/clk.h"
 
 /* Main object of the clock tree - single instance for all monitors */
 static struct imx8qxp_clk_device clktree = {
@@ -52,17 +53,36 @@ static void fill_dc0_sels(struct clk **sels, struct clk **clks)
     sels[4] = clks[IMX8QXP_DC0_BYPASS0_CLK];
 }
 
-static struct clk* lvds0_sels[1] = {0};
-static struct clk* lvds1_sels[1] = {0};
+static struct clk* lvds0_sels[5] = {0};
+static struct clk* lvds1_sels[5] = {0};
 
 static void fill_lvds0_sels(struct clk** sels, struct clk** clks)
 {
-    sels[0] = clks[IMX8QXP_LVDS0_BYPASS_CLK];
+    sels[0] = clks[IMX8QXP_CLK_DUMMY];
+    sels[1] = clks[IMX8QXP_CLK_DUMMY];
+    sels[2] = clks[IMX8QXP_CLK_DUMMY];
+    sels[3] = clks[IMX8QXP_CLK_DUMMY];
+    sels[4] = clks[IMX8QXP_LVDS0_BYPASS_CLK];
 }
 
 static void fill_lvds1_sels(struct clk** sels, struct clk** clks)
 {
-    sels[0] = clks[IMX8QXP_LVDS1_BYPASS_CLK];
+    sels[0] = clks[IMX8QXP_CLK_DUMMY];
+    sels[1] = clks[IMX8QXP_CLK_DUMMY];
+    sels[2] = clks[IMX8QXP_CLK_DUMMY];
+    sels[3] = clks[IMX8QXP_CLK_DUMMY];
+    sels[4] = clks[IMX8QXP_LVDS1_BYPASS_CLK];
+}
+
+static struct clk* mipi_sels[5] = { 0 };
+
+static void fill_mipi_sels(struct clk** sels, struct clk** clks)
+{
+    sels[0] = clks[IMX8QXP_CLK_DUMMY];
+    sels[1] = clks[IMX8QXP_CLK_DUMMY];
+    sels[2] = clks[IMX8QXP_MIPI_PLL_DIV2_CLK];
+    sels[3] = clks[IMX8QXP_CLK_DUMMY];
+    sels[4] = clks[IMX8QXP_CLK_DUMMY];
 }
 
 struct clk *clk_get_item_imx8qxp(int index)
@@ -100,6 +120,7 @@ struct imx8qxp_clk_device *clk_init_imx8qxp()
     dev->clks[IMX8QXP_DC0_AXI_EXT_CLK] = imx8q_clk_fixed("dc_axi_ext_clk", NULL, IMX_CLK_FREQ_800M);
     dev->clks[IMX8QXP_DC0_AXI_INT_CLK] = imx8q_clk_fixed("dc_axi_int_clk", NULL, IMX_CLK_FREQ_400M);
     dev->clks[IMX8QXP_DC0_CFG_CLK] = imx8q_clk_fixed("dc_cfg_clk", NULL, IMX_CLK_FREQ_100M);
+    dev->clks[IMX8QXP_MIPI_PLL_DIV2_CLK] = imx8q_clk_fixed("mipi_pll_div2_clk", NULL, IMX_CLK_FREQ_432M);
 
     /* LPCG */
     dev->clks[IMX8QXP_DC0_DISP0_LPCG_CLK] = imx_clk_lpcg_scu("dc0_disp0_lpcg_clk", dev->clks[IMX8QXP_DC0_AXI_INT_CLK], dev->lpcg_reg + 0x0, 0, false);
@@ -153,6 +174,22 @@ struct imx8qxp_clk_device *clk_init_imx8qxp()
     dev->clks[IMX8QXP_LVDS1_PIX_CLK] = imx_clk_scu2("lvds1_pixel_clk", lvds1_sels, ARRAY_SIZE(lvds1_sels), IMX_SC_R_LVDS_1, IMX_SC_PM_CLK_MISC2);
     dev->clks[IMX8QXP_LVDS1_PHY_CLK] = imx_clk_scu2("lvds1_phy_clk", lvds1_sels, ARRAY_SIZE(lvds1_sels), IMX_SC_R_LVDS_1, IMX_SC_PM_CLK_MISC3);
 
+    dev->clks[IMX8QXP_MIPI0_BYPASS_CLK] = imx_clk_scu("mipi0_bypass_clk", IMX_SC_R_MIPI_0, IMX_SC_PM_CLK_BYPASS);
+    dev->clks[IMX8QXP_MIPI0_PIXEL_CLK] = imx_clk_scu("mipi0_pixel_clk", IMX_SC_R_MIPI_0, IMX_SC_PM_CLK_PER);
+    fill_mipi_sels(mipi_sels, dev->clks);
+    dev->clks[IMX8QXP_MIPI0_TX_ESC_CLK] = imx_clk_scu2("mipi0_dsi_tx_esc_clk", mipi_sels, ARRAY_SIZE(mipi_sels), IMX_SC_R_MIPI_0, IMX_SC_PM_CLK_MST_BUS);
+    dev->clks[IMX8QXP_MIPI0_RX_ESC_CLK] = imx_clk_scu2("mipi0_dsi_rx_esc_clk", mipi_sels, ARRAY_SIZE(mipi_sels), IMX_SC_R_MIPI_0, IMX_SC_PM_CLK_SLV_BUS);
+    dev->clks[IMX8QXP_MIPI0_PHY_REF_CLK] = imx_clk_scu2("mipi0_dsi_phy_clk", mipi_sels, ARRAY_SIZE(mipi_sels), IMX_SC_R_MIPI_0, IMX_SC_PM_CLK_PHY);
+    dev->clks[IMX8QXP_MIPI1_BYPASS_CLK] = imx_clk_scu("mipi1_bypass_clk", IMX_SC_R_MIPI_1, IMX_SC_PM_CLK_BYPASS);
+    dev->clks[IMX8QXP_MIPI1_PIXEL_CLK] = imx_clk_scu("mipi1_pixel_clk", IMX_SC_R_MIPI_1, IMX_SC_PM_CLK_PER);
+    dev->clks[IMX8QXP_MIPI1_TX_ESC_CLK] = imx_clk_scu2("mipi1_dsi_tx_esc_clk", mipi_sels, ARRAY_SIZE(mipi_sels), IMX_SC_R_MIPI_1, IMX_SC_PM_CLK_MST_BUS);
+    dev->clks[IMX8QXP_MIPI1_RX_ESC_CLK] = imx_clk_scu2("mipi1_dsi_rx_esc_clk", mipi_sels, ARRAY_SIZE(mipi_sels), IMX_SC_R_MIPI_1, IMX_SC_PM_CLK_SLV_BUS);
+    dev->clks[IMX8QXP_MIPI1_PHY_REF_CLK] = imx_clk_scu2("mipi1_dsi_phy_clk", mipi_sels, ARRAY_SIZE(mipi_sels), IMX_SC_R_MIPI_1, IMX_SC_PM_CLK_PHY);
+    /* Stop shared MSLICE clocks */
+    dev->clks[IMX8QXP_LVDS0_PHY_CLK]->clk_enable(dev->clks[IMX8QXP_LVDS0_PHY_CLK], FALSE, FALSE);
+    dev->clks[IMX8QXP_LVDS1_PHY_CLK]->clk_enable(dev->clks[IMX8QXP_LVDS1_PHY_CLK], FALSE, FALSE);
+    dev->clks[IMX8QXP_LVDS0_PIX_CLK]->clk_enable(dev->clks[IMX8QXP_LVDS0_PIX_CLK], FALSE, FALSE);
+    dev->clks[IMX8QXP_LVDS1_PIX_CLK]->clk_enable(dev->clks[IMX8QXP_LVDS1_PIX_CLK], FALSE, FALSE);
     return dev;
 }
 

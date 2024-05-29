@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -207,7 +207,7 @@ ARM_CORE_INFO iMX8Ppi[] =
 {
   {
     // Cluster 0, Core 0
-    0x0, 0x0,
+    GET_MPID(0x0, 0x0),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value. Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -217,7 +217,7 @@ ARM_CORE_INFO iMX8Ppi[] =
 #if FixedPcdGet32(PcdCoreCount) > 1
   {
     // Cluster 0, Core 1
-    0x0, 0x1,
+    GET_MPID(0x0, 0x1),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value. Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -228,7 +228,7 @@ ARM_CORE_INFO iMX8Ppi[] =
 #if FixedPcdGet32(PcdCoreCount) > 2
   {
     // Cluster 0, Core 2
-    0x0, 0x2,
+    GET_MPID(0x0, 0x2),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value. Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -237,7 +237,7 @@ ARM_CORE_INFO iMX8Ppi[] =
   },
   {
     // Cluster 0, Core 3
-    0x0, 0x3,
+    GET_MPID(0x0, 0x3),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value. Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -576,7 +576,7 @@ VOID CameraInit()
             req_frequency = instances[i].req_frequency;
             resource = instances[i].resource;
             clk_id = instances[i].clk_id;
-            DEBUG ((EFI_D_VERBOSE, "CameraInit: init_periph_power_clock_freq %d of %d\n", __func__, i, instances_num));
+            DEBUG ((EFI_D_VERBOSE, "%s: init_periph_power_clock_freq %d of %d\n", __func__, i, instances_num));
             if (init_periph_power_clock_freq(SC_IPC_HDL, resource, clk_id, ((req_frequency == 0)? NULL : &req_frequency), &get_rate) != SC_ERR_NONE) {
                 continue;
             }
@@ -1633,9 +1633,11 @@ VOID DisplayInit()
   }
   ASSERT (err == SC_ERR_NONE);
 
-  /* enable LPI2C0 irq in MIPI-DSI / LVDS #0 Local Interrupt Steer */
+  /* enable LPI2C0 irq in MIPI-DSI / LVDS #0 Local Interrupt Steer
+     Note: this setting is discarded later in UEFI display driver */
   IRQSTEER_CHn_MASK_REG(IRQSTEER_MIPI_LVDS0_BASE_PTR, 0) = 1U << 8;
-  /* enable LPI2C0 irq in MIPI-DSI / LVDS #1 Local Interrupt Steer */
+  /* enable LPI2C0 irq in MIPI-DSI / LVDS #1 Local Interrupt Steer
+     Note: this setting is discarded later in UEFI display driver */
   IRQSTEER_CHn_MASK_REG(IRQSTEER_MIPI_LVDS1_BASE_PTR, 0) = 1U << 8;
 }
 
@@ -1762,7 +1764,7 @@ VOID LpuartInit()
       }
       err = sc_pm_get_clock_rate(SC_IPC_HDL, resource, SC_PM_CLK_PER, &get_rate);
       if ((frequency != 0) && (get_rate != frequency)) {
-          DEBUG ((DEBUG_ERROR, "LpuartInit: Wrong frequency: %dHz (requested: %dHz) for %d resource:%d clk:%d\n", 
+          DEBUG ((DEBUG_ERROR, "LpuartInit: Wrong frequency: %dHz (requested: %dHz) for resource:%d clk:%d\n", 
                  (int)get_rate, (int)frequency, (int)resource, (int)SC_PM_CLK_PER));
       }
   }

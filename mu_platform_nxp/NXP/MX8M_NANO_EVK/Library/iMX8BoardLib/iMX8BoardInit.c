@@ -41,7 +41,7 @@ ARM_CORE_INFO iMX8Ppi[] =
 {
   {
     // Cluster 0, Core 0
-    0x0, 0x0,
+    GET_MPID(0x0, 0x0),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value. Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -51,7 +51,7 @@ ARM_CORE_INFO iMX8Ppi[] =
 #if FixedPcdGet32(PcdCoreCount) > 1
   {
     // Cluster 0, Core 1
-    0x0, 0x1,
+    GET_MPID(0x0, 0x1),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value. Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -62,7 +62,7 @@ ARM_CORE_INFO iMX8Ppi[] =
 #if FixedPcdGet32(PcdCoreCount) > 2
   {
     // Cluster 0, Core 2
-    0x0, 0x2,
+    GET_MPID(0x0, 0x2),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value. Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -71,7 +71,7 @@ ARM_CORE_INFO iMX8Ppi[] =
   },
   {
     // Cluster 0, Core 3
-    0x0, 0x3,
+    GET_MPID(0x0, 0x3),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value. Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -383,6 +383,19 @@ VOID UsdhcInit()
   //USDHC3
   // SYSTEM_PLL1_DIV2 = 400MHz
   CCM_TARGET_ROOT_USDHC3 = CCM_TARGET_ROOT_MUX(0x01) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK;
+
+  /* 200 mHz pad settings */
+  IOMUXC_SW_PAD_CTL_PAD_NAND_WE_B   = 0x196; // USDHC3_CLK
+  IOMUXC_SW_PAD_CTL_PAD_NAND_WP_B   = 0x1d6; // USDHC3_CMD
+  IOMUXC_SW_PAD_CTL_PAD_NAND_DATA04 = 0x1d6; // USDHC3_DATA0
+  IOMUXC_SW_PAD_CTL_PAD_NAND_DATA05 = 0x1d6; // USDHC3_DATA1
+  IOMUXC_SW_PAD_CTL_PAD_NAND_DATA06 = 0x1d6; // USDHC3_DATA2
+  IOMUXC_SW_PAD_CTL_PAD_NAND_DATA07 = 0x1d6; // USDHC3_DATA3
+  IOMUXC_SW_PAD_CTL_PAD_NAND_RE_B   = 0x1d6; // USDHC3_DATA4
+  IOMUXC_SW_PAD_CTL_PAD_NAND_CE2_B  = 0x1d6; // USDHC3_DATA5
+  IOMUXC_SW_PAD_CTL_PAD_NAND_CE3_B  = 0x1d6; // USDHC3_DATA6
+  IOMUXC_SW_PAD_CTL_PAD_NAND_CLE    = 0x1d6; // USDHC3_DATA7
+  IOMUXC_SW_PAD_CTL_PAD_NAND_CE1_B  = 0x196; // USDHC3_STROBE
 }
 
 /**

@@ -293,7 +293,7 @@ ARM_CORE_INFO iMX8Ppi[] =
 {
   {
     // Cluster 0, Core 0
-    0x0, 0x0,
+    GET_MPID(0x0, 0x0),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value.
     // Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -304,7 +304,7 @@ ARM_CORE_INFO iMX8Ppi[] =
 #if FixedPcdGet32(PcdCoreCount) > 1
   {
     // Cluster 0, Core 1
-    0x0, 0x1,
+    GET_MPID(0x0, 0x1),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value
     // Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -316,7 +316,7 @@ ARM_CORE_INFO iMX8Ppi[] =
 #if FixedPcdGet32(PcdCoreCount) > 2
   {
     // Cluster 0, Core 2
-    0x0, 0x2,
+    GET_MPID(0x0, 0x2),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value
     // Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -326,7 +326,7 @@ ARM_CORE_INFO iMX8Ppi[] =
   },
   {
     // Cluster 0, Core 3
-    0x0, 0x3,
+    GET_MPID(0x0, 0x3),
     // MP Core MailBox Set/Get/Clear Addresses and Clear Value
     // Not used with i.MX8, set to 0
     (EFI_PHYSICAL_ADDRESS)0x00000000,
@@ -757,6 +757,21 @@ VOID UsdhcInit()
   // USDHC2
   // SYSTEM_PLL1_DIV2 = 400MHz
   CCM_TARGET_ROOT_USDHC2 = CCM_TARGET_ROOT_MUX(0x01) | CCM_TARGET_ROOT_POST_PODF(0) | CCM_TARGET_ROOT_PRE_PODF(0) | CCM_TARGET_ROOT_ENABLE_MASK;
+
+  /* 200 mHz pad settings */
+  IOMUXC_SW_PAD_CTL_PAD_SD1_CLK     = 0x9f;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_CMD     = 0xdf;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_DATA0   = 0xdf;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_DATA1   = 0xdf;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_DATA2   = 0xdf;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_DATA3   = 0xdf;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_DATA4   = 0xdf;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_DATA5   = 0xdf;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_DATA6   = 0xdf;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_DATA7   = 0xdf;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_STROBE  = 0x9f;
+  IOMUXC_SW_PAD_CTL_PAD_SD1_RESET_B = 0xc1;
+
 }
 
 #define ARM_PLL_REF_CLK                         25000000UL

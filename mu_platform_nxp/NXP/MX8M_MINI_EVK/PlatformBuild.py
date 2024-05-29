@@ -50,7 +50,7 @@ class ImxPlatformBuilder(UpdateSettingsManager, SetupSettingsManager, BuildSetti
         self.require_repos = ('MU_BASECORE','Common/MU','Common/MU_TIANO', 'Common/MU_OEM_SAMPLE','Silicon/ARM/MU_TIANO')
         self.project_scope = ('imxfamily', 'imx8')
 
-        self.module_packages = ('MU_BASECORE','Silicon/ARM/NXP', 'Common/MU','Common/MU_TIANO', 'Common/MU_OEM_SAMPLE','Silicon/ARM/MU_TIANO')
+        self.module_packages = ('MU_BASECORE','Silicon/ARM/NXP', 'Common/MU','Common/MU_TIANO', 'Common/MU_OEM_SAMPLE','Silicon/ARM/MU_TIANO','NXP')
 
     def GetActiveScopes(self):
         ''' get scope '''

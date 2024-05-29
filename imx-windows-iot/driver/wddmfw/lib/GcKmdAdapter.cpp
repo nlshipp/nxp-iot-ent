@@ -400,6 +400,12 @@ GcKmAdapter::GetStandardAllocationDriverData(
         return STATUS_SUCCESS;
     }
 
+    Status = IsGdiSurfaceSupported(pGetStandardAllocationDriverData);
+    if (!NT_SUCCESS(Status))
+    {
+        return Status;
+    }
+
     AllocationExchangeData *pAllocationInfo = (AllocationExchangeData *)pGetStandardAllocationDriverData->pAllocationPrivateDriverData;
     GcSurfaceRequirement    SurfaceRequirement;
 

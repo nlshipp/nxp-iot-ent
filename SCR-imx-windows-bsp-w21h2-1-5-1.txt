@@ -1,9 +1,9 @@
 NXP Software Content Register
 
-Release - Windows 10 IoT 1.5.0
-December 2023
+Release - Windows 10 IoT 1.5.1
+May 2024
 
-License file: EULA.txt  NXP Proprietary LA_OPT_NXP_Software_License v53 December 2023 - Additional distribution license granted, Section 2.3 applies
+License file: EULA.txt  NXP Proprietary LA_OPT_NXP_Software_License v56 April 2024 - Additional distribution license granted, Section 2.3 applies
 
 --------------------------------------------
 
@@ -28,6 +28,7 @@ Origin:                      Microsoft (MS-PL) - https://github.com/microsoft/Wi
 --------------------------------------------
   
 Package:                     ./imx-atf
+Version:                     lf-6.1.55-2.2.0
 Outgoing License:            BSD-3-Clause 
 License File:                ./imx-atf/license.rst 
 Type of Content:             source
@@ -40,6 +41,7 @@ Origin:                      NXP (proprietary)
 --------------------------------------------
 
 Package:                     ./imx-mkimage
+Version:                     lf-6.1.55-2.2.0
 Outgoing License:            GPL-2.0 
 License File:                ./imx-mkimage/COPYING
 Type of Content:             source
@@ -52,6 +54,7 @@ Origin:                      NXP (GPL-2.0)
 --------------------------------------------
  
 Package:                     ./imx-optee-os
+Version:                     lf-6.1.55-2.2.0
 Outgoing License:            BSD-2-Clause, BSD-3-Clause 
 License File:                ./imx-optee_os/LICENSE  
 Type of Content:             source
@@ -145,6 +148,7 @@ Origin:                      Microsoft (MIT) - https://github.com/Microsoft/RIoT
 --------------------------------------------
 
 Package:                     ./uboot-imx
+Version:                     lf-6.1.55-2.2.0
 Outgoing License:            GPL-2.0 
 License File:                ./uboot-imx/Licenses/
 Type of Content:             source

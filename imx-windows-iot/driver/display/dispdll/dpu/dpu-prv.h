@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2020, 2022-2023 NXP
+ * Copyright 2017-2020, 2022-2024 NXP
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -275,6 +275,19 @@ struct dpu_soc {
 	struct dpu_tcon		*tcon_priv[2];
 	struct dpu_vscaler	*vs_priv[3];
 };
+
+struct Imx8qxpDisplayPDEVs {
+    struct platform_device *p_prg_pdev;
+    struct platform_device *p_dprc_pdev;
+    struct platform_device *p_dpu_pdev;
+    struct platform_device *p_client_devices;
+    struct platform_device *p_irqsteer_pdev;
+    UINT* p_refCount;
+};
+
+static const INT PRG_CNT = 9;
+static const INT DPRC_CNT = 6;
+static const INT CLIENT_DEVICE_CNT = 3;
 
 int dpu_format_horz_chroma_subsampling(u32 format);
 int dpu_format_vert_chroma_subsampling(u32 format);

@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -14,6 +14,7 @@
 #include "GcKmdImx8qxpDisplayController.h"
 #include "GcKmdImx8mnDisplay.h"
 #include "GcKmdImx8qxpDisplay.h"
+#include "GcKmdImx8qxpMipiDsiDisplay.h"
 #include "GcKmdUtil.h"
 
 #include "GcKmdLogging.h"
@@ -200,6 +201,12 @@ static GcKmDisplay* GetDisplay(
             case DISP_INTERFACE_LVDS1:
                 di.DisplayInterfaceIndex = 1;
                 return new (NonPagedPoolNx, 'PSID') GcKmImx8qxpDisplay(&di, nullptr);
+            case DISP_INTERFACE_MIPI_DSI0:
+                di.DisplayInterfaceIndex = 0;
+                return new (NonPagedPoolNx, 'PSID') GcKmImx8qxpMipiDsiDisplay(&di, nullptr);
+            case DISP_INTERFACE_MIPI_DSI1:
+                di.DisplayInterfaceIndex = 1;
+                return new (NonPagedPoolNx, 'PSID') GcKmImx8qxpMipiDsiDisplay(&di, nullptr);
             default:
                 return nullptr;
             }

@@ -3,7 +3,7 @@
 #
 #  Copyright (c) 2018, Microsoft Corporation. All rights reserved.
 #  Copyright (c) 2013-2018, ARM Limited. All rights reserved.
-#  Copyright 2019-2020, 2022-2023 NXP
+#  Copyright 2019-2020, 2022-2024 NXP
 #
 #  This program and the accompanying materials
 #  are licensed and made available under the terms and conditions of the BSD License
@@ -267,7 +267,7 @@
 
   # i.MX8QXP Display configuration
   #  PcdDisplayEnable      - enable display, default enabled
-  #  PcdDisplayInterface   - default display interface: 2=LVDS0, 3=LVDS1, (note: mipi-dsi not supported yet)
+  #  PcdDisplayInterface   - default display interface: 1=MIPI-DSI0, 2=LVDS0, 3=LVDS1, 6=MIPI-DSI1
   #  PcdDisplayI2CBaseAddr - I2C related to IMX-LVDS-HDMI or IMX-MIPI-HDMI converter:
   #                          DSI0_I2C0 - 0x56226000 (for LVDS0/DSI0), DSI1_I2C0 - 0x56246000 (for LVDS1/DSI1)
   #  PcdDisplayReadEDID    - applicable for lvds-hdmi or mipi_dsi-hdmi converter
@@ -401,6 +401,12 @@
   # USB
   #
   giMX8TokenSpaceGuid.PcdUsb1XhciBaseAddress|0x5B130000
+
+  # Boot options
+  giMX8TokenSpaceGuid.PcdBootDevice1Path|L"VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,02000000)/SD(0x0)"
+  giMX8TokenSpaceGuid.PcdBootDevice1Description|L"Boot from SD Card"
+  giMX8TokenSpaceGuid.PcdBootDevice2Path|L"VenHw(AAFB8DAA-7340-43AC-8D49-0CCE14812489,01000000)/eMMC(0x0)"
+  giMX8TokenSpaceGuid.PcdBootDevice2Description|L"Boot from eMMC"
 
 [PcdsPatchableInModule]
   # Use system default resolution

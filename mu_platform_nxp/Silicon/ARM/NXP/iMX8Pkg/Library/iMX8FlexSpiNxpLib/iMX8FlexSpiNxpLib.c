@@ -6,9 +6,9 @@
 
 #include <Library/BaseLib.h>
 #include <Library/TimerLib.h>
-
-#include "iMXNorFspi.h"
 #include "iMXNorCmd.h"
+#include "iMX8FlexSpiLib.h"
+
 
 #define FSPI_SEQID_LUT              15
 #define FSPI_SEQID_AHB_LUT          14
@@ -328,8 +328,12 @@ int FspiRunCommand(const FspiCommand *cmd) {
 
   f = GetFspiData();
 
+  DebugPrint(0xffffffff, "BEFORE POLL, ptr=0x%08x\n", f->iobase);
+  DebugPrint(0xffffffff, "BEFORE POLL, ptr=0x%08x VAL=0x%08X\n", f->iobase, *(UINT32*)(f->iobase));
+  DebugPrint(0xffffffff, "BEFORE POLL, ptr=0x%08x VAL2=0x%08X\n", f->iobase, *(UINT32*)(f->iobase +  IMX_FSPI_STS0));
   err = FspiReadlPollTout(f, f->iobase + IMX_FSPI_STS0,
   IMX_FSPI_STS0_ARB_IDLE, 1, POLL_TOUT, TRUE);
+  DebugPrint(0xffffffff, "AFTER POLL, ptr=0x%08x\n", f->iobase);
   WARN_ON(err);
 
   FspiPrepareLut(f, cmd);
