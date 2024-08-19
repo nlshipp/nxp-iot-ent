@@ -50,6 +50,7 @@
   Microsoft/OpteeClientPkg/OpteeClientPkg.dec
   iMXPlatformPkg/iMXPlatformPkg.dec
   iMX8Pkg/iMX8Pkg.dec
+  Microsoft/MsPkg.dec
 
 [FixedPcd]
   gArmPlatformTokenSpaceGuid.PcdCoreCount
@@ -98,3 +99,4 @@
   giMX8TokenSpaceGuid.PcdCsi1CameraOv10635
   giMX8TokenSpaceGuid.PcdCsi2CameraOv5640
   giMX8TokenSpaceGuid.PcdCsi2CameraOv10635
+  gMsPkgTokenSpaceGuid.PcdSecureBootEnable

@@ -1,35 +1,31 @@
 /*
-* Copyright 2022 NXP
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted (subject to the limitations in the disclaimer
-* below) provided that the following conditions are met:
-*
-* * Redistributions of source code must retain the above copyright notice, this
-* list of conditions and the following disclaimer.
-*
-* * Redistributions in binary form must reproduce the above copyright notice,
-* this list of conditions and the following disclaimer in the documentation
-* and/or other materials provided with the distribution.
-*
-* * Neither the name of NXP nor the names of its contributors may be used to
-* endorse or promote products derived from this software without specific prior
-* written permission.
-*
-* NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS
-* LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-* THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-* ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
-* LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-* CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
-* GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
-* OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
-*/
+ * Copyright 2022-2023 NXP
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
+ * * Neither the name of the copyright holder nor the
+ *   names of its contributors may be used to endorse or promote products
+ *   derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
 
 #include "imx_acpi_utils.h"
 #include <initguid.h>
@@ -47,6 +43,7 @@ NTSTATUS Acpi_GetDevicePropertiesPackage(_In_ IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiD
 #pragma alloc_text(PAGE, Acpi_GetDevicePropertyValueArgument)
 #pragma alloc_text(PAGE, Acpi_GetIntegerPropertyValue)
 #pragma alloc_text(PAGE, Acpi_GetBufferPropertyAddress)
+#pragma alloc_text(PAGE, Acpi_GetStringPropertyAddress)
 
 DEFINE_GUID(ACPI_DEVICE_PROPERTIES_DSD_GUID, 0xDAFFD814, 0x6EBA, 0x4D8C, 0x8A, 0x91, 0xBC, 0x9B, 0xBF, 0x4A, 0xA3, 0x01);
 
@@ -198,7 +195,7 @@ Routine Description:
     Allocates the output buffer and finds the "Property package" in _DSD.
     User must dealocate output buffer as soon as it is not needed.
 Arguments:
-    pAdapter   - Pointer to the ENET device data structure.
+    pAcpiDevContext - Pointer to the ACPI device context structure.
 Return Value:
     NDIS_STATUS_SUCCESS or STATUS_ACPI_INVALID_ARGTYPE
 --*/
@@ -301,7 +298,7 @@ NTSTATUS Acpi_GetDevicePropertiesPackage(IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiDevCon
 Routine Description:
     Returns the property value argument.
 Arguments:
-    pAdapter                 - Pointer to the ENET device data structure.
+    pAcpiDevContext          - Pointer to the ACPI device context structure.
     pPropertName             - Property name.
     ppPropertyValueArgument  - Pointer to pointer to the requested peroperty value argument.
     ArgumentType             - Argunent type.
@@ -356,11 +353,10 @@ NTSTATUS Acpi_GetDevicePropertyValueArgument(IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiDe
 Routine Description:
     Returns the integer property value.
 Arguments:
-    pAdapter       - Pointer to the ENET device data structure.
+    pAcpiDevContext- Pointer to the ACPI device context structure.
     pPropertName   - Property name.
     pBuffer        - Pointer to pointer to the data buffer.
-Return Value:
-        NDIS_STATUS_SUCCESS, STATUS_NO_MORE_ENTRIES or STATUS_ACPI_INVALID_ARGTYPE
+Return Value: none
 --*/
 _Use_decl_annotations_
 void Acpi_GetIntegerPropertyValue(IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiDevContext, const CHAR* pPropertName, ULONG* pBuffer)
@@ -383,11 +379,11 @@ void Acpi_GetIntegerPropertyValue(IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiDevContext, c
 
 /*++
 Routine Description:
-    Returns the integer property value.
+    Returns address and size of buffer property.
 Arguments:
-    pAdapter       - Pointer to the ENET device data structure.
-    pPropertName   - Property name.
-    pBuffer        - Pointer to pointer to the data buffer.
+    pAcpiDevContext - Pointer to the ACPI device context structure.
+    pPropertName    - Property name.
+    pBuffer         - Pointer to pointer to the data buffer.
 Return Value:
         NDIS_STATUS_SUCCESS, STATUS_NO_MORE_ENTRIES or STATUS_ACPI_INVALID_ARGTYPE
 --*/
@@ -414,10 +410,40 @@ void Acpi_GetBufferPropertyAddress(IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiDevContext, 
 
 /*++
 Routine Description:
+    Returns address and size of string property.
+Arguments:
+    pAcpiDevContext - Pointer to the ACPI device context structure.
+    pPropertName    - Property name.
+    pBuffer         - Pointer to pointer to the data buffer.
+Return Value: none
+--*/
+_Use_decl_annotations_
+void Acpi_GetStringPropertyAddress(IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiDevContext, const CHAR* pPropertName, char** pBuffer, ULONG* BuffSize)
+{
+    NTSTATUS                        Status;
+    ACPI_METHOD_ARGUMENT UNALIGNED* pPropertyValue = NULL;
+
+    DBG_ACPI_METHOD_BEG();
+    PAGED_CODE();
+    if (!NT_SUCCESS(Status = Acpi_GetDevicePropertyValueArgument(pAcpiDevContext, pPropertName, &pPropertyValue, ACPI_METHOD_ARGUMENT_STRING))) {
+        *BuffSize = 0;
+        DBG_ACPI_PRINT_INFO("Propery %s not found", pPropertName);
+    }
+    else {
+        *pBuffer = (char*)&pPropertyValue->Data;
+        *BuffSize = pPropertyValue->DataLength;
+        DBG_ACPI_PRINT_INFO("Propery %s found in ACPI, Address: 0x%016p, size: %d ", pPropertName, *pBuffer, *BuffSize);
+    }
+    DBG_ACPI_METHOD_END();
+    return;
+}
+
+/*++
+Routine Description:
     Initialzes acpi support.
 Arguments:
     pAcpiDevContext       - Pointer to the ACPI context data structure.
-Return Value:
+Return Value: STATUS_SUCCESS, STATUS_UNSUCCESSFUL.
 --*/
 _Use_decl_annotations_
 NTSTATUS Acpi_Init(IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiDevContext) {
@@ -445,8 +471,8 @@ NTSTATUS Acpi_Init(IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiDevContext) {
 Routine Description:
     Deinitialzes acpi support.
 Arguments:
-    pAcpiDevContext       - Pointer to the ACPI context data structure.
-Return Value:
+    pAcpiDevContext - Pointer to the ACPI device context structure.
+Return Value: none
 --*/
 _Use_decl_annotations_
 void Acpi_Deinit(IMX_ACPI_UTILS_DEV_CONTEXT* pAcpiDevContext) {

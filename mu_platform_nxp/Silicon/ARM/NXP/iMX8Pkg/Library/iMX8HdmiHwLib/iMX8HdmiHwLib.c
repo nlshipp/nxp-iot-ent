@@ -77,18 +77,28 @@ LcdInitialize (
   )
 {
   // Configure new FrameBuffer address to CHAN1_DPR register
-#ifdef CPU_IMX8MP
+#if (defined(CPU_IMX8MP))
   volatile UINT32 tmp;
-  *((volatile UINT32 *)(0x32E8020CUL)) = FrameBaseAddress;
-  tmp = *((volatile UINT32 *)(0x32E80214UL));
+  #ifdef LCDIF1_BASE_PTR
+  MmioWrite32((UINTN)&LCDIF1_CTRLDESCL_LOW0_4, FrameBaseAddress);
+  tmp = MmioRead32 ((UINTN)&LCDIF1_CTRLDESCL0_5);
   tmp |= (1 << 30);
-  *((volatile UINT32 *)(0x32E80214UL)) = tmp;
+  MmioWrite32((UINTN)&LCDIF1_CTRLDESCL0_5, tmp);
+  #endif
+  #ifdef LCDIF_BASE_PTR
+  MmioWrite32((UINTN)&LCDIF_CTRLDESCL_LOW0_4, FrameBaseAddress);
+  tmp = MmioRead32 ((UINTN)&LCDIF_CTRLDESCL0_5);
+  tmp |= (1 << 30);
+  MmioWrite32((UINTN)&LCDIF_CTRLDESCL0_5, tmp);
+  #endif
 #elif defined(CPU_IMX8QXP)
   #define IMXDPUV1_FETCHDECODE0_BASEADDRESS0                   (0x56186C1C)
   #define IMXDPUV1_PIXENGCFG_EXTDST0_REQUEST                   (0x56180990)
   #define IMXDPUV1_SHDLD_FETCHDECODE0                          (1U << 10)
   MmioWrite32((UINTN)IMXDPUV1_PIXENGCFG_EXTDST0_REQUEST, IMXDPUV1_SHDLD_FETCHDECODE0);
   MmioWrite32((UINTN)IMXDPUV1_FETCHDECODE0_BASEADDRESS0, FrameBaseAddress);
+#elif defined(CPU_IMX93)
+DEBUG ((DEBUG_WARN, "LcdInitialize\n"));
 #else
   DCSS__DPR1_BASE_PTR->FRAME_1P_BASE_ADDR_CTRL0.RW = FrameBaseAddress;
 #endif
@@ -143,7 +153,7 @@ LcdQueryMode (
   Info->HorizontalResolution = HD720_H_RES_PIXELS;
   Info->VerticalResolution = HD720_V_RES_PIXELS;
   Info->PixelsPerScanLine = HD720_H_RES_PIXELS;
-#elif defined(CPU_IMX8MP)
+#elif (defined(CPU_IMX8MP)|| defined(CPU_IMX93))
   Info->HorizontalResolution = HD_H_RES_PIXELS;
   Info->VerticalResolution = HD_V_RES_PIXELS;
   Info->PixelsPerScanLine = HD_H_RES_PIXELS;

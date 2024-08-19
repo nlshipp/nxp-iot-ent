@@ -1,7 +1,7 @@
 /*
  * Samsung MIPI DSIM Bridge
  *
- * Copyright 2018-2019,2022 NXP
+ * Copyright 2018-2019,2022-2023 NXP
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1174,6 +1174,11 @@ int sec_mipi_dsim_check_pll_out(struct platform_device *pdev,
 	pix_clk = mode.clock;
 	bit_clk = DIV_ROUND_UP(pix_clk * bpp, dsim->lanes);
 
+	if (dsim->mode_flags & MIPI_DSI_MODE_INCREASE_BITCLK) {
+		/* Increase bit clk by approx 3% */
+		bit_clk = bit_clk + (bit_clk >> 5);
+	}
+
 	if (bit_clk * 1000 > pdata->max_data_rate) {
 		dev_err(dsim->dev,
 			"reuest bit clk freq exceeds lane's maximum value\n");
@@ -1761,60 +1766,3 @@ void sec_mipi_dsim_dumpregs(struct platform_device *pdev)
 	DbgPrintEx(DPFLTR_IHVVIDEO_ID, DPFLTR_ERROR_LEVEL, "--------------------------------------\n");
 }
 #endif
-
-/* TEST_attachment - these methods should be implemented by panel/converter driver */
-int sec_mipi_dsim_test_attach_dsi(struct platform_device *pdev, u8 num_lanes, u8 channel_id)
-{
-	struct mipi_dsi_host *host;
-	struct mipi_dsi_device *dsi;
-	int ret = 0;
-	struct mipi_dsi_device_info info;
-
-	strcpy(info.type, "TestDev");
-	info.channel = channel_id;
-	info.node = NULL;
-
-	host = of_find_mipi_dsi_host_by_node(&pdev->dev.parent->of_node);
-	if (!host) {
-		dev_err(&pdev->dev, "failed to find dsi host\n");
-		return -EPROBE_DEFER;
-	}
-
-	dsi = mipi_dsi_device_register_full(host, &info);
-	if (IS_ERR(dsi)) {
-		dev_err(&pdev->dev, "failed to create dsi device\n");
-		ret = PTR_ERR(dsi);
-		goto err_dsi_device;
-	}
-
-	pdev->data = dsi;
-
-	dsi->lanes = num_lanes;
-	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-		MIPI_DSI_MODE_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE;
-
-	ret = mipi_dsi_attach(dsi);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to attach dsi to host\n");
-		goto err_dsi_attach;
-	}
-
-	return 0;
-
-err_dsi_attach:
-	mipi_dsi_device_unregister(dsi);
-err_dsi_device:
-	return ret;
-}
-
-void sec_mipi_dsim_test_detach_dsi(struct platform_device *pdev)
-{
-	struct mipi_dsi_device *dsi;
-
-	if (pdev && pdev->data) {
-		dsi = (struct mipi_dsi_device *)pdev->data;
-		mipi_dsi_detach(dsi);
-		mipi_dsi_device_unregister(dsi);
-	}
-}

@@ -130,6 +130,23 @@ NTSTATUS __stdcall GcKmdDdi::DdiSubmitCommand(
 
     DbgPrintEx(DPFLTR_IHVVIDEO_ID, DPFLTR_TRACE_LEVEL, "%s hAdapter=%lx\n", __FUNCTION__, hAdapter);
 
+    //
+    // This only happens when Context Allocation is created
+    //
+
+    if (pSubmitCommand->Flags.ContextSwitch)
+    {
+        DXGKARG_SUBMITCOMMANDVIRTUAL    SubmitCommandVirtual = {};
+
+        SubmitCommandVirtual.Flags.ContextSwitch = 1;
+
+        SubmitCommandVirtual.EngineOrdinal = pSubmitCommand->EngineOrdinal;
+        SubmitCommandVirtual.NodeOrdinal = pSubmitCommand->NodeOrdinal;
+        SubmitCommandVirtual.SubmissionFenceId = pSubmitCommand->SubmissionFenceId;
+
+        return DdiSubmitCommandVirtual(hAdapter, &SubmitCommandVirtual);
+    }
+
     return STATUS_NOT_IMPLEMENTED;
 }
 

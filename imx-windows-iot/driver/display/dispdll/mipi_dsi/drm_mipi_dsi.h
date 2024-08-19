@@ -4,13 +4,15 @@
  *
  * Copyright (C) 2012-2013, Samsung Electronics, Co., Ltd.
  * Andrzej Hajda <a.hajda@samsung.com>
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  */
 
 #ifndef __DRM_MIPI_DSI_H__
 #define __DRM_MIPI_DSI_H__
 
+#include <linux/platform_device.h>
 #include <linux/device.h>
+#include <linux/err.h>
 
 struct mipi_dsi_host;
 struct mipi_dsi_device;
@@ -134,6 +136,9 @@ struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node);
 #define MIPI_DSI_CLOCK_NON_CONTINUOUS	BIT(10)
 /* transmit data in low power */
 #define MIPI_DSI_MODE_LPM		BIT(11)
+/* increace bit clock to create a reserve */
+#define MIPI_DSI_MODE_INCREASE_BITCLK	BIT(12)
+
 
 enum mipi_dsi_pixel_format {
 	MIPI_DSI_FMT_RGB888,
@@ -224,7 +229,8 @@ struct mipi_dsi_device *
 mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 			      const struct mipi_dsi_device_info *info);
 void mipi_dsi_device_unregister(struct mipi_dsi_device *dsi);
-//struct mipi_dsi_device *of_find_mipi_dsi_device_by_node(struct device_node *np);
+int mipi_dsi_device_attach(struct platform_device* pdev, u8 channel_id);
+void mipi_dsi_device_detach(struct platform_device* pdev);
 int mipi_dsi_attach(struct mipi_dsi_device *dsi);
 int mipi_dsi_detach(struct mipi_dsi_device *dsi);
 int mipi_dsi_shutdown_peripheral(struct mipi_dsi_device *dsi);

@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Cadence Design Systems, Inc.
  * All rights reserved worldwide.
  *
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -51,6 +51,7 @@ extern "C" {
 #include "mipi_dsi/adv7511.h"
 #include <drm/drm_fourcc.h>
 #include <edidtst.h>
+#include "mipi_dsi/panel-raydium-rm67191.h"
 }
 
 #define printk(x, ...) DbgPrintEx(DPFLTR_IHVVIDEO_ID, DPFLTR_ERROR_LEVEL, x, __VA_ARGS__)
@@ -198,6 +199,13 @@ static property mn_adv_properties[] = {
     { "" /* mark end of the list */ }
 };
 
+static LONG cid[2];
+static property mn_panel_raydium_properties[] = {
+    { "compatible", 1, "raydium,rm67191" },
+    { "reset", 2, &cid }, /*GPIO1_IO8 - reset pin: pin name, 2, gpio connection_id LowPart=cid[0] HighPart=cid[1], */
+    { "" /* mark end of the list */ }
+};
+
 NTSTATUS SecDsiTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
 {
     NTSTATUS status;
@@ -233,17 +241,17 @@ NTSTATUS SecDsiTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
            m_i2c_main is the main device with allocated driver data. others are auxiliary - only for i2c regmap storage */
         m_i2c_main.is_initialized = 0;
         /* i2c_main device, ACPI i2c index 0 (first i2c device) */
-        status = GetI2CresourceNum(pDxgkInterface, 0, &m_i2c_main.connection_id);
+        status = GetResourceNum(pDxgkInterface, 0, &m_i2c_main.connection_id, ResourceType_I2C);
         if (!NT_SUCCESS(status)) {
             break;
         }
         /* i2c_cec device, ACPI i2c index 1 (second i2c device) */
-        status = GetI2CresourceNum(pDxgkInterface, 1, &m_i2c_cec.connection_id);
+        status = GetResourceNum(pDxgkInterface, 1, &m_i2c_cec.connection_id, ResourceType_I2C);
         if (!NT_SUCCESS(status)) {
             break;
         }
         /* i2c_edid device, ACPI i2c index 2 (third i2c device) */
-        status = GetI2CresourceNum(pDxgkInterface, 2, &m_i2c_edid.connection_id);
+        status = GetResourceNum(pDxgkInterface, 2, &m_i2c_edid.connection_id, ResourceType_I2C);
         if (!NT_SUCCESS(status)) {
             break;
         }
@@ -263,14 +271,28 @@ NTSTATUS SecDsiTransmitter::Start(DXGKRNL_INTERFACE* pDxgkInterface)
         printk_debug("SecDsi display: adv7535 mipi-hdmi converter initialized.\n");
     } while (0);
     if (!m_i2c_main.is_initialized) {
-        //TODO: Panel driver should be initialized. Do just test attachment of mipi driver.
-        //      These taskas should be done inside a panel driver.
-        test_pdev.name = "mipi_dsi_adv7535"; /* test name */
-        test_pdev.plat_name = "mn";
-        board_init(&test_pdev);
-        test_pdev.dev.parent = &dsi_pdev.dev;
-        if (sec_mipi_dsim_test_attach_dsi(&test_pdev, m_num_lanes, m_channel_id) != 0) {
-            sec_mipi_dsim_test_detach_dsi(&test_pdev);
+        LARGE_INTEGER m_gpio_connection_id;  /* GPIO connection id for panel reset pin */
+        status = GetResourceNum(pDxgkInterface, 0, &m_gpio_connection_id, ResourceType_GPIO);
+        if (!NT_SUCCESS(status)) {
+            printk("SecDsi display: ERROR getting Panel reset pin resource.\n");
+            return STATUS_INTERNAL_ERROR;
+        }
+        cid[0] = m_gpio_connection_id.LowPart;
+        cid[1] = m_gpio_connection_id.HighPart;
+
+        /* IMX - DSI - OLED panel */
+        panel_pdev.dev.of_node.properties = (property*)&mn_panel_raydium_properties;
+        panel_pdev.dev.parent = &dsi_pdev.dev;
+        if (mipi_dsi_device_attach(&panel_pdev, m_channel_id) != 0) {
+            mipi_dsi_device_detach(&panel_pdev);
+            printk("SecDsi display: ERROR mipi_dsi_device_detach failed.\n");
+            return STATUS_INTERNAL_ERROR;
+        }
+        if (rad_panel_probe(&panel_pdev, DSI_VIDEO_MODE_NON_BURST_SYNC_PULSE, m_num_lanes) != 0) {
+            rad_panel_remove(&panel_pdev);
+            mipi_dsi_device_detach(&panel_pdev);
+            printk("SecDsi display: ERROR rad_panel_probe failed.\n");
+            return STATUS_INTERNAL_ERROR;
         }
     }
 
@@ -293,8 +315,8 @@ NTSTATUS SecDsiTransmitter::Stop()
     /* To full stop the hardware, call: imx_sec_dsim_runtime_suspend(&dsi_pdev.dev); */
 
     if (!m_i2c_main.is_initialized) {
-        //TODO: Panel driver should be de-initialized. Do just test detachment of mipi driver.
-        sec_mipi_dsim_test_detach_dsi(&test_pdev);
+        rad_panel_remove(&panel_pdev);
+        mipi_dsi_device_detach(&panel_pdev);
     }
 
     if (m_i2c_main.is_initialized) {
@@ -321,7 +343,7 @@ NTSTATUS SecDsiTransmitter::GetHotPlugDetectStatus(UINT8* status)
     return STATUS_SUCCESS;
 }
 
-NTSTATUS SecDsiTransmitter::GetI2CresourceNum(DXGKRNL_INTERFACE* pDxgkInterface, ULONG i2c_index, LARGE_INTEGER *i2c_connection_id)
+NTSTATUS SecDsiTransmitter::GetResourceNum(DXGKRNL_INTERFACE* pDxgkInterface, ULONG i2c_index, LARGE_INTEGER *i2c_connection_id, enum ResType restype)
 {
     NTSTATUS status;
     WCHAR   buff[512];
@@ -332,7 +354,7 @@ NTSTATUS SecDsiTransmitter::GetI2CresourceNum(DXGKRNL_INTERFACE* pDxgkInterface,
         return status;
     }
 
-    status = ParseReslist((PCM_RESOURCE_LIST)&buff, CmResourceTypeConnection, i2c_connection_id, NULL, i2c_index);
+    status = ParseReslist((PCM_RESOURCE_LIST)&buff, CmResourceTypeConnection, i2c_connection_id, NULL, i2c_index, restype);
     if (!NT_SUCCESS(status)) {
         printk("SecDsi display: Error parsing resource list\n");
         return status;

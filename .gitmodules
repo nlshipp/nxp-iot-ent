@@ -15,11 +15,11 @@
 	url = https://github.com/Microsoft/mu_oem_sample.git
 [submodule "imx-mkimage"]
 	path = imx-mkimage
-	url = https://source.codeaurora.org/external/imx/imx-mkimage
+	url = https://github.com/nxp-imx/imx-mkimage.git
         ignore = untracked
 [submodule "imx-atf"]
 	path = imx-atf
-	url = https://source.codeaurora.org/external/imx/imx-atf
+	url = https://github.com/nxp-imx/imx-atf.git
 [submodule "MSRSec"]
 	path = MSRSec
 	url = https://github.com/Microsoft/MSRSec
@@ -28,7 +28,7 @@
 	url = https://github.com/Microsoft/RIoT.git
 [submodule "optee_os/optee_os_arm64"]
 	path = imx-optee-os
-	url = https://source.codeaurora.org/external/imx/imx-optee-os
+	url = https://github.com/nxp-imx/imx-optee-os.git
 [submodule "u-boots/u-boot-imx_arm64"]
 	path = uboot-imx
-	url = https://source.codeaurora.org/external/imx/uboot-imx
+	url = https://github.com/nxp-imx/uboot-imx.git

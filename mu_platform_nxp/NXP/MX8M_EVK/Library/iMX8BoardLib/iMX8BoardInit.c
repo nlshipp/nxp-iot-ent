@@ -32,15 +32,12 @@
 #define IMX_PCIE1_PD                    1
 #define IMX_USB1_PD                     2
 #define IMX_USB2_PD                     3
+#define IMX_GPU_BUS                     4
+#define IMX_VPU_BUS                     5
 #define IMX_MIPI_CSI1_PD                8 /* over id 3, id = ID - 3, Thus DDR changes aren't allowed. */
 #define IMX_MIPI_CSI2_PD                9
 #define IMX_PCIE2_PD                    10
 
-#define IMX_GPU_BUS                     4
-#define IMX_VPU_BUS                     5
-#define IMX_VPU_G1                      6
-#define IMX_VPU_G2                      7
-#define IMX_VPU_H1                      8
 
 #define IMX_VPU_BLK_CTL_BASE            0x38320000
 

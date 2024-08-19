@@ -8,7 +8,7 @@ Signature="$WINDOWS NT$"
 Class=Display
 ClassGUID={4D36E968-E325-11CE-BFC1-08002BE10318}
 Provider=%ManufacturerName%
-DriverVer=11/01/2022,26.18.10.4
+DriverVer=02/23/2023,26.18.10.5
 CatalogFile=galcore.cat
 
 ; ================= Class section =====================
@@ -113,6 +113,8 @@ HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\MemoryManager",DirectFlip
 HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrDebugMode,%REG_DWORD%,2
 ;HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrLimitCount,%REG_DWORD%,100
 HKLM,"SOFTWARE\Microsoft\XAML",ForceWARP,%REG_DWORD%,0
+; GDI acceleration level of 2 : HW rendering, 1 : SW redirection surface, 0 : off
+HKR,,GdiAccLevel,%REG_DWORD%,2
 
 [GcWddmMP_AddReg]
 HKR,,UserModeDriverName,%REG_MULTI_SZ%,"<>",umd11.dll,umd11.dll,umd12.dll
@@ -125,6 +127,8 @@ HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\MemoryManager",DirectFlip
 HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrDebugMode,%REG_DWORD%,2
 ;HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrLimitCount,%REG_DWORD%,100
 HKLM,"SOFTWARE\Microsoft\XAML",ForceWARP,%REG_DWORD%,0
+; GDI acceleration level of 2 : HW rendering, 1 : SW redirection surface, 0 : off
+HKR,,GdiAccLevel,%REG_DWORD%,2
 ; Display parameters for LVDS interface
 HKR,,Display0Interface,%REG_DWORD%,%DISP_INTERFACE_HDMI%
 ; HKR,,Display0Interface,%REG_DWORD%,%DISP_INTERFACE_LVDS0%
@@ -157,6 +161,8 @@ HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\MemoryManager",DirectFlip
 HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrDebugMode,%REG_DWORD%,2
 ;HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrLimitCount,%REG_DWORD%,100
 HKLM,"SOFTWARE\Microsoft\XAML",ForceWARP,%REG_DWORD%,0
+; GDI acceleration level of 2 : HW rendering, 1 : SW redirection surface, 0 : off
+HKR,,GdiAccLevel,%REG_DWORD%,2
 ;Following parameters relevant to MIPI-DSI interface
 HKR,,Display0NumLanes,%REG_DWORD%,4
 HKR,,Display0ChannelId,%REG_DWORD%,0
@@ -183,6 +189,8 @@ HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\MemoryManager",DirectFlip
 HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrDebugMode,%REG_DWORD%,2
 ;HKLM,"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",TdrLimitCount,%REG_DWORD%,100
 HKLM,"SOFTWARE\Microsoft\XAML",ForceWARP,%REG_DWORD%,0
+; GDI acceleration level of 2 : HW rendering, 1 : SW redirection surface, 0 : off
+HKR,,GdiAccLevel,%REG_DWORD%,2
 ;Following parameters relevant to MIPI-DSI interface
 HKR,,Display0NumLanes,%REG_DWORD%,4
 HKR,,Display0ChannelId,%REG_DWORD%,0

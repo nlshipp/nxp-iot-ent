@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) 2018 Microsoft Corporation. All rights reserved.
-*  Copyright 2020 NXP
+*  Copyright 2020, 2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -35,6 +35,7 @@ typedef enum {
  imxLvds0 = 2,
  imxLvds1 = 3,
  imxLvds0dual = 4,
+ imxRgb = 5,
  imxInterfaceUnknown,
 } imxDisplayInterfaceType;
 
@@ -42,6 +43,13 @@ typedef enum {
   PIXEL_FORMAT_ARGB32,
   PIXEL_FORMAT_BGRA32,
 } IMX_PIXEL_FORMAT;
+
+typedef enum {
+  DISP_TIMING_INVERT_HSYNC,
+  DISP_TIMING_INVERT_VSYNC,
+  DISP_TIMING_INVERT_DATA_EN,
+  DISP_TIMING_INVERT_CLOCK,
+} DISP_TIMING_FLAGS;
 
 typedef struct _IMX_DISPLAY_TIMING {
   UINT32 PixelClock;

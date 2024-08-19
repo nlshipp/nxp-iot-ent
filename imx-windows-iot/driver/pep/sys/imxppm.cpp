@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2022 NXP
+// Copyright 2022-2023 NXP
 // Licensed under the MIT License.
 //
 //
@@ -141,7 +141,8 @@ BOOLEAN IMX_PEP::PpmQueryIdleStatesV2 (
         // continue instead of entering STOP mode
         //
         statePtr->WakesSpuriously = TRUE;
-        statePtr->PlatformOnly = TRUE;
+        //statePtr->PlatformOnly = TRUE;
+        statePtr->PlatformOnly = FALSE;
         statePtr->Autonomous = FALSE;
         statePtr->Latency = 0;
         statePtr->BreakEvenDuration = 0;
@@ -229,8 +230,8 @@ BOOLEAN IMX_PEP::PpmQueryCoordinatedStates (
         PEP_COORDINATED_IDLE_STATE* statePtr =
                 &ArgsPtr->States[PLATFORM_IDLE_STATE_STOP_LIGHT];
 
-        statePtr->Latency = 500;                // 50us
-        statePtr->BreakEvenDuration = 0;
+        statePtr->Latency = 5000;             // 1 ms
+        statePtr->BreakEvenDuration = 5000;   // 1 ms
         statePtr->DependencyCount = this->activeProcessorCount;
         statePtr->MaximumDependencySize = 1;
     }
@@ -243,8 +244,8 @@ BOOLEAN IMX_PEP::PpmQueryCoordinatedStates (
         PEP_COORDINATED_IDLE_STATE* statePtr =
                 &ArgsPtr->States[PLATFORM_IDLE_STATE_ARM_OFF];
 
-        statePtr->Latency = 10000;              // 1ms
-        statePtr->BreakEvenDuration = 10000;
+        statePtr->Latency = 5000;              // 0.5 ms
+        statePtr->BreakEvenDuration = 5000;
         statePtr->DependencyCount = this->activeProcessorCount;
         statePtr->MaximumDependencySize = 1;
     }
@@ -689,14 +690,21 @@ void IMX_PEP::executePlatformIdleArmOff (PEP_PPM_IDLE_EXECUTE_V2* ArgsPtr)
 
     this->updateGpcInterruptController();
 
-    PSCI_CPU_SUSPEND_POWER_STATE state = {};
-    state.StateId = 1;
-    state.StateType = PSCI_CPU_SUSPEND_POWER_STATE_TYPE_POWER_DOWN;
+    BOOLEAN usePsci = IMX_CPU_TYPE(cpuRevision) != IMX_CPU_MX8QXP;
 
-    ArgsPtr->Status = this->pepKernelInfo.ProcessorHalt(
-        PROCESSOR_HALT_CONTEXT_RETAINED | PROCESSOR_HALT_CACHE_COHERENT,
-        &state,
-        IMX_PEP::smcCpuOff);
+    if (usePsci) {
+        PSCI_CPU_SUSPEND_POWER_STATE state = {};
+        state.StateId = 1;
+        state.StateType = PSCI_CPU_SUSPEND_POWER_STATE_TYPE_POWER_DOWN;
+
+        ArgsPtr->Status = this->pepKernelInfo.ProcessorHalt(
+            PROCESSOR_HALT_CONTEXT_RETAINED | PROCESSOR_HALT_CACHE_COHERENT,
+            &state,
+            IMX_PEP::smcCpuSuspend);
+    } else {
+        _DataSynchronizationBarrier();
+        __wfi();
+    }
 }
 
 // NTSTATUS PROCESSOR_HALT_ROUTINE(_Inout_opt_ PVOID Context);

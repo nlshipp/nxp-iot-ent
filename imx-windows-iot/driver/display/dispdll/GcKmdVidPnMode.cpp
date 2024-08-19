@@ -18,6 +18,10 @@ GC_PAGED_SEGMENT_BEGIN; //======================================================
 
 BOOLEAN g_bUsePreviousPostDisplayInfo = FALSE;
 
+extern videomode g_StandardModeTimings[];
+extern unsigned int g_NumStandardModeTimings;
+
+
 NTSTATUS
 GcKmBaseDisplay::EnumVidPnCofuncModality(
     IN_CONST_PDXGKARG_ENUMVIDPNCOFUNCMODALITY_CONST pEnumCofuncModality)
@@ -98,7 +102,7 @@ GcKmBaseDisplay::ProcessSourceModeSet(
 
     if (bModeSetNeedsUpdate)
     {
-        Status = AddNewSourceModeSet(pVidPnInterface, pEnumCofuncModality->hConstrainingVidPn, pVidPnPath->VidPnSourceId);
+        Status = AddNewSourceModeSet(pVidPnInterface, pEnumCofuncModality->hConstrainingVidPn, pVidPnPath->VidPnSourceId, SupportStandardModes());
         RETURN_ON_FAILURE(Status);
     }
 
@@ -118,7 +122,7 @@ GcKmBaseDisplay::ProcessTargetModeSet(
 
     if (bModeSetNeedsUpdate)
     {
-        Status = AddNewTargetModeSet(pVidPnInterface, pEnumCofuncModality->hConstrainingVidPn, pVidPnPath->VidPnTargetId);
+        Status = AddNewTargetModeSet(pVidPnInterface, pEnumCofuncModality->hConstrainingVidPn, pVidPnPath->VidPnTargetId, SupportStandardModes());
         RETURN_ON_FAILURE(Status);
     }
 
@@ -163,7 +167,8 @@ NTSTATUS
 GcKmBaseDisplay::AddNewSourceModeSet(
     const DXGK_VIDPN_INTERFACE* pVidPnInterface,
     D3DKMDT_HVIDPN hVidPn,
-    D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId)
+    D3DDDI_VIDEO_PRESENT_SOURCE_ID VidPnSourceId,
+    bool bSupportStandardModes)
 {
     // Create a new source mode set.
     D3DKMDT_HVIDPNSOURCEMODESET hSourceModeSet = 0;
@@ -181,7 +186,7 @@ GcKmBaseDisplay::AddNewSourceModeSet(
             DEBUG_CHECK(Status);
         });
 
-    Status = AddNewSourceModeInfo(hSourceModeSet, pSourceModeSetInterface);
+    Status = AddNewSourceModeInfo(hSourceModeSet, pSourceModeSetInterface, bSupportStandardModes);
     RETURN_ON_FAILURE(Status);
 
     Status = pVidPnInterface->pfnAssignSourceModeSet(
@@ -198,7 +203,8 @@ NTSTATUS
 GcKmBaseDisplay::AddNewTargetModeSet(
     const DXGK_VIDPN_INTERFACE* pVidPnInterface,
     D3DKMDT_HVIDPN hVidPn,
-    D3DKMDT_VIDEO_PRESENT_TARGET_MODE_ID VidPnTargeId)
+    D3DKMDT_VIDEO_PRESENT_TARGET_MODE_ID VidPnTargeId,
+    bool bSupportStandardModes)
 {
     // Create a new target mode set.
     D3DKMDT_HVIDPNTARGETMODESET hTargetModeSet = 0;
@@ -216,7 +222,7 @@ GcKmBaseDisplay::AddNewTargetModeSet(
             DEBUG_CHECK(Status);
         });
 
-    Status = AddNewTargetModeInfo(hTargetModeSet, pTargetModeSetInterface);
+    Status = AddNewTargetModeInfo(hTargetModeSet, pTargetModeSetInterface, bSupportStandardModes);
     RETURN_ON_FAILURE(Status);
 
     Status = pVidPnInterface->pfnAssignTargetModeSet(
@@ -232,7 +238,8 @@ GcKmBaseDisplay::AddNewTargetModeSet(
 NTSTATUS
 GcKmBaseDisplay::AddNewSourceModeInfo(
     D3DKMDT_HVIDPNSOURCEMODESET hSourceModeSet,
-    const DXGK_VIDPNSOURCEMODESET_INTERFACE* pSourceModeSetInterface)
+    const DXGK_VIDPNSOURCEMODESET_INTERFACE* pSourceModeSetInterface,
+    bool bSupportStandardModes)
 {
     D3DKMDT_VIDPN_SOURCE_MODE* pSourceModeInfo = NULL;
     auto Status = pSourceModeSetInterface->pfnCreateNewModeInfo(hSourceModeSet, &pSourceModeInfo);
@@ -253,17 +260,71 @@ GcKmBaseDisplay::AddNewSourceModeInfo(
         SetSourceModeInfoToNative(pSourceModeInfo);
     }
 
+    const D3DKMDT_VIDPN_SOURCE_MODE BaseSourceModeInfo = *pSourceModeInfo;
+
     Status = pSourceModeSetInterface->pfnAddMode(hSourceModeSet, pSourceModeInfo);
     RETURN_ON_FAILURE(Status);
 
     ModeInfoGuard.Deactivate();
+
+    if (!bSupportStandardModes)
+    {
+        return STATUS_SUCCESS;
+    }
+
+    const D3DKMDT_2DREGION BaseModeSize = BaseSourceModeInfo.Format.Graphics.PrimSurfSize;
+
+    int i = g_NumStandardModeTimings - 1;
+
+    do
+    {
+        if ((g_StandardModeTimings[i].hactive == BaseModeSize.cx) &&
+            (g_StandardModeTimings[i].vactive == BaseModeSize.cy))
+        {
+            continue;
+        }
+
+        if ((g_StandardModeTimings[i].hactive > BaseModeSize.cx) ||
+            (g_StandardModeTimings[i].vactive > BaseModeSize.cy))
+        {
+            continue;
+        }
+
+        D3DKMDT_VIDPN_SOURCE_MODE* pSourceModeInfo = NULL;
+        auto Status = pSourceModeSetInterface->pfnCreateNewModeInfo(hSourceModeSet, &pSourceModeInfo);
+        if (STATUS_SUCCESS != Status)
+        {
+            break;
+        }
+
+        auto& Graphics = pSourceModeInfo->Format.Graphics;
+
+        pSourceModeInfo->Type = BaseSourceModeInfo.Type;
+        Graphics = BaseSourceModeInfo.Format.Graphics;
+
+        Graphics.PrimSurfSize.cx = g_StandardModeTimings[i].hactive;
+        Graphics.PrimSurfSize.cy = g_StandardModeTimings[i].vactive;
+
+        Graphics.VisibleRegionSize = Graphics.PrimSurfSize;
+
+        Graphics.Stride = Graphics.PrimSurfSize.cx * 4;
+
+        Status = pSourceModeSetInterface->pfnAddMode(hSourceModeSet, pSourceModeInfo);
+        if (STATUS_SUCCESS != Status)
+        {
+            pSourceModeSetInterface->pfnReleaseModeInfo(hSourceModeSet, pSourceModeInfo);
+            break;
+        }
+    } while (--i >= 0);
+
     return STATUS_SUCCESS;
 }
 
 NTSTATUS
 GcKmBaseDisplay::AddNewTargetModeInfo(
     D3DKMDT_HVIDPNTARGETMODESET hTargetModeSet,
-    const DXGK_VIDPNTARGETMODESET_INTERFACE* pTargetModeSetInterface)
+    const DXGK_VIDPNTARGETMODESET_INTERFACE* pTargetModeSetInterface,
+    bool bSupportStandardModes)
 {
     D3DKMDT_VIDPN_TARGET_MODE* pTargetModeInfo = NULL;
     auto Status = pTargetModeSetInterface->pfnCreateNewModeInfo(hTargetModeSet, &pTargetModeInfo);
@@ -284,10 +345,82 @@ GcKmBaseDisplay::AddNewTargetModeInfo(
         SetTargetModeInfoToNative(pTargetModeInfo);
     }
 
+    const D3DKMDT_VIDPN_TARGET_MODE BaseTargetModeInfo = *pTargetModeInfo;
+
     Status = pTargetModeSetInterface->pfnAddMode(hTargetModeSet, pTargetModeInfo);
     RETURN_ON_FAILURE(Status);
 
     ModeInfoGuard.Deactivate();
+
+    if (!bSupportStandardModes)
+    {
+        return STATUS_SUCCESS;
+    }
+
+    int i = g_NumStandardModeTimings - 1;
+
+    const D3DKMDT_2DREGION BaseModeSize = BaseTargetModeInfo.VideoSignalInfo.ActiveSize;
+
+    do
+    {
+        if ((g_StandardModeTimings[i].hactive == BaseModeSize.cx) ||
+            (g_StandardModeTimings[i].vactive == BaseModeSize.cy))
+        {
+            continue;
+        }
+
+        if ((g_StandardModeTimings[i].hactive > BaseModeSize.cx) ||
+            (g_StandardModeTimings[i].vactive > BaseModeSize.cy))
+        {
+            continue;
+        }
+
+        D3DKMDT_VIDPN_TARGET_MODE* pTargetModeInfo = NULL;
+        auto Status = pTargetModeSetInterface->pfnCreateNewModeInfo(hTargetModeSet, &pTargetModeInfo);
+        if (STATUS_SUCCESS != Status)
+        {
+            break;
+        }
+
+        auto pStandardModeTiming = &g_StandardModeTimings[i];
+
+        pTargetModeInfo->WireFormatAndPreference = BaseTargetModeInfo.WireFormatAndPreference;
+        pTargetModeInfo->Preference = D3DKMDT_MP_NOTPREFERRED;
+
+        pTargetModeInfo->VideoSignalInfo = BaseTargetModeInfo.VideoSignalInfo;
+
+        pTargetModeInfo->VideoSignalInfo.TotalSize.cx = pStandardModeTiming->hactive +
+                                                        pStandardModeTiming->hfront_porch +
+                                                        pStandardModeTiming->hsync_len + 
+                                                        pStandardModeTiming->hback_porch;
+        pTargetModeInfo->VideoSignalInfo.TotalSize.cy = pStandardModeTiming->vactive +
+                                                        pStandardModeTiming->vfront_porch +
+                                                        pStandardModeTiming->vsync_len + 
+                                                        pStandardModeTiming->vback_porch;
+
+        pTargetModeInfo->VideoSignalInfo.ActiveSize.cx = pStandardModeTiming->hactive;
+        pTargetModeInfo->VideoSignalInfo.ActiveSize.cy = pStandardModeTiming->vactive;
+
+        if ((FullDriver == GcKmdGlobal::s_DriverMode) || (TRUE == GcKmdGlobal::s_bDodUseHwVSync))
+        {
+            pTargetModeInfo->VideoSignalInfo.VideoStandard = D3DKMDT_VSS_VESA_DMT;
+
+            pTargetModeInfo->VideoSignalInfo.PixelRate = g_StandardModeTimings[i].pixelclock;
+            pTargetModeInfo->VideoSignalInfo.HSyncFreq.Numerator = (UINT)pTargetModeInfo->VideoSignalInfo.PixelRate;
+            pTargetModeInfo->VideoSignalInfo.HSyncFreq.Denominator = pTargetModeInfo->VideoSignalInfo.TotalSize.cx;
+            pTargetModeInfo->VideoSignalInfo.VSyncFreq.Numerator = (UINT)pTargetModeInfo->VideoSignalInfo.PixelRate;
+            pTargetModeInfo->VideoSignalInfo.VSyncFreq.Denominator = pTargetModeInfo->VideoSignalInfo.TotalSize.cx *
+                                                                     pTargetModeInfo->VideoSignalInfo.TotalSize.cy;
+        }
+
+        Status = pTargetModeSetInterface->pfnAddMode(hTargetModeSet, pTargetModeInfo);
+        if (STATUS_SUCCESS != Status)
+        {
+            pTargetModeSetInterface->pfnReleaseModeInfo(hTargetModeSet, pTargetModeInfo);
+            break;
+        }
+    } while (--i >= 0);
+
     return STATUS_SUCCESS;
 }
 

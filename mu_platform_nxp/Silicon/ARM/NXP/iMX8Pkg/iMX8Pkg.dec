@@ -117,6 +117,8 @@
   giMX8TokenSpaceGuid.PcdCAN1InsteadOfI2C5|TRUE|BOOLEAN|0x00000030
   giMX8TokenSpaceGuid.PcdCAN2InsteadOfPDMStream3|TRUE|BOOLEAN|0x00000031
   giMX8TokenSpaceGuid.PcdLpuart1Enable|FALSE|BOOLEAN|0x00000050
+  # Board configuration
+  giMX8TokenSpaceGuid.PcdMX93EXPSelSetting|FALSE|BOOLEAN|0x00000051
 
   # CAN
   giMX8TokenSpaceGuid.PcdCAN1XTALEnable|FALSE|BOOLEAN|0x00000032

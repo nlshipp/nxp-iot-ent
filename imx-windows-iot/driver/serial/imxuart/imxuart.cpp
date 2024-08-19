@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2020, 2022 NXP
+// Copyright 2020, 2022-2023 NXP
 // Licensed under the MIT License.
 //
 // Module Name:
@@ -667,8 +667,8 @@ NTSTATUS IMXUartEvtSerCx2FileOpen (WDFDEVICE WdfDevice)
                 WdfDevice,
                 115200,
                 &lineControl,
-                &handflow,
-                false);
+                &handflow
+                );
 
         if (!NT_SUCCESS(status)) {
             IMX_UART_LOG_ERROR(
@@ -2946,13 +2946,14 @@ IMXUartEvtSerCx2ApplyConfig (
     ULONG baudRate;
     SERIAL_LINE_CONTROL lineControl;
     SERIAL_HANDFLOW handflow;
-    bool rtsCtsEnabled;
+    bool enableRtsCts = false;
     NTSTATUS status = IMXUartParseConnectionDescriptor(
             static_cast<const RH_QUERY_CONNECTION_PROPERTIES_OUTPUT_BUFFER*>(ConnectionParametersPtr),
             &baudRate,
             &lineControl,
             &handflow,
-            &rtsCtsEnabled);
+            &enableRtsCts
+        );
 
     if (!NT_SUCCESS(status)) {
         IMX_UART_LOG_ERROR(
@@ -2966,8 +2967,7 @@ IMXUartEvtSerCx2ApplyConfig (
             WdfDevice,
             baudRate,
             &lineControl,
-            &handflow,
-            rtsCtsEnabled);
+            &handflow);
 }
 
 _Use_decl_annotations_
@@ -2976,8 +2976,7 @@ IMXUartConfigureUart (
     WDFDEVICE WdfDevice,
     ULONG BaudRate,
     const SERIAL_LINE_CONTROL *LineControl,
-    const SERIAL_HANDFLOW *Handflow,
-    bool RtsCtsEnabled
+    const SERIAL_HANDFLOW *Handflow
     )
 {
     IMX_UART_ASSERT_MAX_IRQL(PASSIVE_LEVEL);
@@ -2998,8 +2997,6 @@ IMXUartConfigureUart (
             deviceContextPtr->InterruptContextPtr;
 
     IMX_UART_REGISTERS* registersPtr = deviceContextPtr->RegistersPtr;
-
-    deviceContextPtr->RtsCtsLinesEnabled = RtsCtsEnabled;
 
     if (deviceContextPtr->Initialized) {
         WdfInterruptAcquireLock(interruptContextPtr->WdfInterrupt);
@@ -5255,135 +5252,149 @@ IMXUartEvtDevicePrepareHardware (
     // ReleaseHardware is ALWAYS called, even if PrepareHardware fails, so
     // the cleanup of registersPtr is handled there.
     //
-    IMX_UART_DEVICE_CONTEXT* deviceContextPtr =
-            IMXUartGetDeviceContext(WdfDevice);
-
-    NT_ASSERT(memResourcePtr->Type == CmResourceTypeMemory);
-    deviceContextPtr->RegistersPtr = static_cast<IMX_UART_REGISTERS*>(
-        MmMapIoSpaceEx(
-            memResourcePtr->u.Memory.Start,
-            sizeof(IMX_UART_REGISTERS),
-            PAGE_READWRITE | PAGE_NOCACHE));
-
-    if (deviceContextPtr->RegistersPtr == nullptr) {
-        IMX_UART_LOG_LOW_MEMORY(
-            "MmMapIoSpaceEx(...) failed. "
-            "(memResourcePtr->u.Memory.Start = 0x%llx, "
-            "sizeof(IMX_UART_REGISTERS) = %lu)",
-            memResourcePtr->u.Memory.Start.QuadPart,
-            sizeof(IMX_UART_REGISTERS));
-
-        return STATUS_INSUFFICIENT_RESOURCES;
-    }
-
-    IMX_UART_INTERRUPT_CONTEXT* interruptContextPtr =
-            deviceContextPtr->InterruptContextPtr;
-
-    interruptContextPtr->RegistersPtr = deviceContextPtr->RegistersPtr;
-
-    //
-    // Allocate intermediate buffers
-    //
     {
-        NT_ASSERT(deviceContextPtr->TxBufferStorage == nullptr);
-        deviceContextPtr->TxBufferStorage = static_cast<BYTE*>(
-                ExAllocatePoolWithTag(
-                    NonPagedPoolNx,
-                    deviceContextPtr->Parameters.TxIntermediateBufferSize,
-                    IMX_UART_POOL_TAG));
+        NTSTATUS status;
+        IMX_UART_DEVICE_CONTEXT *deviceContextPtr = IMXUartGetDeviceContext(WdfDevice);
 
-        if (deviceContextPtr->TxBufferStorage == nullptr) {
+        deviceContextPtr->ACPI_UtilsContext.Pdo = WdfDeviceWdmGetPhysicalDevice(WdfDevice);
+        deviceContextPtr->ACPI_UtilsContext.MemPoolTag = IMX_UART_ACPI_POOL_TAG;
+
+        if (!NT_SUCCESS(status = Acpi_Init(&deviceContextPtr->ACPI_UtilsContext))) {
+            status = STATUS_SUCCESS;
+            IMX_UART_LOG_WARNING("Acpi_Init() failed");
+        }
+        else {
+            ULONG rtsCtsEnabled = 0;
+
+            Acpi_GetIntegerPropertyValue(&deviceContextPtr->ACPI_UtilsContext, "rts-cts-enabled", &rtsCtsEnabled);
+            deviceContextPtr->RtsCtsLinesEnabled = rtsCtsEnabled > 0;
+        }
+
+        NT_ASSERT(memResourcePtr->Type == CmResourceTypeMemory);
+        deviceContextPtr->RegistersPtr = static_cast<IMX_UART_REGISTERS *>(
+            MmMapIoSpaceEx(
+                memResourcePtr->u.Memory.Start,
+                sizeof(IMX_UART_REGISTERS),
+                PAGE_READWRITE | PAGE_NOCACHE));
+
+        if (deviceContextPtr->RegistersPtr == nullptr) {
             IMX_UART_LOG_LOW_MEMORY(
-                "Failed to allocate TxBufferStorage. (TxIntermediateBufferSize = %lu)",
-                deviceContextPtr->Parameters.TxIntermediateBufferSize);
+                "MmMapIoSpaceEx(...) failed. "
+                "(memResourcePtr->u.Memory.Start = 0x%llx, "
+                "sizeof(IMX_UART_REGISTERS) = %lu)",
+                memResourcePtr->u.Memory.Start.QuadPart,
+                sizeof(IMX_UART_REGISTERS));
 
-            return STATUS_NO_MEMORY;
+            return STATUS_INSUFFICIENT_RESOURCES;
         }
+        {
+            IMX_UART_INTERRUPT_CONTEXT *interruptContextPtr =
+                deviceContextPtr->InterruptContextPtr;
 
-        interruptContextPtr->TxBuffer.SetBuffer(
-            deviceContextPtr->TxBufferStorage,
-            deviceContextPtr->Parameters.TxIntermediateBufferSize);
+            interruptContextPtr->RegistersPtr = deviceContextPtr->RegistersPtr;
 
-        NT_ASSERT(deviceContextPtr->RxBufferStorage == nullptr);
-        deviceContextPtr->RxBufferStorage = static_cast<BYTE*>(
-                ExAllocatePoolWithTag(
-                    NonPagedPoolNx,
-                    deviceContextPtr->Parameters.RxIntermediateBufferSize,
-                    IMX_UART_POOL_TAG));
+            //
+            // Allocate intermediate buffers
+            //
+            {
+                NT_ASSERT(deviceContextPtr->TxBufferStorage == nullptr);
+                deviceContextPtr->TxBufferStorage = static_cast<BYTE *>(
+                    ExAllocatePoolWithTag(
+                        NonPagedPoolNx,
+                        deviceContextPtr->Parameters.TxIntermediateBufferSize,
+                        IMX_UART_POOL_TAG));
 
-        if (deviceContextPtr->RxBufferStorage == nullptr) {
-            IMX_UART_LOG_LOW_MEMORY(
-                "Failed to allocate RxBufferStorage. (RxIntermediateBufferSize = %lu)",
-                deviceContextPtr->Parameters.RxIntermediateBufferSize);
+                if (deviceContextPtr->TxBufferStorage == nullptr) {
+                    IMX_UART_LOG_LOW_MEMORY(
+                        "Failed to allocate TxBufferStorage. (TxIntermediateBufferSize = %lu)",
+                        deviceContextPtr->Parameters.TxIntermediateBufferSize);
 
-            return STATUS_NO_MEMORY;
-        }
+                    return STATUS_NO_MEMORY;
+                }
 
-        interruptContextPtr->RxBuffer.SetBuffer(
-            deviceContextPtr->RxBufferStorage,
-            deviceContextPtr->Parameters.RxIntermediateBufferSize);
-    }
+                interruptContextPtr->TxBuffer.SetBuffer(
+                    deviceContextPtr->TxBufferStorage,
+                    deviceContextPtr->Parameters.TxIntermediateBufferSize);
 
-    NTSTATUS status;
+                NT_ASSERT(deviceContextPtr->RxBufferStorage == nullptr);
+                deviceContextPtr->RxBufferStorage = static_cast<BYTE *>(
+                    ExAllocatePoolWithTag(
+                        NonPagedPoolNx,
+                        deviceContextPtr->Parameters.RxIntermediateBufferSize,
+                        IMX_UART_POOL_TAG));
 
-    if (dmaResourceCount != 0) {
-        NT_ASSERT(rxDmaResourcePtr != nullptr);
-        NT_ASSERT(txDmaResourcePtr != nullptr);
+                if (deviceContextPtr->RxBufferStorage == nullptr) {
+                    IMX_UART_LOG_LOW_MEMORY(
+                        "Failed to allocate RxBufferStorage. (RxIntermediateBufferSize = %lu)",
+                        deviceContextPtr->Parameters.RxIntermediateBufferSize);
 
-        status = IMXUartInitializeDma(
-            WdfDevice,
-            memResourcePtr,
-            rxDmaResourcePtr,
-            txDmaResourcePtr);
+                    return STATUS_NO_MEMORY;
+                }
 
-        if (!NT_SUCCESS(status)) {
-            return status;
-        }
-    }
+                interruptContextPtr->RxBuffer.SetBuffer(
+                    deviceContextPtr->RxBufferStorage,
+                    deviceContextPtr->Parameters.RxIntermediateBufferSize);
+            }
 
-    status =
-        IMXUartResetHardwareAndClearShadowedRegisters(interruptContextPtr);
+            if (dmaResourceCount != 0) {
+                NT_ASSERT(rxDmaResourcePtr != nullptr);
+                NT_ASSERT(txDmaResourcePtr != nullptr);
 
-    if (!NT_SUCCESS(status)) {
-        return status;
-    }
+                status = IMXUartInitializeDma(
+                    WdfDevice,
+                    memResourcePtr,
+                    rxDmaResourcePtr,
+                    txDmaResourcePtr);
 
-    //
-    // Create device interface if we received a UartSerialBus resource
-    //
-    if (selfConnectionId.QuadPart != 0) {
-        RTL_OSVERSIONINFOW verInfo = {0};
-        verInfo.dwOSVersionInfoSize = sizeof(verInfo);
-        status = RtlGetVersion(&verInfo);
-        if (!NT_SUCCESS(status)) {
-            IMX_UART_LOG_ERROR(
-                "RtlGetVersion(...) failed. "
-                "(status = %!STATUS!)",
-                status);
+                if (!NT_SUCCESS(status)) {
+                    return status;
+                }
+            }
 
-            return status;
+            status = IMXUartResetHardwareAndClearShadowedRegisters(interruptContextPtr);
+            if (!NT_SUCCESS(status)) {
+                return status;
+            }
         }
 
         //
-        // Self-publishing is only necessary on OS versions prior to 19H1
+        // Create device interface if we received a UartSerialBus resource
         //
-        if (verInfo.dwBuildNumber <= 17763) {
-            status = IMXUartCreateDeviceInterface(WdfDevice, selfConnectionId);
+        if (selfConnectionId.QuadPart != 0) {
+            RTL_OSVERSIONINFOW verInfo = { 0 };
+            verInfo.dwOSVersionInfoSize = sizeof(verInfo);
+            status = RtlGetVersion(&verInfo);
             if (!NT_SUCCESS(status)) {
                 IMX_UART_LOG_ERROR(
-                    "IMXUartCreateDeviceInterface(...) failed. "
-                    "(status = %!STATUS!, selfConnectionId = %llx)",
-                    status,
-                    selfConnectionId.QuadPart);
+                    "RtlGetVersion(...) failed. "
+                    "(status = %!STATUS!)",
+                    status);
 
                 return status;
             }
-        } else {
-            IMX_UART_LOG_INFORMATION(
-                "Skipping self-publishing due to OS version. "
-                "Use SerCx2 to publish a device interface. "
-                "(BuildNumber = %d)",
-                verInfo.dwBuildNumber);
+
+            //
+            // Self-publishing is only necessary on OS versions prior to 19H1
+            //
+            if (verInfo.dwBuildNumber <= 17763) {
+                status = IMXUartCreateDeviceInterface(WdfDevice, selfConnectionId);
+                if (!NT_SUCCESS(status)) {
+                    IMX_UART_LOG_ERROR(
+                        "IMXUartCreateDeviceInterface(...) failed. "
+                        "(status = %!STATUS!, selfConnectionId = %llx)",
+                        status,
+                        selfConnectionId.QuadPart);
+
+                    return status;
+                }
+            }
+            else {
+                IMX_UART_LOG_INFORMATION(
+                    "Skipping self-publishing due to OS version. "
+                    "Use SerCx2 to publish a device interface. "
+                    "(BuildNumber = %d)",
+                    verInfo.dwBuildNumber);
+            }
         }
     }
 
@@ -5424,6 +5435,8 @@ IMXUartEvtDeviceReleaseHardware (
     }
 
     IMXUartDeinitializeDma(WdfDevice);
+
+    Acpi_Deinit(&deviceContextPtr->ACPI_UtilsContext);
 
     return STATUS_SUCCESS;
 }

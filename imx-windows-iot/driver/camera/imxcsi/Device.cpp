@@ -1,6 +1,6 @@
 
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -940,7 +940,7 @@ void WdfCsi_ctx::FinishGetFrameRequest(PREQUEST_CONTEXT RequestCtxPtr)
  * Asserts when there's no image in m_FinishedBuffPtr or request is not IOCTL_CSI_DRIVER_GET_FRAME.
  * Function also dispatches next IO request as side effect of CompleteRequest() call.
  *
- * @param RequestCtxPtr pointer to request context.
+ * @param RequestCtxPtr exclusive pointer to request context, caller must remove request from Device Context prior this call.
  */
 {
     ASSERT(m_ActiveRequestCtxPtr == NULL);
@@ -956,7 +956,6 @@ void WdfCsi_ctx::FinishGetFrameRequest(PREQUEST_CONTEXT RequestCtxPtr)
     // Make sure to do not modify Device context after WdfRequestComplete as Request Dispatch gets invoked there.
     if ((finishedBuffPtr != NULL) && (m_CsiRegistersPtr != NULL) && (finishedBuffPtr->state == finishedBuffPtr->DONE)) {
         NTSTATUS status = WdfRequestUnmarkCancelable(WdfRequest);
-        size_t Size = 0;
         auto *fInfoPtr = &RequestCtxPtr->m_FrameInfo;
         size_t imSize = min(m_BufferRequiredSize, m_FrameLenBytes);
 
@@ -970,56 +969,34 @@ void WdfCsi_ctx::FinishGetFrameRequest(PREQUEST_CONTEXT RequestCtxPtr)
                     {
                         _DbgFrameKdPrint(("Error: Frame with artifacts - finishedBuffPtr is in use 0x%p.\r\n", finishedBuffPtr->phys.QuadPart));
                         imSize = 0;
-                        status = STATUS_CANCELLED;
+                        status = STATUS_IO_TIMEOUT;
                     }
                     else {
                         status = STATUS_SUCCESS;
                     }
                     RtlCopyMemory(fInfoPtr->m_Fb, finishedBuffPtr->virt, imSize);
-#if (DBG)
-                    RtlZeroMemory(finishedBuffPtr->virt, imSize); // Debug partial image.
-#endif
-                    Size = imSize;
-                    finishedBuffPtr->state = finishedBuffPtr->FREE; // Mark buff as free, fill still waits for empty finished buff
-                    m_FinishedBuffPtr = NULL; // ISR Will fill Finished buff ptr and use freed buff
-                    m_State = WdfCsi_ctx::S_DISCARDING; // Switch ISR to reuse Finished buffs
+
 
                     WdfRequestCompleteWithInformation(WdfRequest, status, imSize); // Dispatch new request, sets state to IOCTL_CSI_DRIVER_GET_FRAME
                 }
                 else {
                     status = STATUS_INVALID_PARAMETER;
-#if (DBG)
-                    RtlZeroMemory(finishedBuffPtr->virt, imSize); // Debug partial image.
-#endif
-                    finishedBuffPtr->state = finishedBuffPtr->FREE; // Mark buff as free, fill still waits for empty finished buff
-                    m_FinishedBuffPtr = NULL; // ISR Will fill Finished buff ptr and use freed buff
-                    m_State = WdfCsi_ctx::S_DISCARDING; // Switch ISR to reuse Finished buffs
                     WdfRequestComplete(WdfRequest, STATUS_INVALID_PARAMETER); // Dispatch new request, sets state to IOCTL_CSI_DRIVER_GET_FRAME
                 }
             }
             break;
 
-        case STATUS_CANCELLED:
-            // Change state to discarding.
-#if (DBG)
-            RtlZeroMemory(finishedBuffPtr->virt, imSize); // Debug partial image.
-#endif
-            finishedBuffPtr->state = finishedBuffPtr->FREE;
-            m_State = WdfCsi_ctx::S_DISCARDING;
-            m_FinishedBuffPtr = NULL;
-            WdfRequestComplete(WdfRequest, STATUS_CANCELLED); // Dispatch new request, sets state to IOCTL_CSI_DRIVER_GET_FRAME
-            break;
-
-        default: // Could be STATUS_INVALID_DEVICE_REQUEST or STATUS_INVALID_PARAMETER. Lets change state to discarding.
-#if (DBG)
-            RtlZeroMemory(finishedBuffPtr->virt, imSize); // Debug partial image.
-#endif
-            // Still in requested m_State.
-            finishedBuffPtr->state = finishedBuffPtr->FREE; // Mark buff as free. ISR still waits for m_FinishedBuffPtr to become NULL.
-            m_FinishedBuffPtr = NULL; // ISR Will fill add newly finished buffer and give CSI next free buffer.
-            m_State = WdfCsi_ctx::S_DISCARDING; // Switch ISR to reuse Finished buffs
+        default: // Could be STATUS_CANCELLED(IRP is ownced by Cancel() routine), STATUS_INVALID_DEVICE_REQUEST or STATUS_INVALID_PARAMETER. Lets change state to discarding.
             break;
         }
+
+#if (DBG)
+        RtlZeroMemory(finishedBuffPtr->virt, imSize); // Debug partial image.
+#endif
+        finishedBuffPtr->state = finishedBuffPtr->FREE; // Mark buff as free. ISR still waits for m_FinishedBuffPtr to become NULL.
+        m_FinishedBuffPtr = NULL; // ISR Will fill add newly finished buffer and give CSI next free buffer.
+        m_State = WdfCsi_ctx::S_DISCARDING; // Switch ISR to reuse Finished buffs
+
     }
 }
 

@@ -53,7 +53,8 @@ usage() { echo "Usage: $0 [-b BOARD_1] [-b BOARD_2] [-t TARGET_1] .. [-c]"      
           echo "              8Mm, MX8M_MINI_EVK"                                 1>&2
           echo "              8Mn, MX8M_NANO_EVK "                                1>&2
           echo "              8Mp, MX8M_PLUS_EVK "                                1>&2
-          echo "              8X, MX8QXP_MEK }"                                   1>&2
+          echo "              8X, MX8QXP_MEK"                                     1>&2
+          echo "              93, MX93_11X11_EVK }"                               1>&2
           echo ""                                                                 1>&2
           echo "          [-t|-target_app] "                                      1>&2
           echo "            { all, u|uboot, atf, optee, apps|tee_apps,"           1>&2
@@ -94,6 +95,7 @@ build_8m_nano=0
 build_8mn_ddr4=0
 build_8m_plus=0
 build_8qxp=0
+build_93=0
 
 clean=0
 build_uboot=0
@@ -239,12 +241,16 @@ do
             8X|MX8QXP_MEK)
                 build_8qxp=1
                 ;;
+            93|MX93_11X11_EVK)
+                build_93=1
+                ;;
             all)
                 build_8m=1
                 build_8m_mini=1
                 build_8m_nano=1
                 build_8m_plus=1
                 build_8qxp=1
+                build_93=1
                 ;;
             *)
                 echo "Unknown option ${2} specified for -b --build" 
@@ -448,7 +454,7 @@ build_board () {
             make clean
         fi
         make $uboot_defconfig || exit $?
-        make -s -j12 SPL u-boot.bin || exit $?
+        make -s -j12 spl/u-boot-spl.bin u-boot.bin || exit $?
         popd
     fi
 
@@ -536,7 +542,10 @@ build_board () {
         rm -f IMXBOARD_EFI.fd.gz
         gzip -k IMXBOARD_EFI.fd
         # make the FIT image
-        if [ $atf_plat == "imx8qx" ]; then
+        if [ $atf_plat == "imx93" ]; then
+            cp $IMX8_REPO_ROOT/imx-windows-iot/build/firmware/its/uefi_imx93_unsigned.its .                   && \
+            $IMX8_REPO_ROOT/uboot-imx/tools/mkimage -f uefi_imx93_unsigned.its -r uefi.fit || exit $?
+        elif [ $atf_plat == "imx8qx" ]; then
             cp $IMX8_REPO_ROOT/imx-windows-iot/build/firmware/its/uefi_imx8x_unsigned.its .                   && \
             $IMX8_REPO_ROOT/uboot-imx/tools/mkimage -f uefi_imx8x_unsigned.its -r uefi.fit || exit $?
         else
@@ -562,6 +571,11 @@ build_board () {
             cp -f ${TARGET_FIRMWARE_COMPONENTS_DIR}/mx8qx*-ahab-container.img $MKIMAGE_WORK_DIR && \
             cp -f uboot-imx/u-boot.bin  $MKIMAGE_WORK_DIR                                       && \
             cp -f ${TARGET_FIRMWARE_COMPONENTS_DIR}/scfw_tcm.bin $MKIMAGE_WORK_DIR            || exit $?
+        elif [ $mkimage_SOC == "iMX9" ]; then
+            cp -f ${TARGET_FIRMWARE_COMPONENTS_DIR}/mx93a0-ahab-container.img $MKIMAGE_WORK_DIR && \
+            cp -f uboot-imx/u-boot.bin  $MKIMAGE_WORK_DIR                                       && \
+            cp -f firmware-imx/firmware/ddr/synopsys/lpddr4_imem_*.bin $MKIMAGE_WORK_DIR        && \
+            cp -f firmware-imx/firmware/ddr/synopsys/lpddr4_dmem_*.bin $MKIMAGE_WORK_DIR      || exit $?
         else
             cp -f firmware-imx/firmware/ddr/synopsys/lpddr4_pmu_train_*.bin $MKIMAGE_WORK_DIR && \
             cp -f firmware-imx/firmware/ddr/synopsys/ddr4_*.bin $MKIMAGE_WORK_DIR             && \
@@ -580,6 +594,34 @@ build_board () {
         fi
         if [ $build_8mn_ddr4 -eq 1 ]; then
             make SOC=$mkimage_SOC flash_ddr4_evk 2>&1 | tee $MKIMAGE_WORK_DIR/spl_uboot.log || exit $?
+        elif [ $atf_plat == "imx93" ]; then
+            echo "Building container 3"
+            make SOC=$mkimage_SOC REV=C0 u-boot-atf-optee-uefi-container.img 2>&1 > $MKIMAGE_WORK_DIR/container3.log || exit $?
+            if [ $build_secure -eq 1 ]; then
+                pushd $MKIMAGE_WORK_DIR
+                # Parse mkimage log, generate CSF and sign container 3
+                CONTAINER_PATH=u-boot-atf-optee-uefi-container.img \
+                SRK_TABLE_PATH="$KEY_ROOT_AHAB/crts/SRKtable.bin" \
+                CERT_PEM_PATH="$KEY_ROOT_AHAB/crts/SRK1_sha384_secp384r1_v3_usr_crt.pem" \
+                LOGFILE_PATH=container3.log \
+                ./gen_csf.sh > csf_container3.txt
+                $CST_ROOT/linux64/bin/cst -i csf_container3.txt -o container3.bin
+                mv -f container3.bin u-boot-atf-optee-uefi-container.img
+                popd
+            fi
+            echo "Building container 1+2"
+            make SOC=$mkimage_SOC flash_singleboot_uefi 2>&1 | tee $MKIMAGE_WORK_DIR/container12.log || exit $?
+            if [ $build_secure -eq 1 ]; then
+                pushd $MKIMAGE_WORK_DIR
+                # Parse mkimage log, generate CSF and sign container 1+2
+                CONTAINER_PATH=flash.bin \
+                SRK_TABLE_PATH="$KEY_ROOT_AHAB/crts/SRKtable.bin" \
+                CERT_PEM_PATH="$KEY_ROOT_AHAB/crts/SRK1_sha384_secp384r1_v3_usr_crt.pem" \
+                LOGFILE_PATH=container12.log \
+                ./gen_csf.sh > csf_container12.txt
+                $CST_ROOT/linux64/bin/cst -i csf_container12.txt -o signed_flash.bin
+                popd
+            fi
         elif [ $atf_plat == "imx8qx" ]; then
             # Flash image consists of 3 containers - [SECO] + [SCFW + SPL] + [ATF + OP-TEE + UBoot + UEFI]
             # 1. container is provided and signed by NXP
@@ -620,7 +662,7 @@ build_board () {
         echo "flash.bin copied to:" ${TARGET_FIRMWARE_COMPONENTS_DIR}/flash.bin || exit $?
     fi
 
-    if [ $build_secure -eq 1 ] && [ $atf_plat != "imx8qx" ]; then
+    if [ $build_secure -eq 1 ] && [ $atf_plat != "imx8qx" ] && [ $atf_plat != "imx93" ]; then
         pushd imx-mkimage || exit $?
         rm -f print_fit_hab
         if [ $build_8mn_ddr4 -eq 1 ]; then
@@ -704,6 +746,7 @@ echo
 #   3) i.MX 8M Nano EVK config
 #   4) i.MX 8M Plus EVK config
 #   5) i.MX 8X Plus CPU config
+#   6) i.MX 93 EVK config
 
 # i.MX 8MQ EVK config
 if [ $build_8m -eq 1 ]; then
@@ -730,8 +773,9 @@ if [ $build_8m -eq 1 ]; then
         # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
         uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
         sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)/!p' \
+            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
             -e '$aCONFIG_IMX_HAB=y\nCONFIG_SPL_FIT_SIGNATURE=y' \
+            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
             "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
         uboot_defconfig="$uboot_defconfig_temp"
     echo "Created temporary uboot defconfig file ${uboot_defconfig}"
@@ -768,8 +812,10 @@ if [ $build_8m_mini -eq 1 ]; then
         # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
         uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
         sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)/!p' \
-            -e '$aCONFIG_IMX_HAB=y\nCONFIG_SPL_FIT_SIGNATURE=y' \
+            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
+            -e '$aCONFIG_IMX_HAB=y' \
+            -e '$aCONFIG_SPL_FIT_SIGNATURE=y' \
+            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
             "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
         uboot_defconfig="$uboot_defconfig_temp"
     echo "Created temporary uboot defconfig file ${uboot_defconfig}"
@@ -806,8 +852,9 @@ if [ $build_8m_nano -eq 1 ]; then
         # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
         uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
         sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)/!p' \
+            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
             -e '$aCONFIG_IMX_HAB=y\nCONFIG_SPL_FIT_SIGNATURE=y' \
+            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
             "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
         uboot_defconfig="$uboot_defconfig_temp"
     echo "Created temporary uboot defconfig file ${uboot_defconfig}"
@@ -844,8 +891,9 @@ if [ $build_8mn_ddr4 -eq 1 ]; then
         # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
         uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
         sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)/!p' \
+            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
             -e '$aCONFIG_IMX_HAB=y\nCONFIG_SPL_FIT_SIGNATURE=y' \
+            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
             "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
         uboot_defconfig="$uboot_defconfig_temp"
     echo "Created temporary uboot defconfig file ${uboot_defconfig}"
@@ -882,8 +930,9 @@ if [ $build_8m_plus -eq 1 ]; then
         # imx8mp_evk_nt_defconfig -> imx8mp_evk_nt_signed_TEMP_defconfig
         uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
         sed -n -E \
-            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)/!p' \
+            -e '/(^CONFIG_IMX_HAB=)|(^CONFIG_SPL_FIT_SIGNATURE=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
             -e '$aCONFIG_IMX_HAB=y\nCONFIG_SPL_FIT_SIGNATURE=y' \
+            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
             "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
         uboot_defconfig="$uboot_defconfig_temp"
     echo "Created temporary uboot defconfig file ${uboot_defconfig}"
@@ -920,8 +969,48 @@ echo "Board type IMX8QXP MEK"
         # imx8qxp_mek_nt_defconfig -> imx8qxp_mek_nt_signed_TEMP_defconfig
         uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
         sed -n -E \
-            -e '/(^CONFIG_AHAB_BOOT=)/!p' \
+            -e '/(^CONFIG_AHAB_BOOT=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
             -e '$aCONFIG_AHAB_BOOT=y' \
+            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
+            "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
+        uboot_defconfig="$uboot_defconfig_temp"
+    echo "Created temporary uboot defconfig file ${uboot_defconfig}"
+    fi
+
+    build_board
+    CMD_RET=$?
+    echo "$mkimage_SOC Build has returned $CMD_RET !"
+    BUILD_RV=$((BUILD_RV + CMD_RET))
+fi
+
+# i.MX 93 11x11 EVK config
+if [ $build_93 -eq 1 ]; then
+echo "Board type IMX93 11x11 EVK"
+    bsp_folder="MX93_11X11_EVK"
+    uefi_folder=${bsp_folder}
+    uboot_defconfig="imx93_11x11_evk_nt_defconfig"
+    if [ $build_uboot_with_uuu_support -eq 1 ]; then
+        uboot_defconfig="imx93_11x11_evk_nt_uuu_defconfig"
+        if [ $build_uboot -eq 1 ]; then
+            echo -e "$(tput setaf 1) Building uBoot image with uuu support! Defconfig: $uboot_defconfig $(tput sgr 0)"
+        fi
+    fi
+    atf_plat="imx93"
+    optee_plat="mx93evk"
+    uboot_dtb="imx93-11x11-evk.dts"
+    mkimage_SOC="iMX9"
+    export MKIMAGE_WORK_DIR=$IMX8_REPO_ROOT/imx-mkimage/${mkimage_SOC}
+    uefi_offset_kb=1940
+    # Create temporary u-boot config which enables HAB checks
+    if [ "$build_secure" == "1" ]; then
+        # Remove lines starting with CONFIG_AHAB_BOOT (if present)
+        # take result and add CONFIG_AHAB_BOOT=y to temporary defconfig file
+        # imx8qxp_mek_nt_defconfig -> imx8qxp_mek_nt_signed_TEMP_defconfig
+        uboot_defconfig_temp="${uboot_defconfig/_defconfig/_signed_TEMP_defconfig}"
+        sed -n -E \
+            -e '/(^CONFIG_AHAB_BOOT=)|(^CONFIG_ENV_IS_)|(^CONFIG_ENV_OFFSET=)|(^CONFIG_ENV_SIZE=)/!p' \
+            -e '$aCONFIG_AHAB_BOOT=y' \
+            -e '$aCONFIG_ENV_IS_NOWHERE=y' \
             "uboot-imx/configs/$uboot_defconfig" > "uboot-imx/configs/${uboot_defconfig_temp}"
         uboot_defconfig="$uboot_defconfig_temp"
     echo "Created temporary uboot defconfig file ${uboot_defconfig}"

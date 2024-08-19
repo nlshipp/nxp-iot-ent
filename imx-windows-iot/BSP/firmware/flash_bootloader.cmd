@@ -1,6 +1,5 @@
 @ECHO OFF
-:: Copyright 2022 NXP 
-:: All rights reserved. 
+:: Copyright 2022-2023 NXP 
 ::  
 :: Redistribution and use in source and binary forms, with or without modification, 
 :: are permitted provided that the following conditions are met: 
@@ -87,7 +86,11 @@ if "%DEVICE_TYPE%" == "8M" (
       ) else (
         if "%DEVICE_TYPE%" == "8X" (
         set DEVICE_TYPE=MX8QXP_MEK
-      )
+        ) else (
+          if "%DEVICE_TYPE%" == "93" (
+            set DEVICE_TYPE=MX93_11X11_EVK
+          )
+        )
       )
     )
   )
@@ -209,9 +212,14 @@ if "%DEVICE_TYPE%" == "MX8M_EVK" (
 	    if "%DEVICE_TYPE%" == "MX8QXP_MEK" (
           set CF_IMAGER_OFFSET=0x8000
         ) else (
-          echo Error. The /device %DEVICE_TYPE% is not valid.
-          exit /b 1
-		)
+            if "%DEVICE_TYPE%" == "MX93_11X11_EVK" (
+                set CF_IMAGER_OFFSET=0x8000
+            ) else (
+              echo Error. The /device %DEVICE_TYPE% is not valid.
+              exit /b 1
+            )
+          )
+        )
       )
     )
   )
@@ -368,7 +376,8 @@ echo flash_bootloader.cmd /device <NAME> [/target_drive, /directory, /firmware]
 echo.
 echo Flashes a firmware image
 echo Options:
-echo    /device                      {MX8M_EVK, MX8M_MINI_EVK, MX8M_NANO_EVK, MX8M_PLUS_EVK, MX8QXP_MEK}
+echo    /device                      {MX8M_EVK, MX8M_MINI_EVK, MX8M_NANO_EVK, MX8M_PLUS_EVK, MX8QXP_MEK, MX93_11X11_EVK} 
+echo                                 OR {8M, 8Mm, 8Mp, 8X, 93}
 echo                                 Specifies the device
 echo.
 echo Optional options:

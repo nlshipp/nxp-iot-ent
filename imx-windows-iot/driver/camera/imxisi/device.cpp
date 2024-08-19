@@ -1,6 +1,6 @@
 
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -230,6 +230,9 @@ NTSTATUS WdfIsi_ctx::Get_DsdAcpiResources()
             switch (m_CpuId) {
             case IMX_CPU_MX8QXP:
                 m_MaxMipiCsiSrc = 5;
+                break;
+            case IMX_CPU_MX93:
+                m_MaxMipiCsiSrc = 2;
                 break;
             default:
                 m_MaxMipiCsiSrc = 1;
@@ -646,15 +649,16 @@ void WdfIsi_ctx::EvtWdfRequestCancel(WDFREQUEST WdfRequest)
  */
 {
     PDEVICE_CONTEXT devCtxPtr = DeviceGetContext(WdfIoQueueGetDevice(WdfRequestGetIoQueue(WdfRequest)));
+#if DBG
     PREQUEST_CONTEXT requestCtxPtr = GetRequestContext(WdfRequest);
     auto* activeRequestCtxPtr = InterlockedExchangePointer(&((void*)devCtxPtr->m_ActiveRequestCtxPtr), NULL);
 
-    ASSERT(requestCtxPtr == activeRequestCtxPtr);
+    ASSERT(requestCtxPtr == activeRequestCtxPtr); // This must not occur. WdfQueue serializes requests.
+#else
+    devCtxPtr->m_ActiveRequestCtxPtr = NULL;
+#endif
     devCtxPtr->TerminateIo();
-    if (requestCtxPtr == activeRequestCtxPtr) {
-        devCtxPtr->m_ActiveRequestCtxPtr = NULL;
-        WdfRequestComplete(WdfRequest, STATUS_CANCELLED);
-    }
+    WdfRequestComplete(WdfRequest, STATUS_CANCELLED);
 }
 
 void WdfIsi_ctx::TerminateIo()
@@ -1079,7 +1083,7 @@ void WdfIsi_ctx::FinishGetFrameRequest(WdfIsi_ctx::DiscardBuffInfo_t *FinishedBu
                         DbgBreakPoint();
                         _DbgFrameKdPrint(("Error: Frame with artifacts - finishedBuffPtr is in use 0x%p.\r\n", finishedBuffPtr->physY.QuadPart));
                         imSize = 0;
-                        status = STATUS_CANCELLED; // TODO: Analyze consequences of this.
+                        status = STATUS_IO_TIMEOUT;
                     }
                     else {
                         status = STATUS_SUCCESS;
@@ -1095,20 +1099,17 @@ void WdfIsi_ctx::FinishGetFrameRequest(WdfIsi_ctx::DiscardBuffInfo_t *FinishedBu
             }
             break;
 
-            case STATUS_CANCELLED:
-                m_State = WdfIsi_ctx::S_DISCARDING;
-                WdfRequestComplete(WdfRequest, STATUS_CANCELLED); // Dispatch new request, sets state to IOCTL_CSI_DRIVER_GET_FRAME
-                break;
-
-            default: // Could be STATUS_INVALID_DEVICE_REQUEST or STATUS_INVALID_PARAMETER. Lets change state to discarding.
+            default: // Could be STATUS_CANCELLED (owned by cancel routine), STATUS_INVALID_DEVICE_REQUEST or STATUS_INVALID_PARAMETER. Lets change state to discarding.
                 break;
             }
         }
     }
 
+    m_State = WdfIsi_ctx::S_DISCARDING;
+
     if (FinishedBuffPtr != NULL) {
 #if (DBG)
-        RtlZeroMemory(FinishedBuffPtr->virt, imSize); // Debug partial image.
+        RtlZeroMemory(FinishedBuffPtr->virt, imSize); // Debug - see partial image.
 #endif
         FinishedBuffPtr->state = FinishedBuffPtr->FREE;
     }
@@ -1139,6 +1140,13 @@ BOOLEAN IsiIsrCtx_t::EvtInterruptIsr(_In_ WDFINTERRUPT WdfInterrupt, _In_ ULONG 
     BOOLEAN csiFrameIrqFired = (0 < (isiSts & STS_FRM_STRD_BIT)); // Frame done
 
     registersPtr->STS = isiSts; // Clear STS register.
+#if DBG
+    if (isiSts & (STS_LATE_VSYNC_ERR_BIT | STS_EARLY_VSYNC_ERR_BIT | STS_OFLW_Y_BUF_BIT | STS_PANIC_Y_BUF_BIT | STS_OFLW_U_BUF_BIT | 
+        STS_PANIC_U_BUF_BIT | STS_OFLW_V_BUF_BIT | STS_PANIC_V_BUF_BIT | STS_AXI_RD_ERR_BIT | STS_AXI_WR_ERR_Y_BIT | STS_AXI_WR_ERR_U_BIT | STS_AXI_WR_ERR_V_BIT)
+        ) {
+        _DbgKdPrint(("ISI STS_ERROR 0x%x.\r\n", isiSts));
+    }
+#endif
 
     if ((devCtxPtr->m_State != WdfIsi_ctx::S_DISCARDING) && (devCtxPtr->m_State != WdfIsi_ctx::S_FRAME_REQUESTED)) {
         // Peripheral is supposed to be stopped; this case probably never happens. 
@@ -1194,12 +1202,12 @@ BOOLEAN IsiIsrCtx_t::EvtInterruptIsr(_In_ WDFINTERRUPT WdfInterrupt, _In_ ULONG 
                     if (frameId == 1) {
                         devCtxPtr->m_IsiRegistersPtr->OUT_BUF1_ADDR_Y = (UINT32)freeBuffPtr->physY.QuadPart;
                         devCtxPtr->m_IsiRegistersPtr->OUT_BUF1_ADDR_U = (UINT32)freeBuffPtr->physU.QuadPart;
-                        devCtxPtr->m_IsiRegistersPtr->OUT_BUF_CTRL = OUT_BUF_CTRL_LOAD_BUF1_ADDR_BIT;
+                        devCtxPtr->m_IsiRegistersPtr->OUT_BUF_CTRL ^= OUT_BUF_CTRL_LOAD_BUF1_ADDR_BIT;
                     }
                     else {
                         devCtxPtr->m_IsiRegistersPtr->OUT_BUF2_ADDR_Y = (UINT32)freeBuffPtr->physY.QuadPart;
                         devCtxPtr->m_IsiRegistersPtr->OUT_BUF2_ADDR_U = (UINT32)freeBuffPtr->physU.QuadPart;
-                        devCtxPtr->m_IsiRegistersPtr->OUT_BUF_CTRL = OUT_BUF_CTRL_LOAD_BUF2_ADDR_BIT;
+                        devCtxPtr->m_IsiRegistersPtr->OUT_BUF_CTRL ^= OUT_BUF_CTRL_LOAD_BUF2_ADDR_BIT;
                     }
                         
                     finishedBuffPtr->state = finishedBuffPtr->DONE;

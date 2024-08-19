@@ -1,0 +1,112 @@
+; Copyright (c) Microsoft Corporation. All rights reserved.
+; Copyright 2023 NXP
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=System
+ClassGuid={4D36E97D-E325-11CE-BFC1-08002BE10318}
+Provider=%ManufacturerName%
+PnpLockdown=1
+CatalogFile=malonekm.cat
+DriverVer= ; TODO: set DriverVer in stampinf property pages
+
+[DestinationDirs]
+DefaultDestDir = 13
+InstallFilesSection = 11
+
+; ================= Class section =====================
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+malonekm.sys  = 1,,
+malonemft.dll = 1
+vpu_fw_imx8_dec.bin = 1
+vcruntime140.dll = 1
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%malonekm.DeviceDesc%=malonekm_Device, ACPI\NXP0224
+
+[malonekm_Device.NT]
+CopyFiles=Drivers_Dir,InstallFilesSection
+
+[malonekm_Device.NT.HW]
+AddReg             = malonekm_Device.NT.HW.AddReg
+
+[InstallFilesSection]
+malonemft.dll,,,0x4000
+vpu_fw_imx8_dec.bin,,,0x4000
+vcruntime140.dll,,,0x4000
+
+[Drivers_Dir]
+malonekm.sys
+
+[malonekm_Device.NT.HW.AddReg]
+; Maximum contextes
+HKR,,MaxContexts,0x00010001,1
+; VPU Frame buffers
+HKR,,FrameBuffers,0x00010001,22
+; OUT Frame buffers
+HKR,,OutFrameBuffers,0x00010001,2
+; Maximum width
+HKR,,MaxWidth,0x00010001,2048
+; Maximum heigth
+HKR,,MaxHeigth,0x00010001,1280
+; Stream buffer size
+HKR,,StreamBuffSize,0x00010001,2097152
+; Enable HEVC
+HKR,,EnableHEVC,0x00010001,1
+; Allow10BitFormat
+HKR,,Allow10BitFormat,0x00010001,0
+
+;-------------- Service installation
+[malonekm_Device.NT.Services]
+AddService = malonekm,%SPSVCINST_ASSOCSERVICE%, malonekm_Service_Inst
+
+; -------------- malonekm driver install sections
+[malonekm_Service_Inst]
+DisplayName    = %malonekm.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\malonekm.sys
+
+; ------------- Interface installation
+[malonekm_Device.NT.Interfaces]
+AddInterface={40d466e9-e5fd-45a1-8707-e5059211c021},,malonekm_interface
+
+[malonekm_interface]
+AddProperty=malonekm_interface_AddProperty
+
+; Mark us as a privileged interface
+[malonekm_interface_AddProperty]
+{026e516e-b814-414b-83cd-856d6fef4822},6,0x11,,1
+
+[malonekm_Device.NT.Wdf]
+KmdfService =  malonekm, malonekm_wdfsect
+[malonekm_wdfsect]
+KmdfLibraryVersion = $KMDFVERSION$
+
+[Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
+ManufacturerName="NXP"
+DiskName = "i.MX VPU Malone Device Installation Disk"
+malonekm.DeviceDesc = "i.MX VPU Malone Device"
+malonekm.SVCDESC = "i.MX VPU Malone Device Service"
+
+MaxContexts = "Maximum number of decoding instances"
+FrameBuffers ="Maximum number of output frame buffers"
+MaxWidth = "Maximum width of input video"
+MaxHeigth = "Maximum heigth of input video"
+StreamBuffSize = "Size of input stream buffer"
+EnableHEVC = "Enable HEVC support (requires 96MB per context)"
+Enabled     = "Enabled"
+Disabled    = "Disabled"

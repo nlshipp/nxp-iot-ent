@@ -1,5 +1,5 @@
 // Copyright (C) Microsoft Corporation, All Rights Reserved.
-// Copyright 2022 NXP
+// Copyright 2022-2023 NXP
 // Abstract:
 //
 //  This module contains the implementation of sensor specific functions.
@@ -513,8 +513,11 @@ MagDevice::StartSensor(
 {
     NTSTATUS Status = STATUS_SUCCESS;
     REGISTER_SETTING RegisterSetting = { 0, 0 };
+    BYTE IntSrcBuffer = 0;
 
     SENSOR_FunctionEnter();
+
+    TraceInformation("eCompass %!FUNC! Sensor Mode [%d] !", m_SensorMode);
 
     switch (m_SensorMode)
     {
@@ -526,13 +529,14 @@ MagDevice::StartSensor(
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         if (!NT_SUCCESS(Status))
         {
+            WdfWaitLockRelease(m_I2CWaitLock);
             TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
             goto Exit;
         }
 
         // Set eCompass to active mode
 
-        m_DataRate = GetDataRateFromReportInterval(m_DataRate.DataRateInterval);
+        m_DataRate = GetDataRateFromReportInterval(m_DataRate.DataRateInterval, MAGNETOMETER_ONLY_MODE);
         RegisterSetting = { FXOS8700_CTRL_REG1, m_DataRate.RateCode };
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         WdfWaitLockRelease(m_I2CWaitLock);
@@ -554,9 +558,23 @@ MagDevice::StartSensor(
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         if (!NT_SUCCESS(Status))
         {
+            WdfWaitLockRelease(m_I2CWaitLock);
             TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
             goto Exit;
         }
+
+        do
+        {
+            // Read the System mode if sensor is in the standby
+            Status = I2CSensorReadRegister(m_I2CIoTarget, FXOS8700_SYSMOD, &IntSrcBuffer, sizeof(IntSrcBuffer));
+
+            if (!NT_SUCCESS(Status))
+            {
+                WdfWaitLockRelease(m_I2CWaitLock);
+                TraceError("eCompass %!FUNC! I2CSensorReadRegister from 0x%02x failed! %!STATUS!", FXOS8700_SYSMOD, Status);
+                goto Exit;
+            }
+        } while (IntSrcBuffer & FXOS8700_SYSMOD_SYSMOD_STANDBY);
 
         m_SensorMode = STANDBY_MODE;
         m_Started = false;
@@ -566,12 +584,13 @@ MagDevice::StartSensor(
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         if (!NT_SUCCESS(Status))
         {
+            WdfWaitLockRelease(m_I2CWaitLock);
             TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
             goto Exit;
         }
 
         // Set eCompass to active mode
-        m_DataRate = GetDataRateFromReportInterval(m_DataRate.DataRateInterval);
+        m_DataRate = GetDataRateFromReportInterval(m_DataRate.DataRateInterval, HYBRID_MODE);
         RegisterSetting = { FXOS8700_CTRL_REG1, m_DataRate.RateCode };
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         WdfWaitLockRelease(m_I2CWaitLock);
@@ -615,8 +634,11 @@ MagDevice::StopSensor(
 {
     NTSTATUS Status = STATUS_SUCCESS;
     REGISTER_SETTING RegisterSetting = { 0, 0 };
+    BYTE IntSrcBuffer = 0;
 
     SENSOR_FunctionEnter();  
+
+    TraceInformation("eCompass %!FUNC! Sensor Mode [%d] !", m_SensorMode);
 
     switch (m_SensorMode)
     {
@@ -645,9 +667,23 @@ MagDevice::StopSensor(
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         if (!NT_SUCCESS(Status))
         {
+            WdfWaitLockRelease(m_I2CWaitLock);
             TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
             goto Exit;
         }
+
+        do
+        {
+            // Read the System mode if sensor is in the standby
+            Status = I2CSensorReadRegister(m_I2CIoTarget, FXOS8700_SYSMOD, &IntSrcBuffer, sizeof(IntSrcBuffer));
+
+            if (!NT_SUCCESS(Status))
+            {
+                WdfWaitLockRelease(m_I2CWaitLock);
+                TraceError("eCompass %!FUNC! I2CSensorReadRegister from 0x%02x failed! %!STATUS!", FXOS8700_SYSMOD, Status);
+                goto Exit;
+            }
+        } while (IntSrcBuffer & FXOS8700_SYSMOD_SYSMOD_STANDBY);
 
         m_SensorMode = STANDBY_MODE;
         m_Started = false;
@@ -657,12 +693,13 @@ MagDevice::StopSensor(
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         if (!NT_SUCCESS(Status))
         {
+            WdfWaitLockRelease(m_I2CWaitLock);
             TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
             goto Exit;
         }
 
         // Set eCompass to active mode
-        m_DataRate = GetDataRateFromReportInterval(m_DataRate.DataRateInterval);
+        m_DataRate = GetDataRateFromReportInterval(m_DataRate.DataRateInterval, ACCELEROMETER_ONLY_MODE);
         RegisterSetting = { FXOS8700_CTRL_REG1, m_DataRate.RateCode };
         Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
         WdfWaitLockRelease(m_I2CWaitLock);
@@ -677,8 +714,20 @@ MagDevice::StopSensor(
         break;
     default:
 
+        // Set eCompass to standby
+        RegisterSetting = { FXOS8700_CTRL_REG1, FXOS8700_CTRL_REG1_ACTIVE_STANDBY_MODE };
+        WdfWaitLockAcquire(m_I2CWaitLock, NULL);
+        Status = I2CSensorWriteRegister(m_I2CIoTarget, RegisterSetting.Register, &RegisterSetting.Value, sizeof(RegisterSetting.Value));
+        WdfWaitLockRelease(m_I2CWaitLock);
+        if (!NT_SUCCESS(Status))
+        {
+            TraceError("eCompass %!FUNC! I2CSensorWriteRegister to 0x%02x failed! %!STATUS!", RegisterSetting.Register, Status);
+            goto Exit;
+        }
+        m_SensorMode = STANDBY_MODE;
+        m_Started = false;
+
         TraceError("eCompass %!FUNC! Incorrect Sensor Mode [%d] !", m_SensorMode);
-        goto Exit;
 
         break;
     }

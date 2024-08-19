@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2022 NXP
+// Copyright 2022-2023 NXP
 // Licensed under the MIT License.
 //
 //
@@ -41,6 +41,8 @@ namespace { // static
         RTL_CONSTANT_STRING(L"\\_SB.I2C1"),
         RTL_CONSTANT_STRING(L"\\_SB.I2C2"),
         RTL_CONSTANT_STRING(L"\\_SB.I2C3"),
+        RTL_CONSTANT_STRING(L"\\_SB.SDH1"),      // uSDHC1 - eMMC
+        RTL_CONSTANT_STRING(L"\\_SB.SDH2"),      // uSDHC2 - uSD
     };
 } // namespace "static"
 
@@ -169,7 +171,39 @@ BOOLEAN IMX_PEP::DpmDeviceIdleContraints (
 {
     UNREFERENCED_PARAMETER(ArgsPtr);
     NT_ASSERT(ArgsPtr->PlatformStateCount == PLATFORM_IDLE_STATE_COUNT);
-    return FALSE;
+
+    const struct {
+        DEVICE_POWER_STATE States[PLATFORM_IDLE_STATE_COUNT];
+    } dependencies[] = {
+        // WAIT, STOP_LIGHT, ARM_OFF
+        {{ PowerDeviceD0, PowerDeviceD0, PowerDeviceD0 }},              // CPU0
+        {{ PowerDeviceD0, PowerDeviceD0, PowerDeviceD0 }},              // CPU1
+        {{ PowerDeviceD0, PowerDeviceD0, PowerDeviceD0 }},              // CPU2
+        {{ PowerDeviceD0, PowerDeviceD0, PowerDeviceD0 }},              // CPU3
+        {{ PowerDeviceUnspecified }},                                   // PEP0
+        {{ PowerDeviceUnspecified }},                                   // I2C1
+        {{ PowerDeviceUnspecified }},                                   // I2C2
+        {{ PowerDeviceUnspecified }},                                   // I2C3
+        {{ PowerDeviceUnspecified }},                                   // USDHC1
+        {{ PowerDeviceUnspecified }},                                   // USDHC2
+    };
+
+    static_assert(
+        ARRAYSIZE(dependencies) == int(_DEVICE_ID::_COUNT),
+        "Verifying size of dependencies array");
+
+    _DEVICE_ID deviceId = pepDeviceIdFromPepHandle(ArgsPtr->DeviceHandle);
+
+    NT_ASSERT(int(deviceId) < ARRAYSIZE(dependencies));
+    if (dependencies[int(deviceId)].States[0] == PowerDeviceUnspecified) {
+        return FALSE;
+    }
+
+    for (ULONG i = 0; i < ArgsPtr->PlatformStateCount; ++i) {
+        ArgsPtr->MinimumDStates[i] = dependencies[int(deviceId)].States[i];
+    }
+
+    return TRUE;
 }
 
 //

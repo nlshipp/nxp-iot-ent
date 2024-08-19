@@ -28,9 +28,12 @@ public:
     virtual NTSTATUS HwStop(
         DXGK_DISPLAY_INFORMATION   *pFwDisplayInfo) override;
 
+    virtual void HwStopScanning(IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn) override;
+
     virtual void HwSetPowerState(
-        UINT SourcePhysicalAddress,
-        UINT TileMode) override;
+        IN_ULONG                DeviceUid,
+        IN_DEVICE_POWER_STATE   DevicePowerState,
+        IN_POWER_ACTION         ActionType) override;
 
     virtual NTSTATUS SetVidPnSourceAddress(
         IN_CONST_PDXGKARG_SETVIDPNSOURCEADDRESS pSetVidPnSourceAddress) override;
@@ -49,6 +52,11 @@ public:
 
     virtual NTSTATUS SetVidPnSourceAddressWithMultiPlaneOverlay3(
         IN_OUT_PDXGKARG_SETVIDPNSOURCEADDRESSWITHMULTIPLANEOVERLAY3 pSetVidPnSourceAddressWithMpo3) override;
+
+    virtual bool SupportStandardModes() override
+    {
+        return true;
+    }
 
 private:
 

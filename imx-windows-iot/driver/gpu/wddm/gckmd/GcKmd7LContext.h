@@ -218,7 +218,7 @@ public:
 
 protected:
 
-    GpuMemoryHeap   m_GdiUboHeap;
+    GpuMemoryHeap   m_GdiUboHeap = {};
 
     UINT            m_MaxPendingDmaBuffers;
     UINT            m_CurGdiUboChunk = 0;       // 0 to m_MaxPendingDmaBuffers - 1
@@ -317,9 +317,7 @@ class GcKm7LMPContext : public GcKm7LContext
 public:
 
     virtual
-    ~GcKm7LMPContext()
-    {
-    }
+    ~GcKm7LMPContext();
 
     // For paging support
     virtual NTSTATUS
@@ -353,6 +351,10 @@ protected:
     GetGdiOp(
         DXGK_RENDERKM_OPERATION GdiOp,
         UINT                    GdiOpRop);
+
+private:
+
+    HANDLE  m_hGdiAllocation = nullptr;
 };
 
 

@@ -300,10 +300,6 @@ GcKmSwQueueNode::DoWork(void)
 
             m_LastProcessedFenceId = pDmaBufSubmission->m_SubmissionFenceId;
 
-            D3DGPU_PHYSICAL_ADDRESS RootPageTable;
-
-            pDmaBufSubmission->m_pContext->GetRootPageTable(&RootPageTable);
-
             do
             {
                 //
@@ -318,12 +314,15 @@ GcKmSwQueueNode::DoWork(void)
                     break;
                 }
 
+                D3DGPU_PHYSICAL_ADDRESS RootPageTable;
+
+                pDmaBufSubmission->m_pContext->GetRootPageTable(&RootPageTable);
+
                 m_pMmu->UpdateHwPageTable(pDmaBufSubmission->m_pContext);
 
                 Status = m_pMmu->SwitchGpuVaSpace(&RootPageTable);
                 if (!NT_SUCCESS(Status))
                 {
-
                     break;
                 }
 
@@ -562,8 +561,15 @@ GcKmSwQueueNode::QueueDmaBuffer(
         DmaBufferUmdPrivateDataSize = 0;
     }
 
-    pDmaBufInfo = (GcDmaBufInfo*)(((PBYTE)pSubmitCommandVirtual->pDmaBufferPrivateData) +
-                                  DmaBufferUmdPrivateDataSize);
+    if (!pSubmitCommandVirtual->Flags.ContextSwitch)
+    {
+        pDmaBufInfo = (GcDmaBufInfo*)(((PBYTE)pSubmitCommandVirtual->pDmaBufferPrivateData) +
+                                      DmaBufferUmdPrivateDataSize);
+    }
+    else
+    {
+        pDmaBufInfo = &m_DefaultDmaBufInfo;
+    }
 
     KeAcquireSpinLock(&m_DmaBufQueueLock, &OldIrql);
 
@@ -571,7 +577,7 @@ GcKmSwQueueNode::QueueDmaBuffer(
 
     pDmaBufSubmission = CONTAINING_RECORD(RemoveHeadList(&m_DmaBufSubmissionFree), GcDmaBufSubmission, m_QueueEntry);
 
-    if (!pSubmitCommandVirtual->Flags.Resubmission)
+    if (!(pSubmitCommandVirtual->Flags.Resubmission || pSubmitCommandVirtual->Flags.ContextSwitch))
     {
         if (!((pSubmitCommandVirtual->Flags.Present) &&
               (pDmaBufInfo->m_DmaBufState.m_bUmBltPresent)))

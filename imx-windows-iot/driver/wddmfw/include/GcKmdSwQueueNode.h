@@ -77,6 +77,8 @@ public:
         m_pMmu = pMmu;
 
         m_pWorkerThread = nullptr;
+
+        memset(&m_DefaultDmaBufInfo, 0, sizeof(m_DefaultDmaBufInfo));
     }
 
     virtual NTSTATUS Start(
@@ -127,6 +129,8 @@ protected:
     LIST_ENTRY                  m_DmaBufSubmissionFree;
     LIST_ENTRY                  m_DmaBufQueue;
     KSPIN_LOCK                  m_DmaBufQueueLock;
+
+    GcDmaBufInfo                m_DefaultDmaBufInfo;
 
     UINT                        m_LastSubmittedFenceId;
     UINT                        m_LastProcessedFenceId;

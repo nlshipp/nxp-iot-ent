@@ -3,7 +3,7 @@
 * Description: iMX8M Mini UART
 *
 *  Copyright (c) 2019, Microsoft Corporation. All rights reserved.
-*  Copyright 2019-2020,2022 NXP
+*  Copyright 2019-2020, 2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -239,7 +239,8 @@ Device (UAR3)
   Name (_DSD, Package () {
     ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
       Package () {
-        Package (2) {"SerCx-FriendlyName", "UART3"}
+        Package (2) {"SerCx-FriendlyName", "UART3"},
+        Package (2) {"rts-cts-enabled", 1}
       }
   })
 }

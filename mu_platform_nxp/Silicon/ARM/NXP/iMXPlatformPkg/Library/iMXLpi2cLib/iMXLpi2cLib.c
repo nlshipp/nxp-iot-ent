@@ -39,84 +39,129 @@
 #include "iMXLpi2cLib_hw.h"
 #include "iMXI2cLib.h"
 
-/* LPI2C - Peripheral instance base addresses */
+/* IMX8 LPI2C - Peripheral instance base addresses */
 
 /** Peripheral LPI2C0 base address */
-#define LPI2C0_BASE                              (0x5a800000)
+#define IMX8_LPI2C0_BASE                         (0x5a800000)
 /** Peripheral LPI2C0 base pointer */
-#define LPI2C0                                   ((IMX_LPI2C_REGISTERS *)LPI2C0_BASE)
+#define IMX8_LPI2C0                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C0_BASE)
 /** Peripheral LPI2C1 base address */
-#define LPI2C1_BASE                              (0x5a810000)
+#define IMX8_LPI2C1_BASE                         (0x5a810000)
 /** Peripheral LPI2C1 base pointer */
-#define LPI2C1                                   ((IMX_LPI2C_REGISTERS *)LPI2C1_BASE)
+#define IMX8_LPI2C1                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C1_BASE)
 /** Peripheral LPI2C2 base address */
-#define LPI2C2_BASE                              (0x5a820000)
+#define IMX8_LPI2C2_BASE                         (0x5a820000)
 /** Peripheral LPI2C2 base pointer */
-#define LPI2C2                                   ((IMX_LPI2C_REGISTERS *)LPI2C2_BASE)
+#define IMX8_LPI2C2                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C2_BASE)
 /** Peripheral LPI2C3 base address */
-#define LPI2C3_BASE                              (0x5a830000)
+#define IMX8_LPI2C3_BASE                         (0x5a830000)
 /** Peripheral LPI2C3 base pointer */
-#define LPI2C3                                   ((IMX_LPI2C_REGISTERS *)LPI2C3_BASE)
+#define IMX8_LPI2C3                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C3_BASE)
 /** Peripheral LPI2C4 base address */
-#define LPI2C4_BASE                              (0x5a840000)
+#define IMX8_LPI2C4_BASE                         (0x5a840000)
 /** Peripheral LPI2C4 base pointer */
-#define LPI2C4                                   ((IMX_LPI2C_REGISTERS *)LPI2C4_BASE)
+#define IMX8_LPI2C4                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C4_BASE)
 /** Peripheral I2C0_MIPI_CSI0 base address */
-#define LPI2C5_BASE                              (0x58226000)
+#define IMX8_LPI2C5_BASE                         (0x58226000)
 /** Peripheral I2C0_MIPI_CSI0 base pointer */
-#define LPI2C5                                   ((IMX_LPI2C_REGISTERS *)LPI2C5_BASE)
+#define IMX8_LPI2C5                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C5_BASE)
 /** Peripheral I2C0_PARALLEL base address */
-#define LPI2C6_BASE                              (0x58266000)
+#define IMX8_LPI2C6_BASE                         (0x58266000)
 /** Peripheral I2C0_PARALLEL base pointer */
-#define LPI2C6                                   ((IMX_LPI2C_REGISTERS *)LPI2C6_BASE)
+#define IMX8_LPI2C6                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C6_BASE)
 /** Peripheral I2C0_MIPI_CSI1 base address */
-#define LPI2C7_BASE                              (0x58246000)
+#define IMX8_LPI2C7_BASE                         (0x58246000)
 /** Peripheral I2C0_MIPI_CSI1 base pointer */
-#define LPI2C7                                   ((IMX_LPI2C_REGISTERS *)LPI2C7_BASE)
+#define IMX8_LPI2C7                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C7_BASE)
 /** Peripheral I2C0_MIPI_LVDS0_OR_I2C0_MIPI_DSI0 base address */
-#define LPI2C8_BASE                              (0x56226000)
+#define IMX8_LPI2C8_BASE                         (0x56226000)
 /** Peripheral I2C0_MIPI_LVDS0_OR_I2C0_MIPI_DSI0 base pointer */
-#define LPI2C8                                   ((IMX_LPI2C_REGISTERS *)LPI2C8_BASE)
+#define IMX8_LPI2C8                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C8_BASE)
 /** Peripheral I2C0_MIPI_LVDS1_OR_I2C0_LVDS0 base address */
-#define LPI2C9_BASE                              (0x56246000)
+#define IMX8_LPI2C9_BASE                         (0x56246000)
 /** Peripheral I2C0_MIPI_LVDS1_OR_I2C0_LVDS0 base pointer */
-#define LPI2C9                                   ((IMX_LPI2C_REGISTERS *)LPI2C9_BASE)
+#define IMX8_LPI2C9                              ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C9_BASE)
 /** Peripheral I2C1_LVDS0 base address */
-#define LPI2C10_BASE                             (0x56247000)
+#define IMX8_LPI2C10_BASE                        (0x56247000)
 /** Peripheral I2C1_LVDS0 base pointer */
-#define LPI2C10                                  ((IMX_LPI2C_REGISTERS *)LPI2C10_BASE)
+#define IMX8_LPI2C10                             ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C10_BASE)
 /** Peripheral I2C0_LVDS1 base address */
-#define LPI2C11_BASE                             (0x57246000)
+#define IMX8_LPI2C11_BASE                        (0x57246000)
 /** Peripheral I2C0_LVDS1 base pointer */
-#define LPI2C11                                  ((IMX_LPI2C_REGISTERS *)LPI2C11_BASE)
+#define IMX8_LPI2C11                             ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C11_BASE)
 /** Peripheral I2C1_LVDS1 base address */
-#define LPI2C12_BASE                             (0x57247000)
+#define IMX8_LPI2C12_BASE                        (0x57247000)
 /** Peripheral I2C1_LVDS1 base pointer */
-#define LPI2C12                                  ((IMX_LPI2C_REGISTERS *)LPI2C12_BASE)
+#define IMX8_LPI2C12                             ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C12_BASE)
 /** Peripheral I2C0_MIPI_DSI1 base address */
-#define LPI2C13_BASE                             (0x57226000)
+#define IMX8_LPI2C13_BASE                        (0x57226000)
 /** Peripheral I2C0_MIPI_DSI1 base pointer */
-#define LPI2C13                                  ((IMX_LPI2C_REGISTERS *)LPI2C13_BASE)
+#define IMX8_LPI2C13                             ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C13_BASE)
 /** Peripheral I2C0_HDMI base address */
-#define LPI2C14_BASE                             (0x57226000)
+#define IMX8_LPI2C14_BASE                        (0x57226000)
 /** Peripheral I2C0_HDMI base pointer */
-#define LPI2C14                                  ((IMX_LPI2C_REGISTERS *)LPI2C14_BASE)
+#define IMX8_LPI2C14                             ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C14_BASE)
 /** Peripheral CM40_I2C base address */
-#define LPI2C15_BASE                             (0x37230000)
+#define IMX8_LPI2C15_BASE                        (0x37230000)
 /** Peripheral CM40_I2C base pointer */
-#define LPI2C15                                  ((IMX_LPI2C_REGISTERS *)LPI2C15_BASE)
+#define IMX8_LPI2C15                             ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C15_BASE)
 /** Peripheral CM41_I2C base address */
-#define LPI2C16_BASE                             (0x3b230000)
+#define IMX8_LPI2C16_BASE                        (0x3b230000)
 /** Peripheral CM41_I2C base pointer */
-#define LPI2C16                                  ((IMX_LPI2C_REGISTERS *)LPI2C16_BASE)
+#define IMX8_LPI2C16                             ((IMX_LPI2C_REGISTERS *)IMX8_LPI2C16_BASE)
 
-/** Array initializer of LPI2C peripheral base addresses */
-#define LPI2C_BASE_ADDRS                         { LPI2C0_BASE, LPI2C1_BASE, LPI2C2_BASE, LPI2C3_BASE, LPI2C4_BASE, LPI2C5_BASE, LPI2C6_BASE, LPI2C7_BASE, LPI2C8_BASE, LPI2C9_BASE, LPI2C10_BASE, LPI2C11_BASE, LPI2C12_BASE, LPI2C13_BASE, LPI2C14_BASE, LPI2C15_BASE, LPI2C16_BASE }
-/** Array initializer of LPI2C peripheral base pointers */
-#define LPI2C_BASE_PTRS                          { LPI2C0, LPI2C1, LPI2C2, LPI2C3, LPI2C4, LPI2C5, LPI2C6, LPI2C7, LPI2C8, LPI2C9, LPI2C10, LPI2C11, LPI2C12, LPI2C13, LPI2C14, LPI2C15, LPI2C16 }
+/* IMX9 LPI2C - Peripheral instance base addresses */
 
-/*! @brief Array to map LPI2C instance number to base pointer. */
-static IMX_LPI2C_REGISTERS * const kLpi2cBases[] = LPI2C_BASE_PTRS;
+/** Peripheral LPI2C1 base address */
+#define IMX9_LPI2C1_BASE                         (0x44340000)
+/** Peripheral LPI2C1 base pointer */
+#define IMX9_LPI2C1                              ((IMX_LPI2C_REGISTERS *)IMX9_LPI2C1_BASE)
+/** Peripheral LPI2C2 base address */
+#define IMX9_LPI2C2_BASE                         (0x44350000)
+/** Peripheral LPI2C2 base pointer */
+#define IMX9_LPI2C2                              ((IMX_LPI2C_REGISTERS *)IMX9_LPI2C2_BASE)
+/** Peripheral LPI2C3 base address */
+#define IMX9_LPI2C3_BASE                         (0x42530000)
+/** Peripheral LPI2C3 base pointer */
+#define IMX9_LPI2C3                              ((IMX_LPI2C_REGISTERS *)IMX9_LPI2C3_BASE)
+/** Peripheral LPI2C4 base address */
+#define IMX9_LPI2C4_BASE                         (0x42540000)
+/** Peripheral LPI2C4 base pointer */
+#define IMX9_LPI2C4                              ((IMX_LPI2C_REGISTERS *)IMX9_LPI2C4_BASE)
+/** Peripheral LPI2C5 base address */
+#define IMX9_LPI2C5_BASE                         (0x426B0000)
+/** Peripheral LPI2C5 base pointer */
+#define IMX9_LPI2C5                              ((IMX_LPI2C_REGISTERS *)IMX9_LPI2C5_BASE)
+/** Peripheral LPI2C6 base address */
+#define IMX9_LPI2C6_BASE                         (0x426C0000)
+/** Peripheral LPI2C6 base pointer */
+#define IMX9_LPI2C6                              ((IMX_LPI2C_REGISTERS *)IMX9_LPI2C6_BASE)
+/** Peripheral LPI2C7 base address */
+#define IMX9_LPI2C7_BASE                         (0x426D0000)
+/** Peripheral LPI2C7 base pointer */
+#define IMX9_LPI2C7                              ((IMX_LPI2C_REGISTERS *)IMX9_LPI2C7_BASE)
+/** Peripheral LPI2C8 base address */
+#define IMX9_LPI2C8_BASE                         (0x426E0000)
+/** Peripheral LPI2C8 base pointer */
+#define IMX9_LPI2C8                              ((IMX_LPI2C_REGISTERS *)IMX9_LPI2C8_BASE)
+
+/** Array initializer of IMX8 LPI2C peripheral base addresses */
+#define IMX8_LPI2C_BASE_ADDRS                    { IMX8_LPI2C0_BASE, IMX8_LPI2C1_BASE, IMX8_LPI2C2_BASE, IMX8_LPI2C3_BASE, IMX8_LPI2C4_BASE, IMX8_LPI2C5_BASE, IMX8_LPI2C6_BASE, IMX8_LPI2C7_BASE, IMX8_LPI2C8_BASE, IMX8_LPI2C9_BASE, IMX8_LPI2C10_BASE, IMX8_LPI2C11_BASE, IMX8_LPI2C12_BASE, IMX8_LPI2C13_BASE, IMX8_LPI2C14_BASE, IMX8_LPI2C15_BASE, IMX8_LPI2C16_BASE }
+/** Array initializer of IMX8 LPI2C peripheral base pointers */
+#define IMX8_LPI2C_BASE_PTRS                     { IMX8_LPI2C0, IMX8_LPI2C1, IMX8_LPI2C2, IMX8_LPI2C3, IMX8_LPI2C4, IMX8_LPI2C5, IMX8_LPI2C6, IMX8_LPI2C7, IMX8_LPI2C8, IMX8_LPI2C9, IMX8_LPI2C10, IMX8_LPI2C11, IMX8_LPI2C12, IMX8_LPI2C13, IMX8_LPI2C14, IMX8_LPI2C15, IMX8_LPI2C16 }
+
+/** Array initializer of IMX9 LPI2C peripheral base addresses */
+#define IMX9_LPI2C_BASE_ADDRS                    { 0x0U, IMX9_LPI2C1_BASE, IMX9_LPI2C2_BASE, IMX9_LPI2C3_BASE, IMX9_LPI2C4_BASE, IMX9_LPI2C5_BASE, IMX9_LPI2C6_BASE, IMX9_LPI2C7_BASE, IMX9_LPI2C8_BASE }
+/** Array initializer of IMX9 LPI2C peripheral base pointers */
+#define IMX9_LPI2C_BASE_PTRS                     { (IMX_LPI2C_REGISTERS *)0x0U, IMX9_LPI2C1, IMX9_LPI2C2, IMX9_LPI2C3, IMX9_LPI2C4, IMX9_LPI2C5, IMX9_LPI2C6, IMX9_LPI2C7, IMX9_LPI2C8 }
+
+/*! @brief Array to map IMX8 LPI2C instance number to base pointer. */
+static IMX_LPI2C_REGISTERS * const imx8Lpi2cBases[] = IMX8_LPI2C_BASE_PTRS;
+
+/*! @brief Array to map IMX9 LPI2C instance number to base pointer. */
+static IMX_LPI2C_REGISTERS * const imx9Lpi2cBases[] = IMX9_LPI2C_BASE_PTRS;
+
+#define INSTANCES_ARRAY_SIZE ((ARRAY_SIZE(imx8Lpi2cBases) > ARRAY_SIZE(imx9Lpi2cBases))? ARRAY_SIZE(imx8Lpi2cBases) : ARRAY_SIZE(imx9Lpi2cBases))
 
 /*! @brief LPI2C driver context. */
 typedef struct _IMX_LPI2C_CONTEXT {
@@ -128,7 +173,7 @@ typedef struct _IMX_LPI2C_CONTEXT {
 } IMX_LPI2C_CONTEXT, *PIMX_LPI2C_CONTEXT;
 
 /*! @brief Array to store LPI2C driver context. */
-static IMX_LPI2C_CONTEXT DeviceCtxPtrs[ARRAY_SIZE(kLpi2cBases)] = { 0 };
+static IMX_LPI2C_CONTEXT DeviceCtxPtrs[INSTANCES_ARRAY_SIZE] = { 0 };
 
 /* ! @brief LPI2C master fifo commands. */
 enum
@@ -157,7 +202,7 @@ void LPI2C_MasterSetBaudRate(IMX_LPI2C_REGISTERS *base, UINT32 sourceClock_Hz, U
  * brief Returns an instance number given a base address.
  *
  * If an invalid base address is passed, -1 is returned.
- *
+ *                                                                                         
  * param base The LPI2C peripheral base address.
  * return LPI2C instance number starting from 0. 
  */
@@ -166,16 +211,26 @@ INT8 LPI2C_GetInstance(IMX_LPI2C_REGISTERS *base)
     INT8 result = -1;
     INT8 instance;
 
-    for (instance = 0U; instance < ARRAY_SIZE(kLpi2cBases); ++instance) {
-        if (kLpi2cBases[instance] == base) {
+    if (base == NULL) {
+        DEBUG((DEBUG_ERROR, "%a: NULL base address\n", __FUNCTION__));
+        return result;
+    }
+    for (instance = 0U; instance < ARRAY_SIZE(imx8Lpi2cBases); ++instance) {
+        if (imx8Lpi2cBases[instance] == base) {
             result = (INT8)instance;
             break;
         }
     }
-
-    if ((instance >= ARRAY_SIZE(kLpi2cBases)) || (instance < 0)) {
-        DEBUG((DEBUG_ERROR, "%a: Invalid instance number %d\n", __FUNCTION__, instance));
-        result = -1;
+    if (result == -1) {
+        for (instance = 0U; instance < ARRAY_SIZE(imx9Lpi2cBases); ++instance) {
+            if (imx9Lpi2cBases[instance] == base) {
+                result = (INT8)instance;
+                break;
+            }
+        }
+    }
+    if (result < 0) {
+        DEBUG((DEBUG_ERROR, "%a: Invalid base address 0x%lx\n", __FUNCTION__, base));
     }
     return result;
 }
@@ -1054,12 +1109,10 @@ static void iMXI2cInit(IMX_LPI2C_REGISTERS *base, IMX_I2C_CONTEXT *i2cContext)
   @retval   FALSE                 LPI2C master has no been initialized yet.
 
 **/
-static BOOLEAN LPI2C_IsMasterInitialized(INT8 instance)
+static BOOLEAN LPI2C_IsMasterInitialized(IMX_LPI2C_REGISTERS *base, INT8 instance)
 {
     UINT32 MCRBit;
-    IMX_LPI2C_REGISTERS *base;
 
-    base = kLpi2cBases[instance];
     MCRBit = ((MmioRead32((UINTN)&base->MCR) & IMX_LPI2C_MCR_MEN_MASK) >> IMX_LPI2C_MCR_MEN_SHIFT);
 
     return ((0U != MCRBit) && (DeviceCtxPtrs[instance].IsInitialized));
@@ -1174,7 +1227,7 @@ iMXI2cReadE(
         return RETURN_INVALID_PARAMETER;
     }
 
-    if (!LPI2C_IsMasterInitialized(instance)) {
+    if (!LPI2C_IsMasterInitialized(baseAddress, instance)) {
         iMXI2cInit(baseAddress, I2cContext);
         LPI2C_SetMasterInitializedFlag(instance);
     }
@@ -1239,7 +1292,7 @@ iMXI2cWriteE(
         return RETURN_INVALID_PARAMETER;
     }
 
-    if (!LPI2C_IsMasterInitialized(instance)) {
+    if (!LPI2C_IsMasterInitialized(baseAddress, instance)) {
         iMXI2cInit(baseAddress, I2cContext);
         LPI2C_SetMasterInitializedFlag(instance);
     }

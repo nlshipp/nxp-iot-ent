@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2022 NXP
+// Copyright 2022-2023 NXP
 // Licensed under the MIT License.
 //
 //
@@ -449,6 +449,9 @@ NTSTATUS IMX_PEP::RegisterPlugin ()
     NT_ASSERT(pepGlobalContextPtr == nullptr);
     pepGlobalContextPtr = this;
 
+    // Do not use processor power management on 8MQ because of USB wake-up issue, 93 needs more validation
+    usePpm = IMX_CPU_TYPE(cpuRevision) != IMX_CPU_MX8MQ && IMX_CPU_TYPE(cpuRevision) != IMX_CPU_MX93;
+
     // Register with PEP framework
     PEP_INFORMATION pepInfo = {0};
     pepInfo.Version = PEP_INFORMATION_VERSION;
@@ -712,7 +715,8 @@ NTSTATUS IMX_PEP::DispatchFileCreateClose (
 IMX_PEP* IMX_PEP::pepGlobalContextPtr = nullptr;
 
 _Use_decl_annotations_
-IMX_PEP::IMX_PEP () :
+IMX_PEP::IMX_PEP (UINT32 cpuRev) :
+    cpuRevision(cpuRev),
     activeProcessorCount(),
     //ccmRegistersPtr(),
     analogRegistersPtr(),
@@ -889,7 +893,7 @@ NTSTATUS InitializePepDevice ()
         return status;
     }
 
-    if (IMX_SOC_TYPE(cpuRev) != IMX_SOC_MX8M && IMX_SOC_TYPE(cpuRev) != IMX_SOC_MX8X) {
+    if (IMX_SOC_TYPE(cpuRev) != IMX_SOC_MX8M && IMX_SOC_TYPE(cpuRev) != IMX_SOC_MX8X && IMX_SOC_TYPE(cpuRev) != IMX_SOC_MX9) {
         IMX_LOG_ERROR(
             "Skipping initialization of PEP on non-IIMX chip. "
             "(cpuRev = 0x%x)",
@@ -912,7 +916,7 @@ NTSTATUS InitializePepDevice ()
     }
 
     RtlZeroMemory(deviceContextPtr, sizeof(*deviceContextPtr));
-    deviceContextPtr->IMX_PEP::IMX_PEP();
+    deviceContextPtr->IMX_PEP::IMX_PEP(cpuRev);
 
     status = deviceContextPtr->IMX_PEP::InitializeResources();
     if (!NT_SUCCESS(status)) {

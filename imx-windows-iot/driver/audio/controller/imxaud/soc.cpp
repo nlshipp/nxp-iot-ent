@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
-   Copyright 2022 NXP
+   Copyright 2022-2023 NXP
    Licensed under the MIT License.
 
 Abstract:
@@ -119,7 +119,7 @@ CDmaBuffer::DrainFifos()
 
         FifoControl.AsUlong = READ_REGISTER_ULONG(&m_pSaiRegisters->ReceiveFifoRegister.AsUlong);
     } 
-
+    
     m_pRtStream->UpdateVirtualPositionRegisters(m_ulSamplesTransferred);
 }
 
@@ -575,10 +575,9 @@ CSoc::StartDma
         m_bIsRenderActive = TRUE;
     }
 
+    EnableInterruptsNoLock();
+
     ReleaseIsrSpinLock(irql);
-
-    EnableInterrupts();
-
 
     return STATUS_SUCCESS;
 }
@@ -619,10 +618,10 @@ CSoc::StopDma
         m_bIsCaptureActive = FALSE;
     }
 
-    ReleaseIsrSpinLock(irql);
-
     // EnableInterrupts will properly set the enables based on the active streams (if any.)
-    EnableInterrupts();
+    EnableInterruptsNoLock();
+
+    ReleaseIsrSpinLock(irql);
 
     return STATUS_SUCCESS;
 }
@@ -729,13 +728,13 @@ CSoc::DoIsrWork ()
 
     if ((ReceiveControlRegister.FifoWarningFlag == 1 || ReceiveControlRegister.FifoRequestFlag == 1) && m_bIsCaptureActive == TRUE)
     {
-        m_Buffer[eMicInDevice].DrainFifos();
-    }
+            m_Buffer[eMicInDevice].DrainFifos();
+        }
 
     if ((TransmitControlRegister.FifoWarningFlag == 1 || TransmitControlRegister.FifoRequestFlag == 1) && m_bIsRenderActive == TRUE)
     {
-        m_Buffer[eSpeakerHpDevice].FillFifos();
-    }
+            m_Buffer[eSpeakerHpDevice].FillFifos();
+        }
 
     // Enable interrupts.  Also clears any error flags
     EnableInterruptsNoLock();

@@ -718,6 +718,15 @@ GcKm7LMmu::BuildPagingBuffer(
     }
     break;
 
+    case DXGK_OPERATION_INIT_CONTEXT_RESOURCE:
+    {
+        GcKmGdiAllocation*  pGdiAllocation = (GcKmGdiAllocation*)pBuildPagingBuffer->InitContextResource.hAllocation;
+
+        pGdiAllocation->m_pCpuAddress = (BYTE*)pBuildPagingBuffer->InitContextResource.Destination.VirtualAddress;
+        pGdiAllocation->m_GpuVa = pBuildPagingBuffer->InitContextResource.Destination.GpuVirtualAddress;
+    }
+    break;
+
     default:
         NT_ASSERT(FALSE);
         break;

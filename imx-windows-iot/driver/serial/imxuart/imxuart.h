@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2020 NXP
+// Copyright 2020, 2023 NXP
 // Licensed under the MIT License.
 //
 //
@@ -9,10 +9,12 @@
 //
 // Abstract:
 //
-//   IMX6 UART Driver Declarations
+//   IMX UART Driver Declarations
 //
 #ifndef _IMX_UART_H_
 #define _IMX_UART_H_
+
+#include "imx_acpi_utils.h"
 
 //
 // Macros to be used for proper PAGED/NON-PAGED code placement
@@ -42,6 +44,7 @@
 #define IMX_UART_ASSERT_MAX_IRQL(Irql) NT_ASSERT(KeGetCurrentIrql() <= (Irql))
 
 enum : ULONG { IMX_UART_POOL_TAG = 'RUXM' };
+enum : ULONG { IMX_UART_ACPI_POOL_TAG = 'AUXM' };
 
 enum : ULONG { IMX_UART_STATE_ACTIVE = 0x100 };
 enum IMX_UART_STATE : ULONG {
@@ -182,6 +185,8 @@ struct IMX_UART_DEVICE_CONTEXT {
     BYTE* TxBufferStorage;
     WDFDEVICE WdfDevice;
     WDFINTERRUPT WdfInterrupt;
+
+    IMX_ACPI_UTILS_DEV_CONTEXT ACPI_UtilsContext;
 
     //
     // Has IMXUartEvtSerCx2ApplyConfig() been called at least once?
@@ -508,8 +513,7 @@ IMXUartConfigureUart (
     WDFDEVICE WdfDevice,
     ULONG BaudRate,
     const SERIAL_LINE_CONTROL *LineControl,
-    const SERIAL_HANDFLOW *Handflow,
-    bool RtsCtsEnabled
+    const SERIAL_HANDFLOW *Handflow
     );
 
 _IRQL_requires_max_(DISPATCH_LEVEL)

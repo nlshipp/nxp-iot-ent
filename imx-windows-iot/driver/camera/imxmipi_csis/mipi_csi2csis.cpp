@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -136,7 +136,7 @@ NTSTATUS MipiCsi2_t::EnablePhy(const camera_config_t &Config)
  */
 {
     NTSTATUS status = STATUS_SUCCESS;
-    UINT32 tHsSettleEscClk = 13;
+    UINT32 tHsSettleEscClk = 12;
     UINT32 settleCtl = 2;
 
     m_RegistersPtr->DPHY_MASTER_SLAVE_CTRL_LOW = 0x1F4;
@@ -261,9 +261,9 @@ NTSTATUS MipiCsi2_t::Init(const camera_config_t &Config)
         SwReset();
         status = SetFormat(Config);
         if (NT_SUCCESS(status)) {
-            m_RegistersPtr->CSIS_CLOCK_CTRL = CSIS_CLOCK_CTRL_CLKGATE_TRAIL_CH0(15);
+            m_RegistersPtr->CSIS_CLOCK_CTRL = CSIS_CLOCK_CTRL_CLKGATE_TRAIL_CH0(0xF);
             TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DRIVER, "CSIS_COMMON_CTRL_LANE_NUMBER 0x%x", Config.csiLanes);
-            m_RegistersPtr->CSIS_COMMON_CTRL = CSIS_COMMON_CTRL_LANE_NUMBER(Config.csiLanes - 1UL) | CSIS_COMMON_CTRL_UPDATE_SHADOW_MASK;
+            m_RegistersPtr->CSIS_COMMON_CTRL |= CSIS_COMMON_CTRL_LANE_NUMBER(Config.csiLanes - 1UL) | CSIS_COMMON_CTRL_UPDATE_SHADOW_MASK;
         }
     }
     return status;

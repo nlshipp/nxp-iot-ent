@@ -1,0 +1,65 @@
+; Copyright (c) Microsoft Corporation. All rights reserved.
+; Copyright 2023 NXP
+; Licensed under the MIT License.
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=System
+ClassGuid={4D36E97D-E325-11CE-BFC1-08002BE10318}
+Provider=%ProviderName%
+PnpLockdown = 1
+CatalogFile=imxlpspi.cat ; VS requirement to have catalog file entry
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+; ================= Class section =====================
+
+[SourceDisksNames]
+1 = %DiskId1%,,,""
+
+[SourceDisksFiles]
+imxlpspi.sys  = 1,,
+
+;*****************************************
+; imxlpspi  Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName%=Microsoft,NT$ARCH$
+
+; Decorated model section take precedence over undecorated 
+; ones on XP and later.
+[Microsoft.NT$ARCH$]
+%imxlpspi.DeviceDesc%=imx_lpspi_Device,ACPI\NXP0121
+
+[imx_lpspi_Device.NT]
+CopyFiles=Drivers_Dir
+
+[Drivers_Dir]
+imxlpspi.sys
+
+;-------------- Service installation
+[imx_lpspi_Device.NT.Services]
+AddService = imxlpspi,%SPSVCINST_ASSOCSERVICE%, imx_lpspi_Service_Inst
+
+; -------------- imxlpspi driver install sections
+
+[imx_lpspi_Service_Inst]
+DisplayName    = %imxlpspi.SvcDesc%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START 
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\imxlpspi.sys
+LoadOrderGroup = Extended Base
+Dependencies   = SpbCx
+
+[Strings]
+ProviderName                 = "NXP"
+ManufacturerName             = "NXP Semiconductors"
+imxlpspi.DeviceDesc          = "i.MX LPSPI Controller"
+imxlpspi.SvcDesc             = "i.MX LPSPI Controller Service"
+
+
+SPSVCINST_ASSOCSERVICE= 0x00000002
+DiskId1 = "i.MX LPSPI Controller Installation Disk #1"

@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -96,9 +96,14 @@ GcKmImx8mnDisplay::HwStop(
     NTSTATUS ret = STATUS_SUCCESS;
 
     /* page-flip back to firmware framebuffer */
-    plane_state.fb_addr = m_FbPhysicalAddr.LowPart;
-    plane_state.mode_change = false;
-    lcdif_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
+    if (m_CurSourceModes[0].Format.Graphics.Stride != m_Pitch) {
+        HwCommitVidPn(&m_CurSourceModes[0], &m_CurTargetModes[0], NULL);
+    }
+    else {
+        plane_state.fb_addr = m_FbPhysicalAddr.LowPart;
+        plane_state.mode_change = false;
+        lcdif_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
+    }
 
     /* To full stop the hardware, disable display controller: lcdif_crtc_atomic_disable(&lcdif_crtc_pdev); */
 
@@ -121,15 +126,20 @@ GcKmImx8mnDisplay::HwStop(
 
 void
 GcKmImx8mnDisplay::HwSetPowerState(
-    UINT SourcePhysicalAddress,
-    UINT TileMode)
+    IN_ULONG                DeviceUid,
+    IN_DEVICE_POWER_STATE   DevicePowerState,
+    IN_POWER_ACTION         ActionType)
 {
-    struct lcdif_plane_state plane_state;
+    /* A placeholder for the board specific activity during changing of the display power mode */
+}
 
-    plane_state.fb_addr = SourcePhysicalAddress;
-    plane_state.mode_change = false;
-
-    lcdif_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
+void
+GcKmImx8mnDisplay::HwStopScanning(
+    IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
+{
+    sec_mipi_dsim_bridge_disable(&m_DsiTransmitter.dsi_pdev);
+    imx_sec_dsim_encoder_helper_disable(&m_DsiTransmitter.dsi_pdev);
+    lcdif_crtc_atomic_disable(&lcdif_crtc_pdev);
 }
 
 GC_PAGED_SEGMENT_END; //========================================================
@@ -178,7 +188,7 @@ GcKmImx8mnDisplay::HwCommitVidPn(
     UINT TileMode = 0;
     DXGI_FORMAT ColorFormat;
 
-    if (GcKmdGlobal::s_DriverMode == FullDriver)
+    if ((GcKmdGlobal::s_DriverMode == FullDriver) && pCommitVidPn)
     {
         GcKmAllocation* pPrimaryAllocation = (GcKmAllocation*)pCommitVidPn->hPrimaryAllocation;
 
@@ -187,8 +197,9 @@ GcKmImx8mnDisplay::HwCommitVidPn(
 
         ColorFormat = pPrimaryAllocation->m_format;
         plane_state.pitch = pPrimaryAllocation->m_hwPitch;
-        plane_state.src_w = pPrimaryAllocation->m_hwWidthPixels;
-        plane_state.src_h = pPrimaryAllocation->m_hwHeightPixels;
+        /* After Wakeup from sleep, pPrimaryAllocation->m_hwWidthPixelsand and pPrimaryAllocation->m_hwHeightPixels are zero. */
+        plane_state.src_w = pPrimaryAllocation->m_mip0Info.PhysicalWidth;
+        plane_state.src_h = pPrimaryAllocation->m_mip0Info.PhysicalHeight;
     }
     else {
         FrameBufferPhysicalAddress = m_FbPhysicalAddr.LowPart;
@@ -210,6 +221,7 @@ GcKmImx8mnDisplay::HwCommitVidPn(
     plane_state.format = TranslateDxgiToDrmFormat(ColorFormat);
     plane_state.fb_addr = FrameBufferPhysicalAddress;
     plane_state.mode_change = true;
+    m_Pitch = plane_state.pitch;
 
     printk_debug("HwCommitVidPn: plane_state w=%d h=%d pitch=%d wincolorfmt=%d drmcolorfmt=%d addr=0x%x\n", plane_state.src_w, plane_state.src_h, plane_state.pitch, (UINT)ColorFormat, plane_state.format, plane_state.fb_addr);
     printk_debug("HwCommitVidPn: target_mode totw=%d toth=%d actw=%d acth=%d pclk=%d\n", pTargetMode->VideoSignalInfo.TotalSize.cx, pTargetMode->VideoSignalInfo.TotalSize.cy,
@@ -275,11 +287,12 @@ GcKmImx8mnDisplay::HwCommitVidPn(
         adv7511_bridge_mode_set(&m_DsiTransmitter.m_i2c_main, &vm);
     }
 
-    /* Finally enable the controller */
-    lcdif_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
-
+    /* Enable DSI before LCDIF, so the panel have the chance to get initialized before the stream of frames starts */
     imx_sec_dsim_encoder_helper_enable(&m_DsiTransmitter.dsi_pdev);
     sec_mipi_dsim_bridge_enable(&m_DsiTransmitter.dsi_pdev);
+
+    /* Finally enable the controller */
+    lcdif_plane_atomic_update(&lcdif_crtc_pdev, CRTC_PLANE_INDEX_PRIMARY, &plane_state);
 
     if (m_DsiTransmitter.m_i2c_main.is_initialized) {
         adv7511_bridge_enable(&m_DsiTransmitter.m_i2c_main);

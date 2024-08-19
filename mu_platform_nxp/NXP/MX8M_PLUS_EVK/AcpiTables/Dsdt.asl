@@ -56,7 +56,9 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 5, "MSFT", "EDK2", 1) {
     include("Dsdt-Enet_QoS.asl")
     include("Dsdt-Audio.asl")
     include("Dsdt-AudioCodec.asl")
+#if FixedPcdGetBool(PcdSecureBootEnable)
     include("Dsdt-TrEE.asl")
+#endif
     include("Dsdt-PCIe.asl")
     include("Dsdt-Gfx.asl")
     include("Dsdt-HantroVpuLF.asl") /* Limited Feature */

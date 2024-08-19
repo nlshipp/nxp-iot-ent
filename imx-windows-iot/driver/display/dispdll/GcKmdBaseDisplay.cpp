@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -136,7 +136,7 @@ GcKmBaseDisplay::QueryAdapterInfo(
     {
         DXGK_DISPLAY_DRIVERCAPS_EXTENSION  *pDisplayCapExt = (DXGK_DISPLAY_DRIVERCAPS_EXTENSION *)pQueryAdapterInfo->pOutputData;
 
-        pDisplayCapExt->VirtualModeSupport = 0; // Disable rotated mode for now
+        pDisplayCapExt->VirtualModeSupport = 1; // Enable rotated mode
 
         //
         // TODO: Research DCSS's HDR and Secure Display Capability
@@ -248,21 +248,7 @@ GcKmBaseDisplay::SetPowerState(
     IN_DEVICE_POWER_STATE   DevicePowerState,
     IN_POWER_ACTION         ActionType)
 {
-#ifndef SCAFFOLD_OFF
-    if (PowerDeviceD3 == DevicePowerState)
-    {
-        if (FullDriver == GcKmdGlobal::s_DriverMode)
-        {
-            HwSetPowerState(
-                m_FbPhysicalAddr.LowPart,
-                Linear);
-        }
-        else
-        {
-            RtlZeroMemory(m_FrameBuffer.m_Address, m_FrameBuffer.m_Size);
-        }
-    }
-#endif
+    HwSetPowerState(DeviceUid, DevicePowerState, ActionType);
 
     return STATUS_SUCCESS;
 }
@@ -308,7 +294,7 @@ NTSTATUS
 GcKmBaseDisplay::CommitVidPn(
     IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
 {
-    if (pCommitVidPn->Flags.PathPowerTransition)
+    if (pCommitVidPn->Flags.PathPoweredOff)
     {
         return STATUS_SUCCESS;
     }
@@ -333,7 +319,13 @@ GcKmBaseDisplay::CommitVidPn(
 
     const D3DKMDT_VIDPN_PRESENT_PATH* pPath = NULL;
 
-    Status = TopologyInterface->pfnAcquireFirstPathInfo(Topology, &pPath);
+    size_t numPaths = 0;
+    Status = TopologyInterface->pfnGetNumPaths(Topology, &numPaths);
+    RETURN_ON_FAILURE(Status);
+    if (numPaths) {
+        Status = TopologyInterface->pfnAcquireFirstPathInfo(Topology, &pPath);
+        RETURN_ON_FAILURE(Status);
+    }
 
     D3DKMDT_HVIDPNSOURCEMODESET hSourceModeSet = NULL;
     const DXGK_VIDPNSOURCEMODESET_INTERFACE* SourceModeSetInterface = NULL;
@@ -388,7 +380,15 @@ GcKmBaseDisplay::CommitVidPn(
         if (pSourceMode && pTargetMode)
         {
             Status = HwCommitVidPn(pSourceMode, pTargetMode, pCommitVidPn);
+
+            if (STATUS_SUCCESS == Status)
+            {
+                m_CurSourceModes[0] = *pSourceMode;
+                m_CurTargetModes[0] = *pTargetMode;
+            }
         }
+    } else {
+        HwStopScanning(pCommitVidPn);
     }
 
     if (pPath)
@@ -489,11 +489,9 @@ GcKmBaseDisplay::PresentDisplayOnly(
         const auto BytesPerRow = (Rect.right - Rect.left) * BytesPerPixel;
         auto SrcPitch = pPresentDisplayOnly->Pitch;
         UINT DstPitch;
-        if (g_bUsePreviousPostDisplayInfo) {
-            DstPitch = m_PreviousPostDisplayInfo.Pitch;
-        } else {
-            DstPitch = m_NativeMonitorMode.VideoSignalInfo.ActiveSize.cx * 4;
-        }
+
+        NT_ASSERT(0 == pPresentDisplayOnly->VidPnSourceId);
+        DstPitch = m_CurTargetModes[pPresentDisplayOnly->VidPnSourceId].VideoSignalInfo.ActiveSize.cx * 4;
 
         auto Src = static_cast<BYTE*>(pPresentDisplayOnly->pSource)
             + static_cast<LONGLONG>(Rect.top) * SrcPitch
@@ -614,7 +612,7 @@ NTSTATUS GcKmBaseDisplay::GetFramebufferInfo(DXGKRNL_INTERFACE* pDxgkInterface,
     // always the second memory resource in the ACPI ResourceTemplate.
     // The index is counted from zero.
     Status = ParseReslist((PCM_RESOURCE_LIST)&Buff,
-        CmResourceTypeMemory, pAddress, pSize, 1);
+        CmResourceTypeMemory, pAddress, pSize, 1, ResourceType_Memory);
     if (!NT_SUCCESS(Status))
     {
         DbgPrintEx(DPFLTR_IHVVIDEO_ID, DPFLTR_ERROR_LEVEL,

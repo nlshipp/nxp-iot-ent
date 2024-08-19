@@ -122,26 +122,12 @@ protected:
 
 public:
 
-    void GetGdiUniformBufferHeap(
+    HANDLE GetGdiUniformBufferHeap(
         DXGK_CREATECONTEXTFLAGS ContextFlags,
+        HANDLE                  hRtDevice,
+        HANDLE                  hRtContext,
         GpuMemoryHeap*          pHeap,
-        UINT*                   pMaxPendingDmaBuffers)
-    {
-        if (ContextFlags.GdiContext)
-        {
-            *pHeap = m_GdiUboHeap;
-        }
-        else if (ContextFlags.SystemContext)
-        {
-            *pHeap = m_SysUboHeap;
-        }
-        else
-        {
-            NT_ASSERT(FALSE);
-        }
-
-        *pMaxPendingDmaBuffers = m_DxgkStartInfo.RequiredDmaQueueEntry;
-    }
+        UINT*                   pMaxPendingDmaBuffers);
 
     void UpdateTextureDescriptor(
         GcKmAllocation*         pAllocation,

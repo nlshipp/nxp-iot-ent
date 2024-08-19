@@ -193,3 +193,9 @@ private:
 
     KMUTEX* m_pMutex;
 };
+
+bool
+ReadDwordRegistryValue(
+    UNICODE_STRING* pRegistryPath,
+    WCHAR* pRegKeyName,
+    DWORD* pData);

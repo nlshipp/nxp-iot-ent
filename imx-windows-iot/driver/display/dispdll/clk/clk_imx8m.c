@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -721,6 +721,7 @@ static void imx_clk_func_init(imx_clk_t *clk)
     clk->clk_set_parent = &imx_clk_set_parent;
     clk->clk_get_parent = &imx_clk_get_parent;
     clk->clk_get_reference_rate = &imx_clk_get_reference_rate;
+    clk->flags = 0;
 }
 
 /**

@@ -107,14 +107,25 @@ GcKmImx8mqDisplay::HwStop(
 
 void
 GcKmImx8mqDisplay::HwSetPowerState(
-    UINT SourcePhysicalAddress,
-    UINT TileMode)
+    IN_ULONG                DeviceUid,
+    IN_DEVICE_POWER_STATE   DevicePowerState,
+    IN_POWER_ACTION         ActionType)
 {
-    SetupFramebuffer(nullptr,
-        SourcePhysicalAddress,
-        TileMode);
-    dcss_plane_atomic_page_flip_no_ctxld(&m_crtc.plane[0]->base,
-        SourcePhysicalAddress);
+    /* A placeholder for the board specific activity during changing of the display power mode */
+}
+
+void
+GcKmImx8mqDisplay::HwStopScanning(
+    IN_CONST_PDXGKARG_COMMITVIDPN_CONST pCommitVidPn)
+{
+    struct cdns_mhdp_device* mhdp =
+        (cdns_mhdp_device*)dev_get_drvdata(&m_mhdp_pdev.dev);
+    struct imx_mhdp_device* imx_mhdp =
+        container_of(mhdp, struct imx_mhdp_device, mhdp);
+
+    cdns_mhdp_imx_encoder_disable(&imx_mhdp->encoder);
+    dcss_crtc_atomic_disable(&m_crtc.base, NULL, &m_old_dmode);
+    m_crtc_state.base.active = false;
 }
 
 GC_PAGED_SEGMENT_END; //========================================================

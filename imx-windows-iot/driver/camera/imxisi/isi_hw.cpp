@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -87,12 +87,12 @@ void WdfIsi_ctx::setFrameBuffer(UINT8 FrameBudId, DiscardBuffInfo_t &discardBuff
     if (FrameBudId == 0) {
         m_IsiRegistersPtr->OUT_BUF1_ADDR_Y = (UINT32)discardBuff.physY.QuadPart;
         m_IsiRegistersPtr->OUT_BUF1_ADDR_U = (UINT32)discardBuff.physU.QuadPart;
-        m_IsiRegistersPtr->OUT_BUF_CTRL = OUT_BUF_CTRL_LOAD_BUF1_ADDR_BIT;
+        m_IsiRegistersPtr->OUT_BUF_CTRL ^= OUT_BUF_CTRL_LOAD_BUF1_ADDR_BIT;
     }
     else {
         m_IsiRegistersPtr->OUT_BUF2_ADDR_Y = (UINT32)discardBuff.physY.QuadPart;
         m_IsiRegistersPtr->OUT_BUF2_ADDR_U = (UINT32)discardBuff.physU.QuadPart;
-        m_IsiRegistersPtr->OUT_BUF_CTRL = OUT_BUF_CTRL_LOAD_BUF2_ADDR_BIT;
+        m_IsiRegistersPtr->OUT_BUF_CTRL ^= OUT_BUF_CTRL_LOAD_BUF2_ADDR_BIT;
     }
 }
 
@@ -219,14 +219,11 @@ NTSTATUS WdfIsi_ctx::IsiInit(const camera_config_t &Config)
 
             /* set scale ratio 1:1. 0x1000 means 01.0000 0000 0000 (2-bit integer and 12 bit fraction) */
             m_IsiRegistersPtr->SCALE_FACTOR = SCALE_FACTOR_X_SCALE(0x1000) | SCALE_FACTOR_Y_SCALE(0x1000);
-            /* set initial vertical offset as 0.5. 0x800 is a 12 bit fractional representation of 0.5 */
-            m_IsiRegistersPtr->SCALE_OFFSET = SCALE_OFFSET_X_SCALE(0x000) | SCALE_OFFSET_Y_SCALE(0x800);
-            // m_IsiRegistersPtr->SCALE_OFFSET = 0;
+            /* set initial vertical offsetto 0 */
+            m_IsiRegistersPtr->SCALE_OFFSET = 0;
         }
         {
-            // Uncomment following line for longer AXI burst.
-            // m_IsiRegistersPtr->OUT_BUF_CTRL = OUT_BUF_CTRL_MAX_WR_BEATS_Y_BIT | OUT_BUF_CTRL_MAX_WR_BEATS_UV_BIT; // 16 beat axi write burst instead of 8 beat.
-            m_IsiRegistersPtr->OUT_BUF_CTRL = 0;
+            m_IsiRegistersPtr->OUT_BUF_CTRL = OUT_BUF_CTRL_MAX_WR_BEATS_Y_BIT | OUT_BUF_CTRL_MAX_WR_BEATS_UV_BIT | OUT_BUF_CTRL_PANIC_SET_THD_Y(0xA); // 16 beat axi write burst instead of 8 beat.
         }
 
         {

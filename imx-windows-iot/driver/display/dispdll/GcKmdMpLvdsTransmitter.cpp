@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Cadence Design Systems, Inc.
  * All rights reserved worldwide.
  *
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -356,7 +356,7 @@ NTSTATUS MpLvdsTransmitter::GetI2CresourceNum(DXGKRNL_INTERFACE* pDxgkInterface,
         return status;
     }
 
-    status = ParseReslist((PCM_RESOURCE_LIST)&buff, CmResourceTypeConnection, i2c_connection_id, NULL, i2c_index);
+    status = ParseReslist((PCM_RESOURCE_LIST)&buff, CmResourceTypeConnection, i2c_connection_id, NULL, i2c_index, ResourceType_I2C);
     if (!NT_SUCCESS(status)) {
         printk("LVDS display: Error parsing resource list\n");
         return status;

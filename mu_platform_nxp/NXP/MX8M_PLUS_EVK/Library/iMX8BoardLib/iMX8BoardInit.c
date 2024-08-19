@@ -982,11 +982,11 @@ VOID PCA6416_ConfigurePins(IN IMX_I2C_CONTEXT  *I2cContext, IN UINT8 *BitMask, I
   /* Configure Configuration (direction) registers */
   RegAddr = PCA6416_CONFIGURATION_PORT_0_REG;
   Status = iMXI2cRead(I2cContext, RegAddr, &Data[0], 2);
-  CHECK_PCA6416_I2C_TRANSACTION_STATUS(Status, "PCA6416 Output Port", End);
+  CHECK_PCA6416_I2C_TRANSACTION_STATUS(Status, "PCA6416 Configuration", End);
   Data[0] = (Data[0] & ~(BitMask[0])) | (BitMask[0] & Dir[0]);
   Data[1] = (Data[1] & ~(BitMask[1])) | (BitMask[1] & Dir[1]);
   Status = iMXI2cWrite(I2cContext, RegAddr, &Data[0], 2);
-  CHECK_PCA6416_I2C_TRANSACTION_STATUS(Status, "PCA6416 Output Port", End);
+  CHECK_PCA6416_I2C_TRANSACTION_STATUS(Status, "PCA6416 Configuration", End);
 End:
   return;
 }

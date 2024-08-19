@@ -125,4 +125,10 @@ const UINT  Gc7LPageSizes[] =
 };
 
 
+struct GcKmGdiAllocation : public GcKmAllocation
+{
+    BYTE*                   m_pCpuAddress;
+    D3DGPU_VIRTUAL_ADDRESS  m_GpuVa;
+};
+
 

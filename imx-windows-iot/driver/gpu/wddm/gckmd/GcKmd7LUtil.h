@@ -19,12 +19,6 @@
 #include "GcKmd7LMmu.h"
 #include <math.h>
 
-bool
-ReadDwordRegistryValue(
-    UNICODE_STRING* pRegistryPath,
-    WCHAR* pRegKeyName,
-    DWORD* pData);
-
 struct GcKmMdl1Page
 {
     MDL         m_Mdl;

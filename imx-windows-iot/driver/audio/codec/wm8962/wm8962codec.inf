@@ -1,0 +1,71 @@
+; Copyright (c) Microsoft Corporation. All rights reserved.
+; Copyright 2023 NXP
+; Licensed under the MIT License.
+
+[Version]
+Signature="$Windows NT$"
+Class=System
+ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider=%ProviderName%
+PnpLockdown = 1
+DriverVer= ; 
+CatalogFile=Wm8962Codec.cat ; VS requirement to have catalog file entry
+
+[Manufacturer]
+%ManufacturerName%=Standard,NT$ARCH$
+
+[Standard.NT$ARCH$]
+%WM8962.DeviceDesc%=MyDevice_Install, ACPI\WML8962
+
+[SourceDisksFiles]
+Wm8962Codec.dll=1
+
+[SourceDisksNames]
+1 = %DiskName%
+
+; =================== UMDF Device ==================================
+
+[MyDevice_Install.NT]
+CopyFiles=UMDriverCopy
+
+[MyDevice_Install.NT.hw]
+
+[MyDevice_Install.NT.Services]
+AddService=WUDFRd,0x000001fa,WUDFRD_ServiceInstall
+
+[MyDevice_Install.NT.CoInstallers]
+AddReg=CoInstallers_AddReg
+
+[MyDevice_Install.NT.Wdf]
+UmdfService=Wm8962Codec,Wm8962Codec_Install
+UmdfServiceOrder=Wm8962Codec
+
+[Wm8962Codec_Install]
+UmdfLibraryVersion=$UMDFVERSION$ 
+ServiceBinary=%13%\Wm8962Codec.dll
+
+[WUDFRD_ServiceInstall]
+DisplayName = %WudfRdDisplayName%
+ServiceType = 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %12%\WUDFRd.sys
+
+[CoInstallers_AddReg]
+HKR,,CoInstallers32,0x00010000,"WUDFCoinstaller.dll"
+
+[DestinationDirs]
+UMDriverCopy=13 ; copy to driver store
+
+[UMDriverCopy]
+Wm8962Codec.dll
+
+
+; =================== Generic ==================================
+[Strings]
+ProviderName                 = "NXP"
+ManufacturerName             = "NXP Semiconductors"
+WM8962.DeviceDesc            = "Wm8962 Audio Codec Device"
+WM8962.SvcDesc               = "Wm8962 Audio Codec Device Service"
+DiskName                     = "Wm8962 Audio Codec Installation Disk"
+WudfRdDisplayName            = "Windows Driver Foundation - User-mode Driver Framework Reflector"

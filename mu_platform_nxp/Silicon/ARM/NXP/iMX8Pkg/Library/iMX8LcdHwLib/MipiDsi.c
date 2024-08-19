@@ -1,5 +1,5 @@
 /*
-* Copyright 2020, 2022 NXP
+* Copyright 2020, 2022-2023 NXP
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -35,6 +35,7 @@
 #include "MipiDsi.h"
 #include "MipiDsiDphy.h"
 #include "clock.h"
+#include "MipiDsi_packet.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x)             (sizeof(x) / sizeof(x[0]))
@@ -299,6 +300,7 @@ static struct DSI_DPHY_TIMING dphyTiming[] = {
 static struct dsiHblankPar *MipiDsiGetHBlankParams(IMX_DISPLAY_TIMING *Timing, int lanes);
 static EFI_STATUS MipiDsiBitClockCalc(uint32_t* bit_clock, uint32_t pixelClock, uint32_t bpp, uint32_t num_lanes, imxConverter MipiDsiConverter);
 static EFI_STATUS MipiDsiPllParamCalc(uint32_t bitClockKhz, uint32_t phyRefClockHz, uint32_t *pmsk, uint32_t *bestDelta, uint32_t *bitClockRealKhz);
+EFI_STATUS MipiDsiPktSend(uint8_t Type, uint8_t Chan, uint32_t Flg, const void *Data, uint16_t Size);
 
 /**
   Reset MIPI DSI block.
@@ -614,6 +616,7 @@ MipiDsiConfig (
   struct dsiHblankPar *hpar = NULL;
   EFI_STATUS status = EFI_SUCCESS;
 
+  MipiDsiPktRegisterCallback(&MipiDsiPktSend);
   /* Dafault 4 MIPI DSI lanes */
   lanes = 4U;
 
@@ -778,6 +781,86 @@ MipiDsiConfig (
 
   /* Enable data transfer */
   MIPI_DSI_DSI_MDRESOL |= MIPI_DSI_DSI_MDRESOL_MainStandby_MASK;
+
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS
+MipiDsiPktSend(uint8_t Type, uint8_t Chan, uint32_t Flg, const void *Data, uint16_t Size)
+{
+  uint32_t val, loop;
+  uint32_t Hdr = 0;
+  const uint8_t *CharData = Data;
+  uint16_t PldSize;
+
+  /* packet hdr */
+  Hdr = ((Chan & 0x3) << 6) | (Type & 0x3F);
+  if (MipiDsi_IsLong(Type)) {
+    Hdr |= (Size & 0xFF) << 8;
+    Hdr |= ((Size >> 8) & 0xFF) << 16;
+    PldSize = Size;
+  } else {
+    if (Size > 0) {
+      Hdr |= (CharData[0] << 8);
+    }
+    if (Size > 1) {
+      Hdr |= (CharData[1] << 16);
+    }
+    PldSize = 0;
+  }
+
+  /* Low power TX */
+  val = MIPI_DSI_DSI_ESCMODE;
+  if (Flg & DSI_MODE_LP) {
+    val |= MIPI_DSI_DSI_ESCMODE_CmdLpdt_MASK;
+  } else {
+    val &= ~MIPI_DSI_DSI_ESCMODE_CmdLpdt_MASK;
+  }
+  MIPI_DSI_DSI_ESCMODE = val;
+
+  val = MIPI_DSI_DSI_INTSRC_SFRPLFifoEmpty_MASK | MIPI_DSI_DSI_INTSRC_SFRPHFifoEmpty_MASK;
+  MIPI_DSI_DSI_INTSRC = val;
+
+  if (PldSize > 0) {
+    while (PldSize >= 4) {
+      val = (uint32_t) CharData[0];
+      val |= (CharData[1] << 8);
+      val |= (CharData[2] << 16);
+      val |= (CharData[3] << 24);
+      MIPI_DSI_DSI_PAYLOAD = val;
+      PldSize -=4;
+      CharData += 4;
+    }
+    val = 0;
+    switch (PldSize) {
+      case 3:
+        val |= CharData[2] << 16;
+        /* Fall through */
+      case 2:
+        val |= CharData[1] << 8;
+        /* Fall through */
+      case 1:
+        val |= CharData[0];
+        MIPI_DSI_DSI_PAYLOAD = val;
+        break;
+      default:
+        break;
+    }
+  }
+
+  /* Write header */
+  MIPI_DSI_DSI_PKTHDR = Hdr;
+
+  /* Wait packet done */
+  loop = 0;
+  while ((MIPI_DSI_DSI_INTSRC & MIPI_DSI_DSI_INTSRC_SFRPHFifoEmpty_MASK) == 0) {
+    MicroSecondDelay(10U);
+    loop++;
+    if (loop > 10000U) {
+      DEBUG ((DEBUG_ERROR, "MipiDsiPktSend: Wait for MIPI_DSI_DSI_INTSRC_SFRPHFifoEmpty failed.\n"));
+      return EFI_DEVICE_ERROR;
+    }
+  }
 
   return EFI_SUCCESS;
 }

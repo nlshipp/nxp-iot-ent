@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Cadence Design Systems, Inc.
  * All rights reserved worldwide.
  *
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -379,7 +379,7 @@ NTSTATUS QxpLvdsTransmitter::GetI2CresourceNum(
     }
 
     Status = ParseReslist((PCM_RESOURCE_LIST)&Buff,
-        CmResourceTypeConnection, I2cConnectionId, NULL, I2cIndex);
+        CmResourceTypeConnection, I2cConnectionId, NULL, I2cIndex, ResourceType_I2C);
     if (!NT_SUCCESS(Status))
     {
         printk("LVDS display: Error parsing resource list\n");

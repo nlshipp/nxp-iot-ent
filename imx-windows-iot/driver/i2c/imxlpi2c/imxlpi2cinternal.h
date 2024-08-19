@@ -146,6 +146,17 @@ I2C_CONTR_ID;
 #define IMX8_CM40_I2C_PA                           (LONGLONG)0x0000000037230000
 #define IMX8_CM41_I2C_PA                           (LONGLONG)0x000000003b230000
 
+// physical addresses of iMX93 LPI2C controllers
+
+#define IMX9_I2C1_PA                               (LONGLONG)0x0000000044340000
+#define IMX9_I2C2_PA                               (LONGLONG)0x0000000044350000
+#define IMX9_I2C3_PA                               (LONGLONG)0x0000000042530000
+#define IMX9_I2C4_PA                               (LONGLONG)0x0000000042540000
+#define IMX9_I2C5_PA                               (LONGLONG)0x00000000426B0000
+#define IMX9_I2C6_PA                               (LONGLONG)0x00000000426C0000
+#define IMX9_I2C7_PA                               (LONGLONG)0x00000000426D0000
+#define IMX9_I2C8_PA                               (LONGLONG)0x00000000426E0000
+
 typedef struct PBC_TARGET_SETTINGS {
 
     ADDRESS_MODE AddressMode;
@@ -358,6 +369,7 @@ typedef struct _DEVICE_CONTEXT_ {
     BOOLEAN WaitingForFirstOrSingleSeqPos;
 
     sc_ipc_id_struct_t scfw_ipc_id;
+    BOOLEAN ScfwAvailable;
 
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
 

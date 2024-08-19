@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) Microsoft Corporation. All rights reserved.
-*  Copyright 2022 NXP
+*  Copyright 2022-2023 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -33,8 +33,19 @@ Device (GPU1)
     MEMORY32FIXED( ReadWrite, FixedPcdGet32(PcdArmLcdDdrFrameBufferBase), FixedPcdGet32(PcdArmLcdDdrFrameBufferSize), )
     // Third is the size and location of reserved memory area for GPU driver
     MEMORY32FIXED( ReadWrite, FixedPcdGet32(PcdArmGPUReservedMemoryBase), FixedPcdGet32(PcdArmGPUReservedMemorySize), )
-    // DC0 (IntSteer, LPCG, Pixel Combiner, LTS, PRG0-8, DPR0-1, DPU)
-    MEMORY32FIXED( ReadWrite, 0x56000000, 0x100000, )
+    MEMORY32FIXED( ReadWrite, 0x56010000, 0x1000, ) // LPCG
+    MEMORY32FIXED( ReadWrite, 0x56020000, 0x1000, ) // Pixel Combiner
+    MEMORY32FIXED( ReadWrite, 0x56060000, 0x1000, ) // PRG2
+    MEMORY32FIXED( ReadWrite, 0x56070000, 0x1000, ) // PRG3
+    MEMORY32FIXED( ReadWrite, 0x56080000, 0x1000, ) // PRG4
+    MEMORY32FIXED( ReadWrite, 0x56090000, 0x1000, ) // PRG5
+    MEMORY32FIXED( ReadWrite, 0x560A0000, 0x1000, ) // PRG6
+    MEMORY32FIXED( ReadWrite, 0x560B0000, 0x1000, ) // PRG7
+    MEMORY32FIXED( ReadWrite, 0x560C0000, 0x1000, ) // PRG8
+    MEMORY32FIXED( ReadWrite, 0x560F0000, 0x1000, ) // DPR0-2
+    MEMORY32FIXED( ReadWrite, 0x56100000, 0x1000, ) // DPR1-0
+    MEMORY32FIXED( ReadWrite, 0x56110000, 0x1000, ) // DPR1-1
+    MEMORY32FIXED( ReadWrite, 0x56200000, 0x1000, ) // DPL0
     // MIPI DSI / LVDS #0
     MEMORY32FIXED( ReadWrite, 0x56221000, 0x1000, )  // CSR
     MEMORY32FIXED( ReadWrite, 0x56228000, 0x1000, )  // MIPI-DSI

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022-2023 NXP
  *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
@@ -73,13 +73,15 @@ NTSTATUS GetReslist(DXGKRNL_INTERFACE* pDxgkInterface, PWCHAR pReslist,
 //
 // Param ResList  resource list to be parsed
 // Param ResType  resource type we are looking for. Supported CmResourceTypeConnection for I2C and CmResourceTypeMemory
-// Param pConnMem For CmResourceTypeConnection (I2C) returns the connection ID
+// Param pConnMem For CmResourceTypeConnection returns the connection ID
 //                For CmResourceTypeMemory returns the Address (Memory.Start)
-// Param pSize  For CmResourceTypeConnection (I2C) not used - can be NULL
+// Param pSize  For CmResourceTypeConnection not used - can be NULL
 //             For CmResourceTypeMemory returns the Size (Memory.Length)
 // Param Index index (order) of the resource in the ACPI
+// Param ResTypeExt Defines further resource type for CmResourceTypeConnection: ResourceType_I2C or ResourceType_GPIO
+//                                             for CmResourceTypeMemory: ResourceType_Memory (not required)
 NTSTATUS ParseReslist(PCM_RESOURCE_LIST Reslist, UCHAR ResType,
-    LARGE_INTEGER *pConnMem, ULONG *pSize, ULONG Index)
+    LARGE_INTEGER *pConnMem, ULONG *pSize, ULONG Index, enum ResType ResTypeExt)
 {
     PCM_FULL_RESOURCE_DESCRIPTOR List;
     ULONG Count = 0;
@@ -101,19 +103,42 @@ NTSTATUS ParseReslist(PCM_RESOURCE_LIST Reslist, UCHAR ResType,
             switch (Desc->Type)
             {
             case CmResourceTypeConnection:  // Check for I2C resource
-                if (Desc->u.Connection.Class == CM_RESOURCE_CONNECTION_CLASS_SERIAL
-                    && Desc->u.Connection.Type == CM_RESOURCE_CONNECTION_TYPE_SERIAL_I2C)
+                switch (ResTypeExt)
                 {
-                    if (Desc->Type == ResType)
+                case ResourceType_I2C:
+                    if (Desc->u.Connection.Class == CM_RESOURCE_CONNECTION_CLASS_SERIAL
+                        && Desc->u.Connection.Type == CM_RESOURCE_CONNECTION_TYPE_SERIAL_I2C)
                     {
-                        if (Count == Index)
+                        if (Desc->Type == ResType)
                         {
-                            pConnMem->LowPart = Desc->u.Connection.IdLowPart;
-                            pConnMem->HighPart = Desc->u.Connection.IdHighPart;
-                            Found++;
+                            if (Count == Index)
+                            {
+                                pConnMem->LowPart = Desc->u.Connection.IdLowPart;
+                                pConnMem->HighPart = Desc->u.Connection.IdHighPart;
+                                Found++;
+                            }
+                            Count++;
                         }
-                        Count++;
                     }
+                    break;
+                case ResourceType_GPIO:
+                    if (Desc->u.Connection.Class == CM_RESOURCE_CONNECTION_CLASS_GPIO
+                        && Desc->u.Connection.Type == CM_RESOURCE_CONNECTION_TYPE_GPIO_IO)
+                    {
+                        if (Desc->Type == ResType)
+                        {
+                            if (Count == Index)
+                            {
+                                pConnMem->LowPart = Desc->u.Connection.IdLowPart;
+                                pConnMem->HighPart = Desc->u.Connection.IdHighPart;
+                                Found++;
+                            }
+                            Count++;
+                        }
+                    }
+                    break;
+                default:
+                    break; // We don't care about other types.
                 }
                 break;
             case CmResourceTypeMemory: // Check for Memory resource
@@ -130,6 +155,7 @@ NTSTATUS ParseReslist(PCM_RESOURCE_LIST Reslist, UCHAR ResType,
                     }
                     Count++;
                 }
+                break;
             default:
                 break; // We don't care about other descriptors.
             }

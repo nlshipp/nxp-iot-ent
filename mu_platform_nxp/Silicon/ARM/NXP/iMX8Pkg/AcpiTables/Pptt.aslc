@@ -89,7 +89,7 @@ EFI_ACPI_PPTT_TABLE Pptt =
       0x00000000,                                         // AcpiProcessorId
       0x00000000,                                         // NumberOfPrivateResources
     },
-    
+
   #if FixedPcdGet32(PcdCoreCount) > 1
     // Core 1
     {

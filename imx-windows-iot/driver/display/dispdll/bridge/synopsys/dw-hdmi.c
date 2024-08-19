@@ -2473,15 +2473,7 @@ void dw_hdmi_bridge_atomic_disable(struct platform_device *pdev)
 
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = true;
-#define UPDATE_POWER_DISABLE
-#ifdef UPDATE_POWER_DISABLE
 	dw_hdmi_update_power(hdmi);
-#endif
-#ifdef FORCE_DISABLE
-	/* Force disable the device. Set the phy as enabled. */
-	hdmi->phy.enabled = true;
-	dw_hdmi_poweroff(hdmi);
-#endif
 	dw_hdmi_update_phy_mask(hdmi);
 	mutex_unlock(&hdmi->mutex);
 }

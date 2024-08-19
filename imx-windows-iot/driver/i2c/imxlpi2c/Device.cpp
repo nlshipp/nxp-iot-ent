@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation. All rights reserved.
-   Copyright 2022 NXP
+   Copyright 2022-2023 NXP
 
    Licensed under the MIT License.
 
@@ -27,6 +27,8 @@ extern "C" {
 #include "imxlpi2ccontroller.h"
 #include <devpkey.h>
 #include "device.tmh"
+#include <acpiioct.h>
+#include "acpiutil.hpp"
 
 const sc_rsrc_t I2cQxpResources[] =
 {
@@ -235,41 +237,49 @@ NTSTATUS OnPrepareHardware(
                 break;
 
             case IMX8_I2C1_PA:
+            case IMX9_I2C1_PA:
                 deviceCtxPtr->ControllerID = I2C1;
                 TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, " Controller I2C1");
                 break;
 
             case IMX8_I2C2_PA:
+            case IMX9_I2C2_PA:
                 deviceCtxPtr->ControllerID = I2C2;
                 TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, " Controller I2C2");
                 break;
 
             case IMX8_I2C3_PA:
+            case IMX9_I2C3_PA:
                 deviceCtxPtr->ControllerID = I2C3;
                 TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, " Controller I2C3");
                 break;
 
             case IMX8_I2C4_PA:
+            case IMX9_I2C4_PA:
                 deviceCtxPtr->ControllerID = I2C4;
                 TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, " Controller I2C4");
                 break;
 
             case IMX8_I2C0_MIPI_CSI0_PA:
+            case IMX9_I2C5_PA:
                 deviceCtxPtr->ControllerID = I2C5;
                 TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, " Controller I2C0_MIPI_CSI0");
                 break;
 
             case IMX8_I2C0_PARALLEL_PA:
+            case IMX9_I2C6_PA:
                 deviceCtxPtr->ControllerID = I2C6;
                 TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, " Controller I2C0_PARALLEL");
                 break;
 
             case IMX8_I2C0_MIPI_CSI1_PA:
+            case IMX9_I2C7_PA:
                 deviceCtxPtr->ControllerID = I2C7;
                 TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, " Controller I2C0_MIPI_CSI1");
                 break;
 
             case IMX8_I2C0_MIPI_LVDS0_OR_I2C0_MIPI_DSI0_PA:
+            case IMX9_I2C8_PA:
                 deviceCtxPtr->ControllerID = I2C8;
                 TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, " Controller I2C0_MIPI_LVDS0 or I2C0_MIPI_DSI0");
                 break;
@@ -372,6 +382,7 @@ NTSTATUS OnPrepareHardware(
                 scfwResourceIpcPtr = res;
                 deviceCtxPtr->scfw_ipc_id.ipc_id.LowPart = scfwResourceIpcPtr->u.Connection.IdLowPart;
                 deviceCtxPtr->scfw_ipc_id.ipc_id.HighPart = scfwResourceIpcPtr->u.Connection.IdHighPart;
+                deviceCtxPtr->ScfwAvailable = TRUE;
             }
             else {
                 TraceEvents(TRACE_LEVEL_ERROR, TRACE_DEVICE,
@@ -391,7 +402,7 @@ NTSTATUS OnPrepareHardware(
     } // end FOR loop for resources
 
     if (((iCountInterruptRes == 0) || (iCountInterruptRes == 1)) &&
-        (iCountMemoryRes == 0) && (scfwResourceIpcPtr != NULL)) {
+        (iCountMemoryRes == 0) && ((scfwResourceIpcPtr != NULL) || (deviceCtxPtr->ModuleClock_Hz != 0U))) {
 
         status=STATUS_SUCCESS;
     } 
@@ -501,16 +512,18 @@ NTSTATUS OnD0Entry(
 
     // Get currently set I2C module clock (0 in ModuleClock variable)
     ModuleClock = deviceCtxPtr->ModuleClock_Hz;
-    status = SetI2cFrequency(deviceCtxPtr, &ModuleClock);
+    if (deviceCtxPtr->ScfwAvailable) {
+        status = SetI2cFrequency(deviceCtxPtr, &ModuleClock);
 
-    if (!NT_SUCCESS(status)) {
+        if (!NT_SUCCESS(status)) {
 
-        TraceEvents(TRACE_LEVEL_ERROR, TRACE_DRIVER, "OnD0Entry() - error returned by InitI2CPwrClocks");
-        goto DoneOnD0Entry;
+            TraceEvents(TRACE_LEVEL_ERROR, TRACE_DRIVER, "OnD0Entry() - error returned by InitI2CPwrClocks");
+            goto DoneOnD0Entry;
+        }
+
+        deviceCtxPtr->ModuleClock_Hz = ModuleClock;
+        deviceCtxPtr->PeripheralAccessClock_Hz = ModuleClock;
     }
-
-    deviceCtxPtr->ModuleClock_Hz = ModuleClock;
-    deviceCtxPtr->PeripheralAccessClock_Hz = ModuleClock;
 
     ControllerInitialize(deviceCtxPtr);
 
@@ -1465,6 +1478,9 @@ NTSTATUS GetI2cConfigValues(
 {
     NTSTATUS status = STATUS_SUCCESS;
     DECLARE_UNICODE_STRING_SIZE(valueName, PARAMATER_NAME_LEN);
+    ACPI_EVAL_OUTPUT_BUFFER *dsdBufferPtr = nullptr;
+    DEVICE_OBJECT *pdoPtr = WdfDeviceWdmGetPhysicalDevice(Device);
+    const ACPI_METHOD_ARGUMENT *devicePropertiesPkgPtr;
 
     UNREFERENCED_PARAMETER(Device);
 
@@ -1488,9 +1504,37 @@ NTSTATUS GetI2cConfigValues(
 
     DriverI2cConfigPtr->DelayBeforeStart_us = 0;
 
+    status = AcpiQueryDsd(pdoPtr, &dsdBufferPtr);
+
+    if (!NT_SUCCESS(status)) {
+        TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, 
+            "AcpiQueryDsd failed with error %!STATUS!", status);
+        goto DoneGetParams;
+    }
+
+    status = AcpiParseDsdAsDeviceProperties(dsdBufferPtr, &devicePropertiesPkgPtr);
+
+    if (!NT_SUCCESS(status)) {
+        TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, 
+            "AcpiParseSdsAsDeviceProperties failed with error %!STATUS!", status);
+        goto DoneGetParams;
+    }
+
+    status = AcpiDevicePropertiesQueryIntegerValue(devicePropertiesPkgPtr,
+        "ModuleClockFrequencyHz", &DriverI2cConfigPtr->ModuleClock_Hz);
+
+    if (!NT_SUCCESS(status)) {
+        TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DEVICE, 
+            "Failed to query ACPI ModuleClockFrequencyHz value (status = %!STATUS!). ", status);
+    }
+
+
 DoneGetParams:
     TraceEvents(TRACE_LEVEL_INFORMATION, TRACE_DRIVER, "--GetI2cConfigValues()=%Xh", status);
 
+    if (dsdBufferPtr != nullptr) {
+        ExFreePool(dsdBufferPtr);
+    }
     return status;
 }
 
