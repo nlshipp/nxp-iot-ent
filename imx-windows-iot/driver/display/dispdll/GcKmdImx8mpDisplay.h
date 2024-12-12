@@ -1,8 +1,10 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
    Licensed under the MIT License. */
 
 #pragma once
+
+#define DEVICE_ENDPOINT_NAME_MAX_LEN 256
 
 #include "GcKmdBaseDisplay.h"
 #include "GcKmdMpLvdsTransmitter.h"
@@ -53,6 +55,10 @@ public:
 
     virtual NTSTATUS SetVidPnSourceAddressWithMultiPlaneOverlay3(
         IN_OUT_PDXGKARG_SETVIDPNSOURCEADDRESSWITHMULTIPLANEOVERLAY3 pSetVidPnSourceAddressWithMpo3) override;
+
+    virtual NTSTATUS BrightnessSet(
+        IN_UCHAR Brightness) override;
+
 
 private:
 

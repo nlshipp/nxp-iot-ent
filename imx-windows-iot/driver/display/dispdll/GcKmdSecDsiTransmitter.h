@@ -68,6 +68,7 @@ public:
     virtual NTSTATUS GetEdid(PVOID Data, ULONG Length, UINT8 Block, UINT8 Segment) override;
 
     virtual void GetChildDescriptor(DXGK_CHILD_DESCRIPTOR* pDescriptor) override;
+    NTSTATUS BrightnessSet(IN_UCHAR Brightness);
 
     struct platform_device dsi_pdev;
     struct i2c_client m_i2c_main;

@@ -7,6 +7,7 @@
 #include "GcKmdNwlDsiTransmitter.tmh"
 #include "GcKmdNwlDsiTransmitter.h"
 #include "getresrc.h"
+#include "GcKmdUtil.h"
 
 extern "C" {
 #include "boot/dts/freescale/board.h"
@@ -204,7 +205,7 @@ static property adv_properties[] = {
 static LONG cid0[5];
 static int instance0 = 1;
 static property panel_raydium_properties0[] = {
-    { "compatible", 1, "raydium,rm67191" },
+    { "compatible", 1, "raydium,rm67191" }, // for new OLEDA1 replace with { "compatible", 1, "raydium,rm67199" },
     { "instance", 1, &instance0 },
     /* MIPI_DSI_EN reset pin: pin name, number of params,
        gpio connection_id LowPart=cid[0] HighPart=cid[1] PinType=cid[2] ExpanderDataReg=cid[3] ExpanderPinMask=cid[4] */
@@ -216,7 +217,7 @@ static property panel_raydium_properties0[] = {
 static LONG cid1[5];
 static int instance1 = 2;
 static property panel_raydium_properties1[] = {
-    { "compatible", 1, "raydium,rm67191" },
+    { "compatible", 1, "raydium,rm67191" },// for new OLEDA1 replace with { "compatible", 1, "raydium,rm67199" },
     { "instance", 1, &instance1 },
     /* MIPI_DSI_EN reset pin: pin name, number of params,
        gpio connection_id LowPart=cid[0] HighPart=cid[1] PinType=cid[2] ExpanderDataReg=cid[3] ExpanderPinMask=cid[4] */
@@ -419,3 +420,38 @@ NTSTATUS NwlDsiTransmitter::GetResourceNum(DXGKRNL_INTERFACE* pDxgkInterface, UL
     printk_debug("NwlDsi display: I2C resource found with connection id: 0x%llx\n", i2c_connection_id->QuadPart);
     return STATUS_SUCCESS;
 }
+
+GC_NONPAGED_SEGMENT_BEGIN; //=====================================================
+void NwlDsiTransmitter::VSync()
+{
+    if (0xFFFF != m_new_brightness)
+    {
+        struct mipi_dsi_device* dsi = (struct mipi_dsi_device*)m_panel_pdev.data;
+        dsi->irq = 1;
+        if (!mipi_dsi_dcs_set_display_brightness(dsi, m_new_brightness))
+        {
+            m_new_brightness = 0xFFFF;
+        }
+        dsi->irq = 0;
+        printk_debug("SecDsi display: mipi_dsi_dcs_set_display_brightness, Data = %d\n", m_new_brightness);
+    }
+}
+GC_NONPAGED_SEGMENT_END; //=====================================================
+
+GC_PAGED_SEGMENT_BEGIN; //======================================================
+NTSTATUS NwlDsiTransmitter::BrightnessSet(IN_UCHAR Brightness)
+{
+    PAGED_CODE();
+    NTSTATUS Status = STATUS_SUCCESS;
+    struct mipi_dsi_device* dsi = (struct mipi_dsi_device*)m_panel_pdev.data;
+    u16 data = ((((ULONG)Brightness) * 255) + 50) / 100;
+
+    if (0 == data) data = 1; // avoiding black screen
+    m_new_brightness = data;
+    if (NULL == dsi)
+    {
+        printk_debug("SecDsi display: BrightnessSet: Null dsi pointer, cannot set brightness \n");
+    }
+    return Status;
+}
+GC_PAGED_SEGMENT_END; //=====================================================

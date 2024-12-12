@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -237,9 +237,6 @@ void UsbPhyReset(UINT32 base)
 
     MicroSecondDelay(100 * 1000);
 
-    /* Disable PHY suspend (ERR011231) */
-    out32(base + DWC3_GUSB2PHYCFG, (reg | DWC3_GUSB2PHYCFG_SUSPHY_MASK));
-
     /* After PHYs are stable we can take Core out of reset state */
     reg = in32(base + DWC3_GCTL);
     reg &= ~DWC3_GCTL_CORESOFTRESET_MASK;
@@ -462,6 +459,13 @@ VOID GpioInit ()
   CCM_CCGR_GPIO3 = 0x03;       // Enable GPIO3 clock root
   CCM_CCGR_GPIO4 = 0x03;       // Enable GPIO4 clock root
   CCM_CCGR_GPIO5 = 0x03;       // Enable GPIO5 clock root
+
+  // In case RS485 driver is control by CTS_B on EVK with lever shifter, uncomment to set to low
+  // to disable transmitting for UART3 while UART 3 is not open by Windows application
+  // IOMUXC_SW_MUX_CTL_PAD_ECSPI1_MISO = IOMUXC_MUX_ALT5;
+  // GPIO5_DR &= ~(0x01 << 8);                    // Set the pad to the low level
+  // GPIO5_GDIR |= (0x01 << 8);                   // Set output direction
+  // IOMUXC_SW_PAD_CTL_PAD_ECSPI1_MISO = IOMUXC_SW_PAD_CTL_PAD_DSE(3) | (0x0 << IOMUXC_SW_PAD_CTL_PAD_FSEL_SHIFT);
 }
 
 /**

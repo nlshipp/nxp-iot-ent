@@ -69,6 +69,10 @@ Device(RHPX)
     // Index 3
     I2CSerialBus(0xFFFF,, 0,, "\\_SB.I2C5",,,,)
 #endif
+  // GPIO1_IO11 
+    GpioIO(Shared, PullUp, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 11 } // 0 * 32 + 11
+    GpioInt(Edge, ActiveBoth, Shared, PullUp, 0, "\\_SB.GPIO",) { 11 }
+
   // GPIO3_IO19 - PAD_SAI5_RXFS EXP CN pin 32 (GPIO.26)
     GpioIO(Shared, PullDown, 0, 0, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 83 } // 2 * 32 + 19
     GpioInt(Edge, ActiveBoth, Shared, PullDown, 0, "\\_SB.GPIO",) { 83 }
@@ -156,7 +160,7 @@ Device(RHPX)
 #endif
 
       // GPIO Pin Count and supported drive modes
-      Package (2) { "GPIO-PinCount", 157 },
+      Package (2) { "GPIO-PinCount", 158 },
       Package (2) { "GPIO-UseDescriptorPinNumbers", 1 },
 
       // InputHighImpedance, InputPullUp, InputPullDown, OutputCmos

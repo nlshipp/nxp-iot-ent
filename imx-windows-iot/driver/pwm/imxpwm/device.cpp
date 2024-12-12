@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2023 NXP
+// Copyright 2023-2024 NXP
 // Licensed under the MIT License.
 //
 // Module Name:
@@ -25,8 +25,79 @@
 #include "trace.h"
 #include "device.tmh"
 #include "imxpwm_pofx.h"
+#define RESHUB_USE_HELPER_ROUTINES
+#include <reshub.h>
+#include <gpio.h>
 
 IMXPWM_PAGED_SEGMENT_BEGIN; //==================================================
+
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS AcquireFunctionConfigResource(
+    WDFDEVICE WdfDevice,
+    LARGE_INTEGER ConnectionId,
+    _Out_ WDFIOTARGET* ResourceHandlePtr
+)
+{
+    PAGED_CODE();
+
+    //
+    // Form the resource path from the connection ID
+    //
+    DECLARE_UNICODE_STRING_SIZE(resourcePath, RESOURCE_HUB_PATH_CHARS);
+    NTSTATUS status = RESOURCE_HUB_CREATE_PATH_FROM_ID(
+        &resourcePath,
+        ConnectionId.LowPart,
+        ConnectionId.HighPart);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    //
+    // Create a WDFIOTARGET
+    //
+    WDFIOTARGET resourceHandle;
+    status = WdfIoTargetCreate(WdfDevice, WDF_NO_OBJECT_ATTRIBUTES, &resourceHandle);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    //
+    // Reserve the resource by opening a WDFIOTARGET to the resource
+    //
+    WDF_IO_TARGET_OPEN_PARAMS openParams;
+    WDF_IO_TARGET_OPEN_PARAMS_INIT_OPEN_BY_NAME(
+        &openParams,
+        &resourcePath,
+        FILE_GENERIC_READ | FILE_GENERIC_WRITE);
+
+    status = WdfIoTargetOpen(resourceHandle, &openParams);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+    //
+    // Commit the resource
+    //
+    status = WdfIoTargetSendIoctlSynchronously(
+        resourceHandle,
+        WDF_NO_HANDLE,      // WdfRequest
+        IOCTL_GPIO_COMMIT_FUNCTION_CONFIG_PINS,
+        nullptr,            // InputBuffer
+        nullptr,            // OutputBuffer
+        nullptr,            // RequestOptions
+        nullptr);           // BytesReturned
+
+    if (!NT_SUCCESS(status)) {
+        WdfIoTargetClose(resourceHandle);
+        return status;
+    }
+
+    //
+    // Pins were successfully muxed, return the handle to the caller
+    //
+    *ResourceHandlePtr = resourceHandle;
+    return STATUS_SUCCESS;
+}
 
 _Use_decl_annotations_
 NTSTATUS
@@ -41,7 +112,10 @@ ImxPwmEvtDevicePrepareHardware (
 
     const CM_PARTIAL_RESOURCE_DESCRIPTOR* memResourcePtr = nullptr;
     ULONG interruptResourceCount = 0;
+    LARGE_INTEGER connectionId;
+    ULONG functionConfigCount = 0;
 
+    connectionId.QuadPart = 0;
     //
     // Look for single memory and interrupt resource.
     //
@@ -76,6 +150,25 @@ ImxPwmEvtDevicePrepareHardware (
 
             ++interruptResourceCount;
             break;
+        case CmResourceTypeConnection:
+            switch (resourcePtr->u.Connection.Class) {
+            case CM_RESOURCE_CONNECTION_CLASS_FUNCTION_CONFIG:
+                switch (resourcePtr->u.Connection.Type) {
+                case CM_RESOURCE_CONNECTION_TYPE_FUNCTION_CONFIG:
+                    switch (functionConfigCount) {
+                    case 0:
+                        // save the connection ID
+                        connectionId.LowPart = resourcePtr->u.Connection.IdLowPart;
+                        connectionId.HighPart = resourcePtr->u.Connection.IdHighPart;
+                        break;
+                    } // switch (functionConfigCount)
+                    ++functionConfigCount;
+                    break; // CM_RESOURCE_CONNECTION_TYPE_FUNCTION_CONFIG
+
+                } // switch (resDescPtr->u.Connection.Type)
+                break; // CM_RESOURCE_CONNECTION_CLASS_FUNCTION_CONFIG
+            } // switch (resDescPtr->u.Connection.Class)
+            break;
         }
     }
 
@@ -106,6 +199,8 @@ ImxPwmEvtDevicePrepareHardware (
     //
     IMXPWM_DEVICE_CONTEXT* deviceContextPtr =
             ImxPwmGetDeviceContext(WdfDevice);
+
+    deviceContextPtr->connectionId = connectionId;
 
     NT_ASSERT(memResourcePtr->Type == CmResourceTypeMemory);
     deviceContextPtr->RegistersPtr = static_cast<IMXPWM_REGISTERS*>(

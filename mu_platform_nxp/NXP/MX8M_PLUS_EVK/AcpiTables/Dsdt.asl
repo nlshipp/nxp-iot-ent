@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -66,6 +66,7 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 5, "MSFT", "EDK2", 1) {
     include("Dsdt-HantroVpuLF.asl") /* Limited Feature */
     include("Dsdt-Pwm.asl")
     include("Dsdt-CAN.asl")
+    //include("Dsdt-Tmu.asl") /* Limited Feature */
 #if FixedPcdGet32(PcdCsi1CameraOv5640)
     include("Dsdt-Camera_Ov5640_mipi_csi1.asl")
 #elif FixedPcdGet32(PcdCsi1CameraOv10635)

@@ -1,6 +1,6 @@
 /** @file
 *
-*  Copyright 2020 NXP
+*  Copyright 2020, 2024 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -72,6 +72,7 @@ ThermalZone(TZ0) {
     ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
       Package () {
         Package (2) {"range", Package (4) {0xb0000, 0xa0026, 0x80048, 0x70061}},
+        Package (2) {"SocType", "imx8mq"},
         Package (2) {"calibration",
           Package () {
             Package (2) {0x00000000, 0x00000023},

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -136,5 +136,86 @@ Device (PWM4)
       Package (2) {"PinCount",          1},
       Package (2) {"Pwm-SchematicName", "PWM_4"},
     }
+  })
+}
+
+/* PWM of MIPI DSI / LVDS #0 */
+Device (PWM5)
+{
+  Name (_HID, "NXP010E")
+  Name (_UID, 0x5)
+
+  Method (_STA) {
+    Return (0xf)
+  }
+
+  Name (_CRS, ResourceTemplate () {
+    MEMORY32FIXED (ReadWrite, 0x56224000, 0x1000, )
+    Interrupt (ResourceConsumer, Level, ActiveHigh, Shared) { 91 } // All interrupts of MIPI-DSI/LVDS #0 are combined in a single output
+  })
+  Name (_DSD, Package () {
+    ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+    Package () {
+      Package (2) {"ClockFrequency_Hz", 25000000}, 
+      Package (2) {"PinCount",          1},
+      Package (2) {"Pwm-SchematicName", "PWM_5"},
+      // Specify if the PWM will be enabled after boot (1 enabled, 0 disabled) 
+      // Useful for PWM handled LCD panels for exemple
+       Package (2) {"BootOn", 1},                    
+      // Desired PWM period used after boot (if BootOn is 1). 
+      // Period is 64 bit value -> then must be splitted to two 32 bit integers at ACPI table
+      Package (2) {"BootDesiredPeriodLowPart", 2000000000},    
+      Package (2) {"BootDesiredPeriodHighPart", 0},
+      // PWM Duty cycle used after boot (if BootOn is 1). 
+      // Duty cycle is 64 bit value -> then must be splitted to two 32 bit integers at ACPI table
+      // (these values represent 50%)
+      Package (2) {"BootActiveDutyCycleLowPart", 4294967295},
+      Package (2) {"BootActiveDutyCycleHighPart", 1073741823},
+      // PWM polarity used after boot (if BootOn is 1). 
+      // 1 -> PWM_ACTIVE_HIGH
+      // 0 -> PWM_ACTIVE_LOW
+      Package (2) {"BootPolarity", 1}
+    },
+  })
+}
+
+
+/* PWM of MIPI DSI / LVDS #1 */
+Device (PWM6)
+{
+  Name (_HID, "NXP010E")
+  Name (_UID, 0x6)
+
+  Method (_STA) {
+    Return (0xf)
+  }
+
+  Name (_CRS, ResourceTemplate () {
+    MEMORY32FIXED (ReadWrite, 0x56244000, 0x1000, )
+    Interrupt (ResourceConsumer, Level, ActiveHigh, Shared) { 92 } // All interrupts of MIPI-DSI/LVDS #1 are combined in a single output
+  })
+  Name (_DSD, Package () {
+    ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+    Package () {
+      Package (2) {"ClockFrequency_Hz", 25000000}, 
+      Package (2) {"PinCount",          1},
+      Package (2) {"Pwm-SchematicName", "PWM_6"},
+      // Specify if the PWM will be enabled after boot (1 enabled, 0 disabled) 
+      // Useful for PWM handled LCD panels for exemple
+       Package (2) {"BootOn", 1},                    
+      // Desired PWM period used after boot (if BootOn is 1). 
+      // Period is 64 bit value -> then must be splitted to two 32 bit integers at ACPI table
+      Package (2) {"BootDesiredPeriodLowPart", 2000000000},    
+      Package (2) {"BootDesiredPeriodHighPart", 0},
+      // PWM Duty cycle used after boot (if BootOn is 1). 
+      // Duty cycle is 64 bit value -> then must be splitted to two 32 bit integers at ACPI table
+      // (these values represent 50%)
+      Package (2) {"BootActiveDutyCycleLowPart", 4294967295},
+      Package (2) {"BootActiveDutyCycleHighPart", 1073741823},
+      // PWM polarity used after boot (if BootOn is 1). 
+      // 1 -> PWM_ACTIVE_HIGH
+      // 0 -> PWM_ACTIVE_LOW
+      Package (2) {"BootPolarity", 1}
+    },
   })
 }

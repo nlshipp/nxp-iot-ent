@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright 2024 NXP
 // Licensed under the MIT License.
 //
 // Module Name:
@@ -25,6 +26,14 @@
 #include "file.tmh"
 
 IMXPWM_PAGED_SEGMENT_BEGIN; //==================================================
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS AcquireFunctionConfigResource(
+    WDFDEVICE WdfDevice,
+    LARGE_INTEGER ConnectionId,
+    _Out_ WDFIOTARGET* ResourceHandlePtr
+);
+
 
 _Use_decl_annotations_
 VOID
@@ -170,6 +179,13 @@ ImxPwmEvtDeviceFileCreate (
         fileObjectContextPtr->IsPinInterface = isPinInterface;
         fileObjectContextPtr->IsOpenForWrite = hasWriteAccess;
     }
+    if (NULL != deviceContextPtr->connectionId.QuadPart) {
+        AcquireFunctionConfigResource(
+            WdfDevice,
+            deviceContextPtr->connectionId,
+            &deviceContextPtr->resourceHandle
+        );
+    }
 
     WdfRequestComplete(WdfRequest, STATUS_SUCCESS);
 }
@@ -231,6 +247,10 @@ ImxPwmEvtFileClose (
 
         WdfWaitLockRelease(deviceContextPtr->ControllerLock);
     }
+    if (NULL != deviceContextPtr->connectionId.QuadPart) {
+        WdfObjectDelete(deviceContextPtr->resourceHandle);
+    }
+    
 }
 
 IMXPWM_PAGED_SEGMENT_END; //===================================================

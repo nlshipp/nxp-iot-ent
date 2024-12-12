@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
    Licensed under the MIT License. */
 
 #pragma once
@@ -138,6 +138,15 @@ public:
         _In_ ULONG  ChildUid,
         _Inout_ PDXGK_CHILD_CONTAINER_ID    pChildChildContainId);
 
+    virtual NTSTATUS BrightnessSet(
+        //_In_ PVOID Context,
+        _In_ UCHAR Brightness);
+
+    virtual NTSTATUS BrightnessGet(
+        //_In_ PVOID Context,
+        _Out_ PUCHAR pBrightness);
+
+
     virtual BOOLEAN IsInitialized(VOID)
     {
         return m_IsInitialized;
@@ -162,6 +171,8 @@ protected:
         return nullptr;
     }
 
+    NTSTATUS AnyBrigthnessIFExists();
+
 protected:
 
     BOOLEAN m_IsInitialized;
@@ -184,4 +195,5 @@ protected:
     // Active display/VidPn targets ordered by Source Id
     GcKmDisplayPathInfo         m_Paths[GC_KM_MAX_SOURCES][GC_KM_MAX_CLONES] = {};
     UINT                        m_NumSources = 0;
+    UCHAR                       m_Brightness;
 };

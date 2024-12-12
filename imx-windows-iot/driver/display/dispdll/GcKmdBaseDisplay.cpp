@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -14,10 +14,23 @@
 #include "GcKmdGuard.h"
 #include "GcKmdErroHandling.h"
 #include "getresrc.h"
+#include "pwm.h"
+
 
 GC_PAGED_SEGMENT_BEGIN; //======================================================
 
 #define USE_PREVIOUS_POST_DISPLAY_INFO
+
+#define printk(x, ...) DbgPrintEx(DPFLTR_IHVVIDEO_ID, DPFLTR_ERROR_LEVEL, x, __VA_ARGS__)
+
+//#define MP_DISPLAY_DEBUG
+#ifdef MP_DISPLAY_DEBUG
+#define printk_debug printk
+#else
+#define printk_debug
+#endif
+
+
 extern BOOLEAN  g_bUsePreviousPostDisplayInfo;
 
 NTSTATUS
@@ -682,6 +695,240 @@ void GcKmBaseDisplay::PrepareScanlineEmulation(const D3DKMDT_VIDPN_TARGET_MODE* 
         m_FrameInTick = 0;
         m_ScanlineInTick = 0;
     }
+}
+
+NTSTATUS GcKmBaseDisplay::BrightnessSet(
+    _In_ UCHAR Brightness)
+{
+    return STATUS_SUCCESS;
+}
+
+
+NTSTATUS GcKmBaseDisplay::InitResources(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex)
+{
+    NTSTATUS Status = STATUS_SUCCESS;
+    DXGK_DEVICE_INFO DeviceInfo;
+
+    if ((!pDxgkInterface)||(NUM_OF_INTERFACES <=registryIndex))
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    Status = pDxgkInterface->DxgkCbGetDeviceInformation(
+        pDxgkInterface->DeviceHandle, &DeviceInfo);
+    if (!NT_SUCCESS(Status))
+    {
+        return Status;
+    }
+
+    Status = Get_DsdAcpiResources(DeviceInfo.PhysicalDeviceObject, registryIndex);
+
+    if (NT_SUCCESS(Status)) {
+        if (NT_SUCCESS(Status)) {
+            Status = STATUS_DEVICE_INSUFFICIENT_RESOURCES;
+            Status = m_BrigthnessPWM.SetFile(m_PWMEndpoint);
+        }
+    }
+
+    printk_debug("\tPWM Brightness: m_BrigthnessPWM.SetFile(%s) 0x%X\r\n", m_PWMEndpoint, Status);
+
+    if (NT_SUCCESS(Status)) {
+        __try {
+            Status = m_BrigthnessPWM.Open();
+            if (!NT_SUCCESS(Status)) {
+                printk_debug("Failed to open PWM device. (0x%X)\r\n", Status);
+            }
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            printk_debug("Exception: Failed to open PWM device. (0x%X)\r\n", Status);
+            Status = STATUS_INVALID_PARAMETER;
+        }
+    }
+
+#if _DBG
+    if (!NT_SUCCESS(Status)) {
+        KdPrint(("\tGcKmBaseDisplay::InitResources: Failed (0x%x)\r\n", Status));
+    }
+#endif
+    if (NT_SUCCESS(Status))
+    {
+        m_BrigthnessPWMInitialized = TRUE;
+    }
+
+    return Status;
+}
+
+NTSTATUS GcKmBaseDisplay::Get_DsdAcpiResources(PDEVICE_OBJECT PdoPtr, UINT registryIndex)
+/*!
+ * Load device resources and device specific data.
+ *
+ * @returns STATUS_SUCCESS or error code.
+ */
+{
+    NTSTATUS status;
+    UINT32 length = 0;
+    AcpiDsdRes_t m_DsdRes(PdoPtr);
+
+    status = m_DsdRes.LoadDsd();
+    if (NT_SUCCESS(status)) {
+        const AcpiDsdRes_t::_DSDVAL_GET_DESCRIPTOR ParamTable[] = {
+        {
+            "BrightnessPWM_0",
+            (PUINT32) & (m_PWMEndpoint[0]),
+            sizeof(m_PWMEndpoint),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_HID_0",
+            (PUINT32) & (m_PWMEndpoint_HID[0]),
+            sizeof(m_PWMEndpoint_HID),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_UID_0",
+            (PUINT32) & (m_PWMEndpoint_UID[0]),
+            sizeof(m_PWMEndpoint_UID),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_PIN_0",
+            (PUINT32) & (m_PWMEndpoint_PIN[0]),
+            sizeof(m_PWMEndpoint_PIN),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_1",
+            (PUINT32) & (m_PWMEndpoint[0]),
+            sizeof(m_PWMEndpoint),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_HID_1",
+            (PUINT32) & (m_PWMEndpoint_HID[0]),
+            sizeof(m_PWMEndpoint_HID),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_UID_1",
+            (PUINT32) & (m_PWMEndpoint_UID[0]),
+            sizeof(m_PWMEndpoint_UID),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_PIN_1",
+            (PUINT32) & (m_PWMEndpoint_PIN[0]),
+            sizeof(m_PWMEndpoint_PIN),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_2",
+            (PUINT32) & (m_PWMEndpoint[0]),
+            sizeof(m_PWMEndpoint),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_HID_2",
+            (PUINT32) & (m_PWMEndpoint_HID[0]),
+            sizeof(m_PWMEndpoint_HID),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_UID_2",
+            (PUINT32) & (m_PWMEndpoint_UID[0]),
+            sizeof(m_PWMEndpoint_UID),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        {
+            "BrightnessPWM_PIN_2",
+            (PUINT32) & (m_PWMEndpoint_PIN[0]),
+            sizeof(m_PWMEndpoint_PIN),
+            ACPI_METHOD_ARGUMENT_STRING,
+        },
+        };
+        printk_debug("\tregistryIndex     0x%d\r\n", registryIndex);
+        status = m_DsdRes.GetDsdResources(&ParamTable[registryIndex * 4], 1);
+        printk_debug("\tm_PWMEndpoint0     (%s) 0x%X\r\n", m_PWMEndpoint, status);
+        if (!NT_SUCCESS(status))
+        {
+            status = m_DsdRes.GetDsdResources(&ParamTable[1 + registryIndex * 4], 3);
+            printk_debug("\tm_PWMEndpoint0_HID  (%s), sizeof(m_PWMEndpoint_PIN) %d\r\n", m_PWMEndpoint_HID, sizeof(m_PWMEndpoint_PIN));
+            printk_debug("\tm_PWMEndpoint0_UID (%s) 0x%X\r\n", m_PWMEndpoint_UID, status);
+            printk_debug("\tm_PWMEndpoint0_PIN (%s) 0x%X\r\n", m_PWMEndpoint_PIN, status);
+            // Example of path: "\\GLOBAL??\\ACPI#NXP010E#2#{60824b4c-eed1-4c9c-b49c-1b961461a819}\\0";
+            strcat(m_PWMEndpoint, "\\GLOBAL??\\ACPI#");
+            strcat(m_PWMEndpoint, m_PWMEndpoint_HID);
+            strcat(m_PWMEndpoint, "#");
+            strcat(m_PWMEndpoint, m_PWMEndpoint_UID);
+            strcat(m_PWMEndpoint, "#{60824b4c-eed1-4c9c-b49c-1b961461a819}\\");
+            strcat(m_PWMEndpoint, m_PWMEndpoint_PIN);
+        }
+    }
+    return status;
+}
+
+NTSTATUS GcKmBaseDisplay::PWMSet(IN_UCHAR PWMValue)
+{
+    PAGED_CODE();
+    NTSTATUS Status = STATUS_SUCCESS;
+    PWM_PERCENTAGE Brightness_UL;
+
+    if (m_BrigthnessPWMInitialized == TRUE)
+    {
+        NTSTATUS Status = STATUS_SUCCESS;
+    }
+    else
+    {
+        Status = STATUS_NOT_SUPPORTED;
+    }
+
+
+    if (NT_SUCCESS(Status)) {
+        auto* sensor = m_BrigthnessPWM.getTarget();
+
+        if (sensor == NULL) {
+            Status = STATUS_INVALID_DEVICE_STATE;
+            printk_debug("\tPWM Brightness: SendIrp failed STATUS_INVALID_DEVICE_STATE 0x%x\r\n", Status);
+        }
+
+        /* Set PWM */
+        if (NT_SUCCESS(Status)) {
+
+            Brightness_UL = (PWM_PERCENTAGE)(((PWMValue)) * (ULONGLONG_MAX / 100));
+
+            PIRP LowIrp = IoBuildDeviceIoControlRequest(IOCTL_PWM_PIN_START, sensor->m_TargetDevicePtr, (PUCHAR)&Brightness_UL, sizeof(Brightness_UL), &Brightness_UL, sizeof(Brightness_UL), FALSE, &sensor->m_Event, &sensor->m_IoStatus);
+
+            if (LowIrp) {
+                Status = sensor->SendIrp(LowIrp, &sensor->m_Event);
+                if (!NT_SUCCESS(Status)) {
+                    printk_debug("\tPWM Brightness: SendIrp failed 0x%x\r\n", Status);
+                    IoFreeIrp(LowIrp);
+                }
+            }
+            else {
+                Status = STATUS_MEMORY_NOT_ALLOCATED;
+                printk_debug("\tPWM Brightness: Status = STATUS_MEMORY_NOT_ALLOCATED 0x%x\r\n", Status);
+            }
+
+            PIRP LowIrp2 = IoBuildDeviceIoControlRequest(IOCTL_PWM_PIN_SET_ACTIVE_DUTY_CYCLE_PERCENTAGE, sensor->m_TargetDevicePtr, (PUCHAR)&Brightness_UL, sizeof(Brightness_UL), &Brightness_UL, sizeof(Brightness_UL), FALSE, &sensor->m_Event, &sensor->m_IoStatus);
+
+            if (LowIrp2) {
+                Status = sensor->SendIrp(LowIrp2, &sensor->m_Event);
+                if (!NT_SUCCESS(Status)) {
+                    printk_debug("\tPWM Brightness: SendIrp failed 0x%x\r\n", Status);
+                    IoFreeIrp(LowIrp2);
+                }
+            }
+            else {
+                Status = STATUS_MEMORY_NOT_ALLOCATED;
+                printk_debug("\tPWM Brightness: Status = STATUS_MEMORY_NOT_ALLOCATED 0x%x\r\n", Status);
+            }
+            if (NT_SUCCESS(Status)) {
+                Status = sensor->m_IoStatus.Status;
+            }
+        }
+    }
+    return Status;
 }
 
 

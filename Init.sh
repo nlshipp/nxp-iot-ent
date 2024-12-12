@@ -31,6 +31,10 @@
 
 GitUserName="NXP Build Server"
 GitUserEmail="XXX@nxp.com"
+MUBA_SUBMODULE_NAME="mu_platform_nxp/MU_BASECORE"
+MUBA_COMMIT_SHA="-d6de782efd9f9076d592801318d6e1f668eb6ea5"
+SUBH_SUBMODULE_NAME="UnitTestFrameworkPkg/Library/SubhookLib/subhook"
+SUBH_SUBMODULE_URL="https://github.com/tianocore/edk2-subhook.git"
 
 echo "Populating source files from git ..."
 git reset --hard
@@ -40,9 +44,14 @@ if [ -d "$SUBMODULE_CACHE/modules" ]; then
     cp -r $SUBMODULE_CACHE/modules .git
 fi
 
+echo "Fixing subhook submodule problem"
+git submodule update --init "${MUBA_SUBMODULE_NAME}"
+pushd "${MUBA_SUBMODULE_NAME}"
+echo "Changing subhook url..."
+git submodule set-url "${SUBH_SUBMODULE_NAME}" "${SUBH_SUBMODULE_URL}"
 echo "Populating source files in submodules ..."
-git submodule update --init --force --recursive --depth 1
-
+popd
+git submodule update --init --recursive --depth 1
 
 echo "Patching external submodules ..."
 patch_dir=$(pwd)/patches;

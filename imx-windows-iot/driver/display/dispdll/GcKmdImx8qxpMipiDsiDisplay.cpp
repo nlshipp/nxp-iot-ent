@@ -634,6 +634,7 @@ GcKmImx8qxpMipiDsiDisplay::InterruptRoutine(UINT MessageNumber)
         }
         if (status0 & BIT(IRQ_EXTDST0_SHDLOAD))
         {
+            m_DsiTransmitter.VSync();
             irq_handle(IRQ_EXTDST0_SHDLOAD);
             dpu_irq_ack(dpu, IRQ_EXTDST0_SHDLOAD);
             ret = TRUE;
@@ -660,6 +661,7 @@ GcKmImx8qxpMipiDsiDisplay::InterruptRoutine(UINT MessageNumber)
         }
         if (status0 & BIT(IRQ_EXTDST1_SHDLOAD))
         {
+            m_DsiTransmitter.VSync();
             irq_handle(IRQ_EXTDST1_SHDLOAD);
             dpu_irq_ack(dpu, IRQ_EXTDST1_SHDLOAD);
             ret = TRUE;
@@ -681,3 +683,20 @@ GcKmImx8qxpMipiDsiDisplay::InterruptRoutine(UINT MessageNumber)
 }
 
 GC_NONPAGED_SEGMENT_END; //=====================================================
+
+GC_PAGED_SEGMENT_BEGIN; //======================================================
+
+NTSTATUS GcKmImx8qxpMipiDsiDisplay::BrightnessSet(IN_UCHAR Brightness)
+{
+    PAGED_CODE();
+    NTSTATUS Status = m_DsiTransmitter.BrightnessSet(Brightness);
+    return Status;
+}
+
+NTSTATUS GcKmImx8qxpMipiDsiDisplay::GetBrigthnessIFExists()
+{
+    return STATUS_SUCCESS;  /* to switch brightness control of, return STATUS_NOT_FOUND */
+};
+
+
+GC_PAGED_SEGMENT_END; //=====================================================

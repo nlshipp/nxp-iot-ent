@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -85,6 +85,8 @@ GcKmImx8mpDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
     imx_lcdifv3_runtime_resume(&lcdif_pdev.dev);
     ret = m_LvdsTransmitter.Start(pDxgkInterface, m_di.RegistryIndex);
 
+    InitResources(pDxgkInterface, m_di.RegistryIndex);
+
     return ret;
 }
 
@@ -127,6 +129,9 @@ GcKmImx8mpDisplay::HwStop(
         clk_stop_imx8mp(clk_tree, imx_lvds);
     }
     clk_deinit_imx8mp(clk_tree, imx_lvds);
+
+    GcKmBaseDisplay::m_BrigthnessPWM.PnpStop();
+    GcKmBaseDisplay::m_BrigthnessPWM.Close();
 
     return ret;
 }
@@ -410,3 +415,14 @@ GcKmImx8mpDisplay::InterruptRoutine(UINT MessageNumber)
 }
 
 GC_NONPAGED_SEGMENT_END; //=====================================================
+
+GC_PAGED_SEGMENT_BEGIN; //======================================================
+
+NTSTATUS GcKmImx8mpDisplay::BrightnessSet(IN_UCHAR Brightness)
+{
+    PAGED_CODE();
+    NTSTATUS Status = GcKmBaseDisplay::PWMSet(Brightness);
+    return Status;
+}
+
+GC_PAGED_SEGMENT_END; //=====================================================

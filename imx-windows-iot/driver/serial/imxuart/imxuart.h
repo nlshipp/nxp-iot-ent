@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2020, 2023 NXP
+// Copyright 2020, 2023-2024 NXP
 // Licensed under the MIT License.
 //
 //
@@ -292,6 +292,15 @@ struct IMX_UART_INTERRUPT_CONTEXT {
     IMX_UART_RX_DMA_TRANSACTION_CONTEXT* RxDmaTransactionContextPtr;
     IMX_UART_TX_DMA_TRANSACTION_CONTEXT* TxDmaTransactionContextPtr;
     bool IsRxDmaStarted;
+
+    //
+    // RS485 mode
+    //
+    ULONG IsRS485Enabled;
+
+    ULONG RS485_RTS_ON_SEND;
+    ULONG RS485_RTS_AFTER_SEND;
+    //ULONG have_rtsgpio;
 
     //
     // Handflow 1:1 copy

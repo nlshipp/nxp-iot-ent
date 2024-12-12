@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) 2018 Microsoft Corporation. All rights reserved.
-*  Copyright 2019, 2023 NXP
+*  Copyright 2019, 2023-2024 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -64,4 +64,13 @@ Device (GPU0)
     //DSI_EN pin GPIO1_IO8 for IMX-DSI-OLED display reset
     GpioIO(Exclusive, PullNone, 0, 1, IoRestrictionNone, "\\_SB.GPIO", 0, ResourceConsumer, , ) { 8 } // 0 * 32 + 8 DSI_EN
   })
+  Name (_DSD, Package ()
+    {
+        ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+        Package () {
+            //Package (2) {"BrightnessPWM_0", "\\PWM_2"}, 
+            Package (2) {"BrightnessPWM_HID_0", "NXP010E"},
+            Package (2) {"BrightnessPWM_UID_0", "2"},
+            Package (2) {"BrightnessPWM_PIN_0", "0"},        }
+    })
 }

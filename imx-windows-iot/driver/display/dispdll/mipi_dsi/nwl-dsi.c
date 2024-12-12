@@ -719,6 +719,12 @@ static ssize_t nwl_dsi_host_transfer(struct mipi_dsi_host *dsi_host,
 	struct nwl_dsi_transfer xfer;
 	ssize_t ret = 0;
 
+	if (dsi->xfer != NULL)
+	{
+		ret = -EBUSY;
+		return ret;
+	}
+
 	/* Create packet to be sent */
 	dsi->xfer = &xfer;
 	ret = mipi_dsi_create_packet(&xfer.packet, msg);
@@ -750,12 +756,11 @@ static ssize_t nwl_dsi_host_transfer(struct mipi_dsi_host *dsi_host,
 	ret = clk_prepare_enable(dsi->rx_esc_clk);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dsi->dev, "Failed to enable rx_esc clk: %zd\n",
-			      ret);
+			ret);
 		return ret;
 	}
 	DRM_DEV_DEBUG_DRIVER(dsi->dev, "Enabled rx_esc clk @%lu Hz\n",
-			     clk_get_rate(dsi->rx_esc_clk));
-
+		clk_get_rate(dsi->rx_esc_clk));
 	/* Initiate the DSI packet transmision */
 	nwl_dsi_begin_transmission(dsi);
 
@@ -768,15 +773,80 @@ static ssize_t nwl_dsi_host_transfer(struct mipi_dsi_host *dsi_host,
 		ret = xfer.status;
 	}
 
-	clk_disable_unprepare(dsi->rx_esc_clk);
+    clk_disable_unprepare(dsi->rx_esc_clk);
+
+	dsi->xfer = NULL;
 
 	return ret;
 }
+static ssize_t nwl_dsi_host_transfer_irq(struct mipi_dsi_host* dsi_host,
+	const struct mipi_dsi_msg* msg)
+{
+	struct nwl_dsi* dsi = container_of(dsi_host, struct nwl_dsi, dsi_host);
+	struct nwl_dsi_transfer xfer;
+	ssize_t ret = 0;
+
+	if (dsi->xfer != NULL)
+	{
+		ret = -EBUSY;
+		return ret;
+	}
+	/* Create packet to be sent */
+	dsi->xfer = &xfer;
+	ret = mipi_dsi_create_packet(&xfer.packet, msg);
+	if (ret < 0) {
+		dsi->xfer = NULL;
+		return ret;
+	}
+
+	if ((msg->type & MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM ||
+		msg->type & MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM ||
+		msg->type & MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM ||
+		msg->type & MIPI_DSI_DCS_READ) &&
+		msg->rx_len > 0 && msg->rx_buf)
+		xfer.direction = DSI_PACKET_RECEIVE;
+	else
+		xfer.direction = DSI_PACKET_SEND;
+
+	xfer.need_bta = (xfer.direction == DSI_PACKET_RECEIVE);
+	xfer.need_bta |= (msg->flags & MIPI_DSI_MSG_REQ_ACK) ? 1 : 0;
+	xfer.msg = msg;
+	xfer.status = -ETIMEDOUT;
+	xfer.rx_word_count = 0;
+	xfer.rx_len = 0;
+	xfer.cmd = 0x00;
+	if (msg->tx_len > 0)
+		xfer.cmd = ((u8*)(msg->tx_buf))[0];
+
+	if (dsi->pdata->rx_clk_quirk)
+	{
+		ret = clk_prepare_enable(dsi->rx_esc_clk);
+		if (ret < 0) {
+			DRM_DEV_ERROR(dsi->dev, "Failed to enable rx_esc clk: %zd\n",
+				ret);
+			return ret;
+		}
+		DRM_DEV_DEBUG_DRIVER(dsi->dev, "Enabled rx_esc clk @%lu Hz\n",
+			clk_get_rate(dsi->rx_esc_clk));
+	}
+	/* Initiate the DSI packet transmision */
+	nwl_dsi_begin_transmission(dsi);
+	dsi->xfer = (struct nwl_dsi_transfer*)NULL;
+	/* Disable rx_esc clock as registers are not accessed any more. */
+	if (dsi->pdata->rx_clk_quirk)
+		clk_disable_unprepare(dsi->rx_esc_clk);
+
+	dsi->xfer = NULL;
+
+	return ret;
+}
+
 
 static const struct mipi_dsi_host_ops nwl_dsi_host_ops = {
 	.attach = nwl_dsi_host_attach,
 	.detach = nwl_dsi_host_detach,
 	.transfer = nwl_dsi_host_transfer,
+	.transfer_irq = nwl_dsi_host_transfer_irq,
 };
 
 irqreturn_t nwl_dsi_irq_handler(struct platform_device* pdev)

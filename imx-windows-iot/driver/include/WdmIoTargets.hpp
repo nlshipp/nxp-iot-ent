@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 NXP
+ * Copyright 2022, 2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,20 +29,20 @@
 
 struct iotarget_t
 {
-    HANDLE m_TargetHandle;
+    HANDLE m_TargetHandle = NULL;
     OBJECT_ATTRIBUTES m_FileAttributes;
     IO_STATUS_BLOCK ioStatus;
-    PFILE_OBJECT m_TargetFileObjectPtr;
-    PDEVICE_OBJECT  m_TargetDevicePtr;
+    PFILE_OBJECT m_TargetFileObjectPtr = NULL;
+    PDEVICE_OBJECT  m_TargetDevicePtr = NULL;
     ACCESS_MASK DesiredAccess = GENERIC_WRITE;
     // Have a default event and stuff
     KEVENT m_Event;
     IO_STATUS_BLOCK m_IoStatus;
 
-    PIRP m_OngiongIrpPtr;
+    PIRP m_OngiongIrpPtr = NULL;
 
-    CHAR m_DeviceEndpoint[DEVICE_ENDPOINT_NAME_MAX_LEN];
-    WCHAR m_DeviceEndpointUnicodeNameBuff[DEVICE_ENDPOINT_NAME_MAX_LEN];
+    CHAR m_DeviceEndpoint[DEVICE_ENDPOINT_NAME_MAX_LEN] = "";
+    WCHAR m_DeviceEndpointUnicodeNameBuff[DEVICE_ENDPOINT_NAME_MAX_LEN] = L"";
     UNICODE_STRING m_DeviceEndpointUnicodeName;
 
     iotarget_t() : m_OngiongIrpPtr(NULL), m_DeviceEndpointUnicodeName{0}

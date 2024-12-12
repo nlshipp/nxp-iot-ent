@@ -55,6 +55,10 @@ public:
     virtual NTSTATUS SetVidPnSourceAddressWithMultiPlaneOverlay3(
         IN_OUT_PDXGKARG_SETVIDPNSOURCEADDRESSWITHMULTIPLANEOVERLAY3 pSetVidPnSourceAddressWithMpo3) override;
 
+    virtual NTSTATUS BrightnessSet(
+        IN_UCHAR Brightness) override;
+    virtual NTSTATUS GetBrigthnessIFExists() override;
+
 private:
 
     SecDsiTransmitter m_DsiTransmitter;

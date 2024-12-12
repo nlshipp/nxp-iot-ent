@@ -1,9 +1,9 @@
 NXP Software Content Register
 
-Release - Windows 10 IoT 1.5.1
-May 2024
+Release - Windows 10 IoT 1.5.2
+December 2024
 
-License file: EULA.txt  NXP Proprietary LA_OPT_NXP_Software_License v56 April 2024 - Additional distribution license granted, Section 2.3 applies
+License file: EULA.txt  NXP Proprietary LA_OPT_NXP_Software_License v58 November 2024 - Additional distribution license granted, Section 2.3 applies
 
 --------------------------------------------
 
@@ -163,7 +163,7 @@ Origin:                      NXP (GPL-2.0)
 --------------------------------------------  
 
 Package:                     ./imx-windows-iot/driver/video/imx-vpu-hantro
-Outgoing License:            LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution license granted, Section 2.3 applies
+Outgoing License:            LA_OPT_NXP_Software_License v58 November 2024 - Additional distribution license granted, Section 2.3 applies
 License Files:               EULA.txt
 Type of content:             Source code
 Description and comments:    i.MX VPU library
@@ -176,7 +176,7 @@ Origin: 		      VeriSilicon Inc. (proprietary)
 --------------------------------------------
 
 Package:                     ./imx-windows-iot/driver/video/imx-vpuwrap
-Outgoing Outgoing License:   LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution license granted, Section 2.3 applies
+Outgoing Outgoing License:   LA_OPT_NXP_Software_License v58 November 2024 - Additional distribution license granted, Section 2.3 applies
 License File:                EULA.txt
 Type of content:             Source code
 Description and comments:    i.MX VPU wrapper library
@@ -189,7 +189,7 @@ Origin:                      NXP (proprietary)
 
 Package:                     galcore
 Version:                     1.5
-Outgoing license             LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution license granted, Section 2.3 applies
+Outgoing license             LA_OPT_NXP_Software_License v58 November 2024 - Additional distribution license granted, Section 2.3 applies
 License File:                EULA.txt
 Package Category:            Graphics
 Type of Content:             binary and source
@@ -228,7 +228,7 @@ Origin:                      NXP (GPL-2.0)
 -------------------------------------------- 
 
 Packages:                    ./imx-windows-iot/driver/Wifi_mrvlpcie8897
-Outgoing License:            LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution Use
+Outgoing License:            LA_OPT_NXP_Software_License v58 November 2024 - Additional distribution license granted, Section 2.3 applies
 License File:                License
 Type of content:             Binary
 Description and comments:    Wi-Fi Windows driver (WiFi-BT firmware included) for W8897
@@ -256,7 +256,7 @@ Origin:                      NXP (GPL-2.0)
 -------------------------------------------- 
 
 Packages:                    ./imx-windows-iot/driver/Wifi_mrvlpcie8897
-Outgoing License:            LA_OPT_NXP_Software_License v44 March 2023 - Additional distribution Use
+Outgoing License:            LA_OPT_NXP_Software_License v58 November 2024 - Additional distribution license granted, Section 2.3 applies
 License File:                License
 Type of content:             Binary
 Description and comments:    Wi-Fi Windows driver (WiFi-BT firmware included) for W8897

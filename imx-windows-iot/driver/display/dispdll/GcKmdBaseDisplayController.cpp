@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -8,6 +8,18 @@
 #include "GcKmdBaseDisplayController.h"
 #include "GcKmdErroHandling.h"
 #include "GcKmdGuard.h"
+#include "GcKmdUtil.h"
+#include "GcKmdGuard.h"
+#include "GcKmdErroHandling.h"
+#include <wdm.h>
+#define DISPLAY_CONTROLLER_DEBUG
+#define printk(x, ...) DbgPrintEx(DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL, x, __VA_ARGS__)
+
+#ifdef DISPLAY_CONTROLLER_DEBUG
+#define printk_debug printk
+#else
+#define printk_debug
+#endif
 
 //
 // GcKmDisplay interface implementation
@@ -168,18 +180,200 @@ GcKmBaseDisplayController::QueryChildRelations(
     return Status;
 }
 
-NTSTATUS GcKmBaseDisplayController::QueryInterface(
-    IN_PQUERY_INTERFACE QueryInterface)
+
+GC_PAGED_SEGMENT_BEGIN;
+VOID DeviceInterfaceReference(_In_ PVOID Context);/*
 {
-    NTSTATUS    Status = STATUS_NOT_SUPPORTED;
+    UNREFERENCED_PARAMETER(Context);
+}*/
 
-    GcKmDisplay* pDisplayPipeline = FindDisplayPipeline(QueryInterface->DeviceUid);
+VOID DeviceInterfaceDereference(_In_ PVOID Context);/*
+{
+    UNREFERENCED_PARAMETER(Context);
+}*/
 
-    if (pDisplayPipeline) {
-        Status = pDisplayPipeline->QueryInterface(QueryInterface);
+#pragma code_seg("PAGE")
+NTSTATUS DxgkBrightnessGetPossible(
+   PVOID Context,
+   ULONG BufferSize,
+   PUCHAR LevelCount,
+   PUCHAR BrightnessLevels
+)
+{
+    UINT MaxLevels = 100;
+    NTSTATUS Status = STATUS_FLT_BUFFER_TOO_SMALL;
+
+    printk_debug("GcKmBaseDisplayController::DxgkBrightnessGetPossible: BufferSize value: %d.\n", BufferSize);
+
+    if (103 <= BufferSize)
+    {
+
+        /* - The first brightness level value is the brightness level that the BIOS uses when the computer runs on AC power.
+           - The second brightness level value is the brightness level that the BIOS uses when the computer runs on DC power.
+           - The remaining brightness level values are hardware-supported brightness levels. */
+
+        *LevelCount = 101;
+        BrightnessLevels[0] = 100;
+        BrightnessLevels[1] = 50;
+        //if (MaxLevels > BufferSize) MaxLevels = BufferSize;
+        for (UCHAR i = 0; i <= MaxLevels; i++)
+        {
+            BrightnessLevels[i + 2] = i;
+        }
+        Status = STATUS_SUCCESS;
     }
     return Status;
 }
+
+
+#pragma code_seg("PAGE")
+NTSTATUS DxgkBrightnessSet(
+    PVOID Context,
+    UCHAR Brightness
+)
+{
+    ((GcKmBaseDisplayController*)Context)->BrightnessSet(Brightness);
+    printk_debug("GcKmBaseDisplayController::DxgkBrightnessSet: Brightness value set: %d.\n", Brightness);
+    return STATUS_SUCCESS;
+}
+
+#pragma code_seg("PAGE")
+NTSTATUS DxgkBrightnessGet(
+    PVOID Context,
+    PUCHAR Brightness
+)
+{
+    return ((GcKmBaseDisplayController*)Context)->BrightnessGet(Brightness);
+}
+
+#pragma code_seg("PAGE")
+NTSTATUS DxgkBrightnessGetCaps(
+    PVOID Context,
+    DXGK_BRIGHTNESS_CAPS* BrightnessCaps
+)
+{
+    BrightnessCaps->SmoothBrightness = 0;
+    BrightnessCaps->AdaptiveBrightness = 0;
+    BrightnessCaps->NitsBrightness = 0;
+    return STATUS_SUCCESS;
+}
+
+#pragma code_seg("PAGE")
+NTSTATUS DxgkBrightnessSetState(
+    PVOID Context,
+    DXGK_BRIGHTNESS_STATE* BrightnessState
+)
+{
+    //BrightnessState->SmoothBrightness;
+    return STATUS_SUCCESS;
+}
+
+#pragma code_seg("PAGE")
+NTSTATUS DxgkBrightnessSetBacklightOptimization(
+    PVOID Context,
+    DXGK_BACKLIGHT_OPTIMIZATION_LEVEL OptimizationLevel
+)
+{
+    return STATUS_SUCCESS;
+}
+
+#pragma code_seg("PAGE")
+NTSTATUS DxgkBrightnessGetBacklightReduction(
+     PVOID Context,
+     DXGK_BACKLIGHT_INFO* BacklightInfo
+)
+{
+    return STATUS_SUCCESS;
+}
+GC_PAGED_SEGMENT_END;
+
+NTSTATUS GcKmBaseDisplayController::QueryInterface(
+    IN_PQUERY_INTERFACE QueryInterface)
+{
+    NTSTATUS Status = STATUS_NOT_SUPPORTED;
+        if (RtlEqualMemory(
+            QueryInterface->InterfaceType,
+            &GUID_DEVINTERFACE_BRIGHTNESS_2,
+            sizeof(GUID)) &&
+            (QueryInterface->Version == DXGK_BRIGHTNESS_INTERFACE_VERSION_2) &&
+            (QueryInterface->Size == sizeof(DXGK_BRIGHTNESS_INTERFACE_2)) &&
+            NT_SUCCESS(AnyBrigthnessIFExists()))
+        {
+            PDXGK_BRIGHTNESS_INTERFACE_2 pIfBrightness = (PDXGK_BRIGHTNESS_INTERFACE_2)QueryInterface->Interface;
+
+            //NT_ASSERT(QueryInterface->DeviceUid == BaseTransmitter::HDMI_CHILD_UID);
+
+            pIfBrightness->Size = sizeof(DXGK_BRIGHTNESS_INTERFACE_2);
+            pIfBrightness->Version = DXGK_BRIGHTNESS_INTERFACE_VERSION_2;
+            pIfBrightness->InterfaceReference = (PINTERFACE_REFERENCE)&DeviceInterfaceReference;
+            pIfBrightness->InterfaceDereference = (PINTERFACE_DEREFERENCE)&DeviceInterfaceDereference;
+            pIfBrightness->Context = this;
+
+            pIfBrightness->GetPossibleBrightness = (DXGK_BRIGHTNESS_GET_POSSIBLE)&DxgkBrightnessGetPossible;
+            pIfBrightness->SetBrightness = (DXGK_BRIGHTNESS_SET)&DxgkBrightnessSet;
+            pIfBrightness->GetBrightness = (DXGK_BRIGHTNESS_GET)&DxgkBrightnessGet;
+            pIfBrightness->GetBrightnessCaps = (DXGK_BRIGHTNESS_GET_CAPS)&DxgkBrightnessGetCaps;
+            pIfBrightness->SetBrightnessState = (DXGK_BRIGHTNESS_SET_STATE)&DxgkBrightnessSetState;
+            pIfBrightness->SetBacklightOptimization = (DXGK_BRIGHTNESS_SET_BACKLIGHT_OPTIMIZATION)&DxgkBrightnessSetBacklightOptimization;
+            pIfBrightness->GetBacklightReduction = (DXGK_BRIGHTNESS_GET_BACKLIGHT_REDUCTION)&DxgkBrightnessGetBacklightReduction;
+
+            printk_debug("GcKmBaseDisplayController::QueryInterface: interface GUID_DEVINTERFACE_BRIGHTNESS successfull queried.\n");
+
+            Status = STATUS_SUCCESS;
+        }
+
+    if (!NT_SUCCESS(Status))
+    {
+        GcKmDisplay* pDisplayPipeline = FindDisplayPipeline(QueryInterface->DeviceUid);
+
+        if (pDisplayPipeline) {
+            Status = pDisplayPipeline->QueryInterface(QueryInterface);
+        }
+    }
+    return Status;
+}
+
+NTSTATUS
+GcKmBaseDisplayController::BrightnessSet(
+    //PVOID Context,
+    _In_ UCHAR Brightness
+)
+{
+    m_Brightness = Brightness;
+    for (UINT i = 0; i < m_NumTargets; i++)
+    {
+        m_Targets[i].m_pDisplayPipeline->BrightnessSet(Brightness);        
+        printk_debug("GcKmBaseDisplayController::BrightnessSet: Brightness value set: %d on m_pDisplayPipeline %d.\n", Brightness, i);
+    }
+    return STATUS_SUCCESS;
+}
+
+
+NTSTATUS
+GcKmBaseDisplayController::AnyBrigthnessIFExists()
+{
+    NTSTATUS Status = STATUS_NOT_FOUND;
+
+    for (UINT i = 0; i < m_NumTargets; i++)
+    {
+        if (NT_SUCCESS(m_Targets[i].m_pDisplayPipeline->GetBrigthnessIFExists()))
+        {
+            Status = STATUS_SUCCESS;
+            break;
+        }
+    }
+    return Status;
+}
+
+
+NTSTATUS
+GcKmBaseDisplayController::BrightnessGet(
+    _Out_ PUCHAR pBrightness)
+{
+    *pBrightness = m_Brightness;
+    return STATUS_SUCCESS;
+}
+
 
 NTSTATUS
 GcKmBaseDisplayController::QueryChildStatus(

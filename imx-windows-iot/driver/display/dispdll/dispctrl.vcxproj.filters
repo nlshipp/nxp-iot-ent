@@ -511,6 +511,12 @@
     <ClCompile Include="GcKmdImx8qxpMipiDsiDisplay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\shared\acpi\dsdtutil.cpp">
+      <Filter>Source Files\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\shared\acpi\acpiutil.cpp">
+      <Filter>Source Files\lib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GcKmd7LIO.h">

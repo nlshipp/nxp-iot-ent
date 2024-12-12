@@ -1,10 +1,14 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
    Licensed under the MIT License. */
 
 #pragma once
 
+#define DEVICE_ENDPOINT_NAME_MAX_LEN 256
+
 #include "GcKmdHdmiTransmitter.h"
+#include "dsdtutil.hpp"
+#include "WdmIoTargets.hpp"
 
 struct GcKmdFrameBuffer
 {
@@ -29,6 +33,10 @@ public:
         m_Pitch = 0;
         m_TargetId = 0;
         m_bNotifyVSync = true;
+        m_PWMEndpoint[0] = 0;
+        m_PWMEndpoint_HID[0] = 0;
+        m_PWMEndpoint_UID[0] = 0;
+        m_PWMEndpoint_PIN[0] = 0;
     }
 
     virtual ~GcKmBaseDisplay() {}
@@ -151,6 +159,20 @@ public:
         m_bNotifyVSync = false;
     }
 
+    virtual NTSTATUS GetBrigthnessIFExists()
+    {
+        if (m_BrigthnessPWMInitialized == TRUE)
+        {
+            return STATUS_SUCCESS;
+        }
+        else
+        {
+            return STATUS_NOT_FOUND;
+        }
+    }
+
+    virtual NTSTATUS BrightnessSet(
+        _In_ UCHAR Brightness);
 public:
 
     NTSTATUS ProcessSourceModeSet(
@@ -293,5 +315,21 @@ protected:
         D3DDDIFMT_A8R8G8B8, // Must be the 1st
         D3DDDIFMT_A8B8G8R8
     };
+    #define NUM_OF_INTERFACES 3
+    //char m_PWMEndpoint0_HID[DEVICE_ENDPOINT_NAME_MAX_LEN];
+    char m_PWMEndpoint    [DEVICE_ENDPOINT_NAME_MAX_LEN];
+    char m_PWMEndpoint_HID[DEVICE_ENDPOINT_NAME_MAX_LEN];
+    char m_PWMEndpoint_UID[DEVICE_ENDPOINT_NAME_MAX_LEN];
+    char m_PWMEndpoint_PIN[DEVICE_ENDPOINT_NAME_MAX_LEN];
+    UINT32 m_CpuId;
+
+    virtual NTSTATUS InitResources(DXGKRNL_INTERFACE* pDxgkInterface, UINT registryIndex);
+    virtual NTSTATUS Get_DsdAcpiResources(PDEVICE_OBJECT pDxgkInterface, UINT registryIndex);
+
+    //public:
+    iotarget_t m_BrigthnessPWM;
+    BOOL m_BrigthnessPWMInitialized = FALSE;
+
+    NTSTATUS GcKmBaseDisplay::PWMSet(IN_UCHAR PWMValue);
 };
 

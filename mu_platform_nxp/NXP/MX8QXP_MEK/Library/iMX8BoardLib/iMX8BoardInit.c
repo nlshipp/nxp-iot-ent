@@ -1574,6 +1574,7 @@ VOID UsdhcInit()
 VOID DisplayInit()
 {
     sc_err_t err = SC_ERR_NONE;
+  sc_pm_clock_rate_t rate = 0U;
   if (err == SC_ERR_NONE) {
     err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_DC_0, SC_PM_PW_MODE_ON);
     if (err != SC_ERR_NONE) {
@@ -1611,17 +1612,76 @@ VOID DisplayInit()
     }
   }
   if (err == SC_ERR_NONE) {
+    err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_MIPI_0_PWM_0, SC_PM_PW_MODE_ON);
+    if (err != SC_ERR_NONE) {
+        sc_pm_err_resource_power_mode(err, SC_R_MIPI_0, SC_PM_PW_MODE_ON);
+    }
+  }
+  if (err == SC_ERR_NONE) {
     err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_LVDS_0, SC_PM_PW_MODE_ON);
     if (err != SC_ERR_NONE) {
         sc_pm_err_resource_power_mode(err, SC_R_LVDS_0, SC_PM_PW_MODE_ON);
     }
   }
+    /* Disable PWM0 peripheral clock */
+  if (err == SC_ERR_NONE) {
+      err = sc_pm_clock_enable(SC_IPC_HDL, SC_R_MIPI_0_PWM_0, SC_PM_CLK_PER, false, false);
+      if (err != SC_ERR_NONE) {
+          sc_pm_err_clock_enable(err, SC_R_MIPI_0_PWM_0, SC_PM_CLK_PER, false, false);
+      }
+  }
+  /* Set PWM0 clock root to 25 MHz */
+  if (err == SC_ERR_NONE) {
+      rate = 25000000;
+      err = sc_pm_set_clock_rate(SC_IPC_HDL, SC_R_MIPI_0_PWM_0, SC_PM_CLK_PER, &rate);
+      if (err != SC_ERR_NONE) {
+          sc_pm_err_clock_rate(err, SC_R_MIPI_0_PWM_0, SC_PM_CLK_PER, rate);
+      }
+  }
+  /* Enable PWM0 peripheral clock */
+  if (err == SC_ERR_NONE) {
+      err = sc_pm_clock_enable(SC_IPC_HDL, SC_R_MIPI_0_PWM_0, SC_PM_CLK_PER, true, true);
+      if (err != SC_ERR_NONE) {
+          sc_pm_err_clock_enable(err, SC_R_MIPI_0_PWM_0, SC_PM_CLK_PER, true, true);
+      }
+  }
+
   if (err == SC_ERR_NONE) {
     err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_MIPI_1, SC_PM_PW_MODE_ON);
     if (err != SC_ERR_NONE) {
         sc_pm_err_resource_power_mode(err, SC_R_MIPI_1, SC_PM_PW_MODE_ON);
     }
   }
+  if (err == SC_ERR_NONE) {
+    err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_MIPI_1_PWM_0, SC_PM_PW_MODE_ON);
+    if (err != SC_ERR_NONE) {
+        sc_pm_err_resource_power_mode(err, SC_R_MIPI_1_PWM_0, SC_PM_PW_MODE_ON);
+    }
+  }
+
+  /* Disable PWM0 peripheral clock */
+  if (err == SC_ERR_NONE) {
+      err = sc_pm_clock_enable(SC_IPC_HDL, SC_R_MIPI_1_PWM_0, SC_PM_CLK_PER, false, false);
+      if (err != SC_ERR_NONE) {
+          sc_pm_err_clock_enable(err, SC_R_MIPI_1_PWM_0, SC_PM_CLK_PER, false, false);
+      }
+  }
+  /* Set PWM0 clock root to 25 MHz */
+  if (err == SC_ERR_NONE) {
+      rate = 25000000;
+      err = sc_pm_set_clock_rate(SC_IPC_HDL, SC_R_MIPI_1_PWM_0, SC_PM_CLK_PER, &rate);
+      if (err != SC_ERR_NONE) {
+          sc_pm_err_clock_rate(err, SC_R_MIPI_1_PWM_0, SC_PM_CLK_PER, rate);
+      }
+  }
+  /* Enable PWM0 peripheral clock */
+  if (err == SC_ERR_NONE) {
+      err = sc_pm_clock_enable(SC_IPC_HDL, SC_R_MIPI_1_PWM_0, SC_PM_CLK_PER, true, true);
+      if (err != SC_ERR_NONE) {
+          sc_pm_err_clock_enable(err, SC_R_MIPI_1_PWM_0, SC_PM_CLK_PER, true, true);
+      }
+  }
+
   if (err == SC_ERR_NONE) {
     err = sc_pm_set_resource_power_mode(SC_IPC_HDL, SC_R_LVDS_1, SC_PM_PW_MODE_ON);
     if (err != SC_ERR_NONE) {
@@ -1632,6 +1692,23 @@ VOID DisplayInit()
     err = sc_ipc_reset(SC_IPC_HDL);
   }
   ASSERT (err == SC_ERR_NONE);
+
+
+    imx_pad_t pads[] = {
+        /* GPIO pin used to control backlight brightness for MX-DLVDS-LCD display */
+        {SC_P_MIPI_DSI0_GPIO0_00, IMX_PAD_ALT_2, SC_PAD_CONFIG_NORMAL, SC_PAD_ISO_OFF, SC_PAD_28FDSOI_DSE_DV_LOW, SC_PAD_28FDSOI_PS_NONE}, /*  LSIO.GPIO1.IO27 for MIPI_DSI0_PWM */       
+        {SC_P_MIPI_DSI1_GPIO0_00, IMX_PAD_ALT_2, SC_PAD_CONFIG_NORMAL, SC_PAD_ISO_OFF, SC_PAD_28FDSOI_DSE_DV_LOW, SC_PAD_28FDSOI_PS_NONE}, /*  LSIO.GPIO1.IO27 for MIPI_DSI0_PWM */       
+   };
+   err = set_28fdsoi_pad(SC_IPC_HDL, &pads[0], sizeof(pads) / sizeof(imx_pad_t));
+   if (err != SC_ERR_NONE) {
+     DEBUG ((DEBUG_ERROR, "DSI0 PWM pin configuration failed.\n"));
+     err = sc_ipc_reset(SC_IPC_HDL);
+   }
+   else
+   {
+    DEBUG ((DEBUG_WARN, "DSI0 PWM pin configuration was correct.\n"));
+   }
+   ASSERT (err == SC_ERR_NONE);
 
   /* enable LPI2C0 irq in MIPI-DSI / LVDS #0 Local Interrupt Steer
      Note: this setting is discarded later in UEFI display driver */

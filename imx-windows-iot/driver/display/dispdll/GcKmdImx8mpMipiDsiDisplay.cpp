@@ -434,3 +434,21 @@ GcKmImx8mpMipiDsiDisplay::InterruptRoutine(UINT MessageNumber)
 }
 
 GC_NONPAGED_SEGMENT_END; //=====================================================
+
+GC_PAGED_SEGMENT_BEGIN; //======================================================
+
+NTSTATUS GcKmImx8mpMipiDsiDisplay::BrightnessSet(IN_UCHAR Brightness)
+{
+    PAGED_CODE();
+    NTSTATUS Status = m_DsiTransmitter.BrightnessSet(Brightness);
+    return Status;
+}
+
+NTSTATUS GcKmImx8mpMipiDsiDisplay::GetBrigthnessIFExists()
+{
+    PAGED_CODE();
+    return STATUS_SUCCESS;
+};
+
+
+GC_PAGED_SEGMENT_END; //=====================================================

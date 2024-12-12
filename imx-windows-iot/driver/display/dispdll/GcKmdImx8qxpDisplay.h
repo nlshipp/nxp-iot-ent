@@ -100,6 +100,8 @@ public:
     virtual NTSTATUS SetVidPnSourceAddressWithMultiPlaneOverlay3(
         IN_OUT_PDXGKARG_SETVIDPNSOURCEADDRESSWITHMULTIPLANEOVERLAY3 pSetVidPnSourceAddressWithMpo3) override;
 
+    virtual NTSTATUS GcKmImx8qxpDisplay::BrightnessSet(IN_UCHAR Brightness) override;
+
 private:
 
     void SetupFramebuffer(

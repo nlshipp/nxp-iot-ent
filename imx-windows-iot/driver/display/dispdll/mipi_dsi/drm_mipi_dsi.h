@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2012-2013, Samsung Electronics, Co., Ltd.
  * Andrzej Hajda <a.hajda@samsung.com>
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  */
 
 #ifndef __DRM_MIPI_DSI_H__
@@ -92,6 +92,8 @@ struct mipi_dsi_host_ops {
 		      struct mipi_dsi_device *dsi);
 	ssize_t (*transfer)(struct mipi_dsi_host *host,
 			    const struct mipi_dsi_msg *msg);
+	ssize_t(*transfer_irq)(struct mipi_dsi_host* host,
+		const struct mipi_dsi_msg* msg);
 };
 
 /**
@@ -191,6 +193,7 @@ struct mipi_dsi_device {
 	unsigned long mode_flags;
 	unsigned long hs_rate;
 	unsigned long lp_rate;
+	bool irq;
 };
 
 #define MIPI_DSI_MODULE_PREFIX "mipi-dsi:"

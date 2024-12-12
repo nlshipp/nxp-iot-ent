@@ -1,5 +1,5 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2020, 2022-2023 NXP
+// Copyright 2020, 2022-2024 NXP
 // Licensed under the MIT License.
 //
 // Module Name:
@@ -42,6 +42,26 @@ void* operator new[] ( size_t, void* Ptr ) throw ()
 
 void operator delete[] ( void*, void* ) throw ()
 {}
+
+/* called with port.lock taken and irqs caller dependent */
+static void imx_uart_rts_active(/*struct imx_port* sport, */ ULONG * ucr2)
+{
+    *ucr2 &= ~(IMX_UART_UCR2_CTSC | IMX_UART_UCR2_CTS);
+
+    //mctrl_gpio_set(sport->gpios, sport->port.mctrl | TIOCM_RTS);
+}
+
+/* called with port.lock taken and irqs caller dependent */
+static void imx_uart_rts_inactive(/*struct imx_port* sport,*/ ULONG* ucr2)
+{
+    *ucr2 &= ~IMX_UART_UCR2_CTSC;
+    *ucr2 |= IMX_UART_UCR2_CTS;
+
+    //mctrl_gpio_set(sport->gpios, sport->port.mctrl & ~TIOCM_RTS);
+}
+
+static inline void SwitchOn485Transmitter(IMX_UART_INTERRUPT_CONTEXT* interruptContextPtr);
+static inline void SwitchOff485Transmitter(IMX_UART_INTERRUPT_CONTEXT* interruptContextPtr);
 
 _Use_decl_annotations_
 ULONG
@@ -468,6 +488,26 @@ IMXUartEvtInterruptIsr (
             &registersPtr->Ucr1,
             interruptContextPtr->Ucr1Copy);
     }
+    //
+    // If Transmitter Complete request is pending and enabled, in 485 mode switch off transmiter
+    //
+    if ((usr2Masked & IMX_UART_USR2_TXDC) != 0) {
+        /* in rs485 mode disable transmitter */
+        if (interruptContextPtr->IsRS485Enabled) {
+            // TXDC is cleared automatically when data is written to the TxFIFO. Check if isr does not write anything.
+            if (0 != (READ_REGISTER_NOFENCE_ULONG(&registersPtr->Usr2) & IMX_UART_USR2_TXDC)) {
+                SwitchOff485Transmitter(interruptContextPtr);
+                //
+                // Disable TXDC interrupt
+                //
+                interruptContextPtr->Ucr4Copy &= ~IMX_UART_UCR4_TCEN;
+                interruptContextPtr->Usr2EnabledInterruptsMask &= ~IMX_UART_USR2_TXDC;
+                WRITE_REGISTER_NOFENCE_ULONG(
+                    &registersPtr->Ucr4,
+                    interruptContextPtr->Ucr4Copy);
+            }
+        }
+     }
 
     //
     // Is a break active?
@@ -618,6 +658,79 @@ NTSTATUS IMXUartEvtSerCx2FileOpen (WDFDEVICE WdfDevice)
     IMX_UART_INTERRUPT_CONTEXT* interruptContextPtr =
             deviceContextPtr->InterruptContextPtr;
 
+
+    //
+    // Query parameters from registry
+    //
+    {
+        IMX_UART_WDFKEY wdfKey;
+        NTSTATUS status = WdfDeviceOpenRegistryKey(
+            WdfDevice,
+            PLUGPLAY_REGKEY_DEVICE,
+            KEY_READ,
+            WDF_NO_OBJECT_ATTRIBUTES,
+            &wdfKey.Handle);
+
+        if (!NT_SUCCESS(status)) {
+            IMX_UART_LOG_ERROR(
+                "WdfDeviceOpenRegistryKey(...) failed. (status = %!STATUS!)",
+                status);
+
+            return status;
+        }
+
+        const struct _REGVAL_DESCRIPTOR {
+            PCWSTR ValueName;
+            ULONG* DestinationPtr;
+            ULONG DefaultValue;
+        } regTable[] = {
+            {
+                L"IsRS485Enabled",
+                &deviceContextPtr->InterruptContextPtr->IsRS485Enabled,
+                0, // 0 (RS-485 mode disabled by default)
+            },
+            {
+                L"RS485_RTS_ON_SEND",
+                & deviceContextPtr->InterruptContextPtr->RS485_RTS_ON_SEND,
+                1,
+            },
+            {
+                L"RS485_RTS_AFTER_SEND",
+                & deviceContextPtr->InterruptContextPtr->RS485_RTS_AFTER_SEND,
+                0,
+            }
+        };
+
+        for (ULONG i = 0; i < ARRAYSIZE(regTable); ++i) {
+            const _REGVAL_DESCRIPTOR* descriptorPtr = &regTable[i];
+
+            UNICODE_STRING valueName;
+            status = RtlUnicodeStringInit(
+                &valueName,
+                descriptorPtr->ValueName);
+
+            NT_ASSERT(NT_SUCCESS(status));
+
+            status = WdfRegistryQueryULong(
+                wdfKey.Handle,
+                &valueName,
+                descriptorPtr->DestinationPtr);
+
+            if (!NT_SUCCESS(status)) {
+                IMX_UART_LOG_WARNING(
+                    "Failed to query registry value, using default value. "
+                    "(status = %!STATUS!, "
+                    "descriptorPtr->ValueName = %S, "
+                    "descriptorPtr->DefaultValue = %lu)",
+                    status,
+                    descriptorPtr->ValueName,
+                    descriptorPtr->DefaultValue);
+
+                *descriptorPtr->DestinationPtr = descriptorPtr->DefaultValue;
+            }
+        }
+    } // Close registry handle
+
     NT_ASSERT(interruptContextPtr->RxState == IMX_UART_STATE::STOPPED);
     NT_ASSERT(interruptContextPtr->RxDmaState == IMX_UART_STATE::STOPPED);
     NT_ASSERT(interruptContextPtr->RxHoldState == IMX_UART_STATE::STOPPED);
@@ -730,7 +843,7 @@ VOID IMXUartEvtSerCx2FileClose (WDFDEVICE WdfDevice)
           IMX_UART_UCR1_TXMPTYEN);
 
     interruptContextPtr->Ucr2Copy &= ~(IMX_UART_UCR2_ATEN | IMX_UART_UCR2_RTSEN);
-    interruptContextPtr->Ucr4Copy &= ~IMX_UART_UCR4_BKEN;
+    interruptContextPtr->Ucr4Copy &= ~(IMX_UART_UCR4_BKEN | IMX_UART_UCR4_TCEN);
 
     interruptContextPtr->Usr1EnabledInterruptsMask = 0;
     interruptContextPtr->Usr2EnabledInterruptsMask = 0;
@@ -1120,6 +1233,9 @@ IMXUartEvtSerCx2PioTransmitWriteBuffer (
         return interruptContextPtr->TxBuffer.EnqueueBytes(Buffer, Length);
     }
 
+    // in rs485 mode enable transmitter
+    SwitchOn485Transmitter(interruptContextPtr);
+
     interruptContextPtr->TxState = IMX_UART_STATE::IDLE;
     interruptContextPtr->TxDrainState = IMX_UART_STATE::IDLE;
 
@@ -1165,6 +1281,17 @@ IMXUartEvtSerCx2PioTransmitWriteBuffer (
         WdfInterruptReleaseLock(interruptContextPtr->WdfInterrupt);
     }
 
+    //
+    // If Transmitter Complete request is pending and enabled, in 485 mode switch off transmiter
+    //
+    if (interruptContextPtr->IsRS485Enabled) {
+        /* in rs485 mode enable TXDC interrupt*/
+        interruptContextPtr->Ucr4Copy |= IMX_UART_UCR4_TCEN;
+        interruptContextPtr->Usr2EnabledInterruptsMask |= IMX_UART_USR2_TXDC;
+        WRITE_REGISTER_NOFENCE_ULONG(
+            &registersPtr->Ucr4,
+            interruptContextPtr->Ucr4Copy);
+    }
     IMX_UART_LOG_TRACE(
         "Serviced write buffer request. (Length = %lu, fifoBytesWritten = %lu, bytesEnqueued = %lu)",
         Length,
@@ -2209,6 +2336,38 @@ IMXUartCompleteCustomRxTransactionRequest (
     WdfSpinLockRelease(RxDmaTransactionContextPtr->Lock);
 }
 
+static inline void SwitchOn485Transmitter(IMX_UART_INTERRUPT_CONTEXT* interruptContextPtr)
+{
+    IMX_UART_REGISTERS* registersPtr = interruptContextPtr->RegistersPtr;
+
+    // in rs485 mode enable transmitter
+    if (interruptContextPtr->IsRS485Enabled) {
+        if (interruptContextPtr->RS485_RTS_ON_SEND)
+            imx_uart_rts_active(&interruptContextPtr->Ucr2Copy);
+        else
+            imx_uart_rts_inactive(&interruptContextPtr->Ucr2Copy);
+
+        WRITE_REGISTER_NOFENCE_ULONG(
+            &registersPtr->Ucr2,
+            interruptContextPtr->Ucr2Copy);
+    }
+}
+
+static inline void SwitchOff485Transmitter(IMX_UART_INTERRUPT_CONTEXT* interruptContextPtr)
+{
+    IMX_UART_REGISTERS* registersPtr = interruptContextPtr->RegistersPtr;
+    if (interruptContextPtr->IsRS485Enabled) {
+        if (interruptContextPtr->RS485_RTS_AFTER_SEND)
+            imx_uart_rts_active(&interruptContextPtr->Ucr2Copy);
+        else
+            imx_uart_rts_inactive(&interruptContextPtr->Ucr2Copy);
+
+        WRITE_REGISTER_NOFENCE_ULONG(
+            &registersPtr->Ucr2,
+            interruptContextPtr->Ucr2Copy);
+    }
+}
+
 _Use_decl_annotations_
 VOID
 IMXUartEvtSerCx2CustomTransmitTransactionStart (
@@ -2286,6 +2445,8 @@ IMXUartEvtSerCx2CustomTransmitTransactionStart (
 
         return;
     }
+
+    SwitchOn485Transmitter(interruptContextPtr);
 
     //
     // Enable TX DMA
@@ -2426,6 +2587,7 @@ IMXUartEvtCustomTransmitTransactionRequestCancel (
                 wdfRequest,
                 STATUS_CANCELLED);
         }
+        SwitchOff485Transmitter(interruptContextPtr);
         return;
     }
 
@@ -3025,6 +3187,9 @@ IMXUartConfigureUart (
             IMX_UART_UCR2_TXEN |         // Enable transmitter
             IMX_UART_UCR2_RXEN |         // Enable receiver
             IMX_UART_UCR2_SRST;          // Do not reset
+
+        // in rs485 mode disable transmitter
+        SwitchOff485Transmitter(interruptContextPtr);
 
         interruptContextPtr->Ucr3Copy =
             IMX_UART_UCR3_DSR |          // assert DSR
@@ -3648,6 +3813,8 @@ IMXUartSetHandflow (
 {
     ULONG setMask = 0;
     ULONG clearMask = 0;
+    IMX_UART_INTERRUPT_CONTEXT* interruptContextPtr =
+        DeviceContextPtr->InterruptContextPtr;
 
     //
     // Handle output flow control setting. The transmitter on this UART can
@@ -3702,12 +3869,14 @@ IMXUartSetHandflow (
     //
     switch (LineControlPtr->FlowReplace & SERIAL_RTS_MASK) {
     case 0:
-
-        //
-        // Treat no RTS setting the same as manual control
-        //
-        clearMask |= IMX_UART_UCR2_CTSC;
-        setMask |= IMX_UART_UCR2_CTS;
+        if ((interruptContextPtr->IsRS485Enabled) == 0)
+        {
+            //
+            // Treat no RTS setting the same as manual control
+            //
+            clearMask |= IMX_UART_UCR2_CTSC;
+            setMask |= IMX_UART_UCR2_CTS;
+        }
         break;
 
     case SERIAL_RTS_CONTROL:
@@ -3765,8 +3934,6 @@ IMXUartSetHandflow (
 
     NT_ASSERT((setMask & clearMask) == 0);
 
-    IMX_UART_INTERRUPT_CONTEXT* interruptContextPtr =
-            DeviceContextPtr->InterruptContextPtr;
     
     if (LineControlPtr->FlowReplace & (SERIAL_AUTO_TRANSMIT | SERIAL_AUTO_RECEIVE)) {
         if (interruptContextPtr->RxDmaTransactionContextPtr != nullptr) {
@@ -4577,9 +4744,11 @@ IMXUartIoctlSetClrRts (
     WdfInterruptAcquireLock(interruptContextPtr->WdfInterrupt);
 
     //
-    // Only allowed when CTSC is clear
+    // Only allowed when CTSC is clear and not RS485 mode
     //
-    if ((interruptContextPtr->Ucr2Copy & IMX_UART_UCR2_CTSC) != 0) {
+    if (((interruptContextPtr->Ucr2Copy & IMX_UART_UCR2_CTSC) != 0)||
+        ((interruptContextPtr->IsRS485Enabled) != 0))
+    {
         WdfInterruptReleaseLock(interruptContextPtr->WdfInterrupt);
         IMX_UART_LOG_ERROR(
             "Attempted to set state of RTS pin when manual RTS control is not enabled. "

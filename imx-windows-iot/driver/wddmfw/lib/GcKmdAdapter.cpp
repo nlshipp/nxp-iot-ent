@@ -1,4 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
+ * Copyright 2024 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"

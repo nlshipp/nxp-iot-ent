@@ -100,6 +100,8 @@ struct IMXPWM_DEVICE_CONTEXT {
     WDFREQUEST CurrentRequest;
     WDFSTRING DeviceInterfaceSymlinkName;
     UNICODE_STRING DeviceInterfaceSymlinkNameWsz;
+    LARGE_INTEGER connectionId;
+    WDFIOTARGET resourceHandle;
 
     //
     // HW State

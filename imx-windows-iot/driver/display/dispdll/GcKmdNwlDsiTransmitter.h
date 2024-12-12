@@ -28,7 +28,8 @@ public:
         m_channel_id(0),
         m_i2c_main{},
         m_i2c_edid{},
-        m_i2c_cec{}
+        m_i2c_cec{},
+        m_new_brightness(0xFFFF)
     { }
 
     NTSTATUS Start(DXGKRNL_INTERFACE* pDxgkInterface, const char* plat_name, UINT registryIndex);
@@ -62,7 +63,8 @@ public:
     virtual NTSTATUS GetEdid(PVOID Data, ULONG Length, UINT8 Block, UINT8 Segment) override;
 
     virtual void GetChildDescriptor(DXGK_CHILD_DESCRIPTOR* pDescriptor) override;
-
+    virtual void VSync();
+    virtual NTSTATUS BrightnessSet(IN_UCHAR Brightness);
 private:
 
     NTSTATUS GetI2CresourceNum(DXGKRNL_INTERFACE* pDxgkInterface,
@@ -86,5 +88,5 @@ private:
     UINT32 m_disp_interface;
     UCHAR m_num_lanes;
     UCHAR m_channel_id;
-
+    u16 m_new_brightness;
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 NXP
+ * Copyright 2023-2024 NXP
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -375,7 +375,7 @@ End:
   Configure pins of ADP5585 IO expander which are specified by BitMask parameter.
   Note: Dir parameter: 0 = input, 1 = output
 **/
-EFI_STATUS ADP5585_ConfigurePins(IN IMX_I2C_CONTEXT *I2cContext, IN UINT8 *BitMask, IN UINT8 *Dir, IN UINT8 *OutVal)
+EFI_STATUS ADP5585_ConfigurePins(IN IMX_I2C_CONTEXT *I2cContext, IN UINT8 *BitMask, IN UINT8 *Dir, IN UINT8 *OutVal, IN UINT8 *BitMask_C, IN UINT8 *PIN_CONFIG_C)
 {
   EFI_STATUS Status;
   uint8_t RegAddr;
@@ -397,6 +397,27 @@ EFI_STATUS ADP5585_ConfigurePins(IN IMX_I2C_CONTEXT *I2cContext, IN UINT8 *BitMa
   Data[1] = (Data[1] & ~(BitMask[1])) | (BitMask[1] & Dir[1]);
   Status = iMXI2cWrite(I2cContext, RegAddr, &Data[0], 2);
   CHECK_ADP5585_I2C_TRANSACTION_STATUS(Status, "ADP5585 Direction write", End);
+  /* Configure PIN_CONFIG_C */
+  RegAddr = ADP5585_PIN_CONFIG_C_REG;
+  Status = iMXI2cRead(I2cContext, RegAddr, &Data[0], 1);
+  CHECK_ADP5585_I2C_TRANSACTION_STATUS(Status, "ADP5585 PIN_CONFIG_C read", End);
+  Data[0] = 0;
+  Status = iMXI2cWrite(I2cContext, RegAddr, &Data[0], 1);
+  CHECK_ADP5585_I2C_TRANSACTION_STATUS(Status, "ADP5585 PIN_CONFIG_C write", End); 
+
+  RegAddr = ADP5585_PWM_OFFT_LOW_REG;  Data[0] = 0x0;
+  Status = iMXI2cWrite(I2cContext, RegAddr, &Data[0], 1);  CHECK_ADP5585_I2C_TRANSACTION_STATUS(Status, "ADP5585 PIN_CONFIG_C write", End);
+  RegAddr = ADP5585_PWM_OFFT_HIGH_REG;  Data[0] = 0x0;
+  Status = iMXI2cWrite(I2cContext, RegAddr, &Data[0], 1);  CHECK_ADP5585_I2C_TRANSACTION_STATUS(Status, "ADP5585 PIN_CONFIG_C write", End);
+
+  RegAddr = ADP5585_PWM_ONT_LOW_REG;  Data[0] = 0xFF;
+  Status = iMXI2cWrite(I2cContext, RegAddr, &Data[0], 1);  CHECK_ADP5585_I2C_TRANSACTION_STATUS(Status, "ADP5585 PIN_CONFIG_C write", End);
+  RegAddr = ADP5585_PWM_ONT_HIGH_REG;  Data[0] = 0x0F;
+  Status = iMXI2cWrite(I2cContext, RegAddr, &Data[0], 1);  CHECK_ADP5585_I2C_TRANSACTION_STATUS(Status, "ADP5585 PIN_CONFIG_C write", End);
+
+  RegAddr = ADP5585_PWM_CFG_REG;  Data[0] = 1;
+  Status = iMXI2cWrite(I2cContext, RegAddr, &Data[0], 1);  CHECK_ADP5585_I2C_TRANSACTION_STATUS(Status, "ADP5585 PIN_CONFIG_C write", End);
+
 End:
   return Status;
 }
@@ -901,15 +922,17 @@ End:
 VOID IOExpanderAdp5585Init()
 {
   EFI_STATUS Status = RETURN_SUCCESS;
-  UINT8 Data[2];
-  UINT8 Mask[2];
-  UINT8 Data0OutSet, Data0OutClear, Data1OutSet, Data1OutClear;
+  UINT8 Data[3];
+  UINT8 Mask[3];
+  UINT8 Data0OutSet, Data0OutClear, Data1OutSet, Data1OutClear, PIN_CONFIG_CSet, PIN_CONFIG_CClear;
 
   do {
     Data0OutSet = EXP_R0_CSI_RST | EXP_R1_AUD_PWREN;
     Data0OutClear = EXP_R2_PDM_MQS;
     Data1OutSet = EXP_C4_DSI_CTP_RST | EXP_C3_LVDS_BLT_EN;
     Data1OutClear = EXP_C0_CAN_STDBY;
+    PIN_CONFIG_CSet = 8; //10 = R3 reconfigured as PWM_OUT output from PWM block
+    PIN_CONFIG_CClear = 4;
     // Set EXP_SEL signal
     #if FixedPcdGet32(PcdMX93EXPSelSetting)
         // EXP_SEL = 1: SPI3, SAI3, CAN2 to J1001 (RPi/EXP GPIO)
@@ -920,9 +943,11 @@ VOID IOExpanderAdp5585Init()
     #endif
     Data[0] = Data0OutSet;
     Data[1] = Data1OutSet;
+    Data[2] = PIN_CONFIG_CSet;
     Mask[0] = Data0OutSet | Data0OutClear;
     Mask[1] = Data1OutSet | Data1OutClear;
-    Status = ADP5585_ConfigurePins(&Adp5585I2cConfig, Mask, Mask, Data);
+    Mask[2] = PIN_CONFIG_CSet | PIN_CONFIG_CClear;
+    Status = ADP5585_ConfigurePins(&Adp5585I2cConfig, Mask, Mask, Data, &Mask[2], &Data[2]);
     CHECK_ADP5585_I2C_TRANSACTION_STATUS(Status, "ADP5585 IO Expander configuration", End);
   } while (FALSE);
 

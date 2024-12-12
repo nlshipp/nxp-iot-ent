@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
-// Copyright 2020, 2022 NXP
+// Copyright 2020, 2022, 2024 NXP
 // Licensed under the MIT License.
 //
 // Module Name:
 //    imxtmu.c
 // Abstract:
 //    The module implements a sensor device.
+//    The driver supports i.MX8M and o.MX8M_PLUS
 //
 
 #include <initguid.h>
@@ -24,9 +25,26 @@
 #include "trace.h"
 #include "imxtmu.tmh"
 
+#define DISPATCH_CODE() PAGED_ASSERT(KeGetCurrentIrql() == DISPATCH_LEVEL);
+#if (DBG)
+#define _DbgKdPrint
+// KdPrint
+// Uncomment _DbgFrameKdPrint to enable ISR debug messages.
+#define _DbgFrameKdPrint(...) 
+//KdPrint(__VA_ARGS__)
+#else // !DBG
+#define _DbgKdPrint(...)
+#define _DbgFrameKdPrint(...) 
+#endif // !DBG
+
 // {FCB15302-14A9-4bf8-8A0B-888E0D33BEDE}
 DEFINE_GUID(GUID_TEMPERATURE_SENSOR,
     0xfcb15302, 0x14a9, 0x4bf8, 0x8a, 0xb, 0x88, 0x8e, 0xd, 0x33, 0xbe, 0xde);
+
+// {472D908F-D919-4821-A48E-A02A16D223EA}
+DEFINE_GUID(
+    GUID_DEVINTERFACE_TMU,
+    0x472D908F, 0xD919, 0x4821, 0xa4, 0x8e, 0xa0, 0x2a, 0x16, 0xd2, 0x23, 0xea);
 
 extern "C" DRIVER_INITIALIZE DriverEntry;
 EVT_WDF_DRIVER_DEVICE_ADD                   SensorDriverDeviceAdd;
@@ -82,6 +100,22 @@ SensorSetInterruptThresholds(
     _In_ ULONG UpperBound
 );
 
+// Programming interface
+VOID
+Sensor8MPSetInterruptThresholds(
+    _In_ WDFDEVICE Device,
+    _In_ ULONG LowerBound,
+    _In_ ULONG UpperBound
+);
+
+// Programming interface
+VOID
+Sensor8MQSetInterruptThresholds(
+    _In_ WDFDEVICE Device,
+    _In_ ULONG LowerBound,
+    _In_ ULONG UpperBound
+);
+
 LONG
 SensorReadTemperature(
     _In_ WDFDEVICE Device
@@ -104,26 +138,41 @@ Return Value:
 --*/
 _Use_decl_annotations_
 BOOLEAN
-SensorTemperatureIsr (
+SensorTemperatureIsr(
     WDFINTERRUPT WdfInterrupt,
     ULONG MessageID
-    )
+)
 {
     PFDO_DATA devExt = GetDeviceExtension(WdfInterruptGetDevice(WdfInterrupt));
-    volatile IMXTMU_REGISTERS *registersPtr = devExt->RegistersPtr;
-
     UNREFERENCED_PARAMETER(MessageID);
+    volatile IMX8MPTMU_REGISTERS* registersMPPtr = devExt->Registers8MPPtr;
+    volatile IMX8MQTMU_REGISTERS* registersMQPtr = devExt->Registers8MQPtr;
 
-    if (registersPtr->TIDR) {
-        // Disable interrupts. It will be re-enabled later on-demand.
-        registersPtr->TIER = 0;
-        // Clear status bits.
-        registersPtr->TIDR = IMX_TMU_TIDR_ATCTE_MASK | IMX_TMU_TIDR_ATTE_MASK | IMX_TMU_TIDR_ITTE_MASK;
-        // Continue in DPC...
-        WdfInterruptQueueDpcForIsr(WdfInterrupt);
-        return TRUE;
+    switch (devExt->PllType) {
+        case TC_IMX8MP_FRAC_PLL:            
+            if (registersMPPtr->TIDR) {
+                // Disable interrupts. It will be re-enabled later on-demand.
+                registersMPPtr->TIER = 0;
+                // Clear status bits. Not relevant to read-only TIDR
+                //registersPtr->TIDR |= IMX_TMU_TIDR_ATCTE1_MASK | IMX_TMU_TIDR_ATTE1_MASK | IMX_TMU_TIDR_ITTE1_MASK | IMX_TMU_TIDR_ATCTE0_MASK | IMX_TMU_TIDR_ATTE0_MASK | IMX_TMU_TIDR_ITTE0_MASK;
+                registersMPPtr->TIDR |= IMX_TMU_TIDR_ATCTE1_MASK | IMX_TMU_TIDR_ATTE1_MASK | IMX_TMU_TIDR_ITTE1_MASK;
+                // Continue in DPC...
+                WdfInterruptQueueDpcForIsr(WdfInterrupt);
+            return TRUE;
+            }
+            break;
+        case TC_IMX8MQ_FRAC_PLL:            
+            if (registersMQPtr->TIDR) {
+                // Disable interrupts. It will be re-enabled later on-demand.
+                registersMQPtr->TIER = 0;
+                // Clear status bits.
+                registersMQPtr->TIDR = IMX_TMU_TIDR_ATCTE_MASK | IMX_TMU_TIDR_ATTE_MASK | IMX_TMU_TIDR_ITTE_MASK;
+                // Continue in DPC...
+                WdfInterruptQueueDpcForIsr(WdfInterrupt);
+                return TRUE;
+            }
+            break;
     }
-
     return FALSE;
 }
 
@@ -136,10 +185,10 @@ Parameters Description:
 --*/
 _Use_decl_annotations_
 VOID
-SensorTemperatureDpc (
+SensorTemperatureDpc(
     WDFINTERRUPT WdfInterrupt,
     WDFOBJECT AssociatedWdfObject
-    )
+)
 {
     PFDO_DATA devExt = GetDeviceExtension(WdfInterruptGetDevice(WdfInterrupt));
 
@@ -164,10 +213,10 @@ Return Value:
     NTSTATUS.
 --*/
 NTSTATUS
-DriverEntry (
+DriverEntry(
     PDRIVER_OBJECT DriverObject,
     PUNICODE_STRING RegistryPath
-    )
+)
 {
     WDF_OBJECT_ATTRIBUTES driverAttributes;
     WDF_DRIVER_CONFIG driverConfig;
@@ -181,7 +230,7 @@ DriverEntry (
     RECORDER_CONFIGURE_PARAMS_INIT(&recorderConfigureParams);
     WppRecorderConfigure(&recorderConfigureParams);
 #if DBG
-        WPP_RECORDER_LEVEL_FILTER(IMXTMU_TRACING_DEFAULT) = TRUE;
+    WPP_RECORDER_LEVEL_FILTER(IMXTMU_TRACING_DEFAULT) = TRUE;
 #endif // SENSOR_DBG
 
     IMXTMU_LOG_TRACE("Enter");
@@ -218,6 +267,10 @@ VOID EvtDriverContextCleanup(_In_ WDFOBJECT DriverObject) {
     WPP_CLEANUP(WdfDriverWdmGetDriverObject((WDFDRIVER)DriverObject));
 }
 
+//check the device interface was created properly
+// Assuming you named the symbolic link during creation
+UNICODE_STRING InterfaceSymbolicLink = RTL_CONSTANT_STRING(L"\\??\\TMUDevInterface");
+
 IMX_TMU_PAGED_SEGMENT_BEGIN;
 /*++
 Routine Description:
@@ -231,10 +284,10 @@ Return Value:
     NTSTATUS
 --*/
 NTSTATUS
-SensorDriverDeviceAdd (
+SensorDriverDeviceAdd(
     WDFDRIVER Driver,
     PWDFDEVICE_INIT DeviceInit
-    )
+)
 {
     WDF_OBJECT_ATTRIBUTES deviceAttributes;
     WDFDEVICE deviceHandle;
@@ -258,6 +311,8 @@ SensorDriverDeviceAdd (
     pnpPowerCallbacks.EvtDevicePrepareHardware = SensorPrepareHardware;
     pnpPowerCallbacks.EvtDeviceReleaseHardware = SensorReleaseHardware;
     WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit, &pnpPowerCallbacks);
+
+    DECLARE_CONST_UNICODE_STRING(DeviceIntName, L"\\??\\TMUDeviceInterface");
 
     // Create a framework device object.  This call will in turn create
     // a WDM device object, attach to the lower stack, and set the
@@ -314,6 +369,44 @@ SensorDriverDeviceAdd (
         goto DriverDeviceAddEnd;
     }
 
+    WDF_DEVICE_STATE DevStatus;
+    WDF_DEVICE_STATE_INIT(&DevStatus);
+    WdfDeviceGetDeviceState(deviceHandle, &DevStatus);
+
+    WDF_QUERY_INTERFACE_CONFIG QueryInterfaceConfig;
+    THERMAL_DEVICE_INTERFACE ThermalDeviceInterface;
+
+    RtlZeroMemory(&ThermalDeviceInterface, sizeof(ThermalDeviceInterface));
+
+    ThermalDeviceInterface.Size = sizeof(ThermalDeviceInterface);
+    ThermalDeviceInterface.Version = 1;
+    ThermalDeviceInterface.Context = deviceHandle;
+    ThermalDeviceInterface.InterfaceReference = WdfDeviceInterfaceReferenceNoOp;
+    //ThermalDeviceInterface.Flags = ThermalDeviceFlagPassiveCooling | ThermalDeviceFlagActiveCooling;
+
+    WDF_QUERY_INTERFACE_CONFIG_INIT(&QueryInterfaceConfig,
+        (PINTERFACE)&ThermalDeviceInterface,
+        &GUID_DEVINTERFACE_TMU,
+        NULL);
+
+    status = WdfDeviceAddQueryInterface(deviceHandle, &QueryInterfaceConfig);
+    if (!NT_SUCCESS(status)) {
+        IMXTMU_LOG_ERROR("IMXTMU_ERROR: WdfDeviceAddQueryInterface() Failed. 0x%x\n", status);
+
+        goto DriverDeviceAddEnd;
+    }
+
+    status = WdfDeviceCreateDeviceInterface(deviceHandle,
+        &GUID_DEVINTERFACE_TMU,
+        NULL);
+
+    if (!NT_SUCCESS(status)) {
+        IMXTMU_LOG_ERROR("SIMTC_ERROR: WdfDeviceCreateDeviceInterface() Failed. 0x%x\n", status);
+
+        goto DriverDeviceAddEnd;
+    }
+
+
 DriverDeviceAddEnd:
     IMXTMU_LOG_TRACE("Exit 0x%x", status);
     return status;
@@ -332,11 +425,11 @@ Return Value:
     None.
 --*/
 VOID
-SensorQueueIoStop (
+SensorQueueIoStop(
     WDFQUEUE Queue,
     WDFREQUEST Request,
     ULONG ActionFlags
-    )
+)
 {
     NTSTATUS status;
 
@@ -357,6 +450,9 @@ SensorQueueIoStopEnd:
     return;
 }
 
+#define IOCTL_THERMAL_READ_TEMP2\
+        CTL_CODE(FILE_DEVICE_BATTERY, 0x26, METHOD_BUFFERED, FILE_READ_ACCESS)
+
 IMX_TMU_NONPAGED_SEGMENT_BEGIN;
 /*++
 Routine Description:
@@ -376,13 +472,13 @@ Return Value:
    VOID
 --*/
 VOID
-SensorIoDeviceControl (
+SensorIoDeviceControl(
     WDFQUEUE Queue,
     WDFREQUEST Request,
     size_t OutputBufferLength,
     size_t InputBufferLength,
     ULONG IoControlCode
-    )
+)
 {
     ULONG bytesReturned;
     WDFDEVICE device;
@@ -394,12 +490,18 @@ SensorIoDeviceControl (
     UNREFERENCED_PARAMETER(OutputBufferLength);
 
     device = WdfIoQueueGetDevice(Queue);
+    IMXTMU_LOG_INFORMATION("SensorIoDeviceControl initiated with following control code: %d ", IoControlCode);
 
     bytesReturned = 0;
     switch (IoControlCode) {
     case IOCTL_THERMAL_READ_TEMPERATURE:
         // This call will either complete the request or put it in the pending queue.
         IMXTMU_LOG_INFORMATION("SensorIoDeviceControl IOCTL_THERMAL_READ_TEMPERATURE: 0x%p", device);
+        SensorAddReadRequest(device, Request);
+        break;
+    case IOCTL_THERMAL_READ_TEMP2:
+        // This call will either complete the request or put it in the pending queue.
+        IMXTMU_LOG_INFORMATION("SensorIoDeviceControl IOCTL_THERMAL_READ_TEMP2: 0x%p", device);
         SensorAddReadRequest(device, Request);
         break;
     default:
@@ -425,13 +527,13 @@ Description:
     them.
 --*/
 VOID
-SensorIoInternalDeviceControl (
+SensorIoInternalDeviceControl(
     WDFQUEUE Queue,
     WDFREQUEST Request,
     size_t OutputBufferLength,
     size_t InputBufferLength,
     ULONG IoControlCode
-    )
+)
 {
     WDF_REQUEST_SEND_OPTIONS requestSendOptions;
     BOOLEAN retVal;
@@ -469,12 +571,12 @@ Return Value:
 --*/
 _IRQL_requires_(DISPATCH_LEVEL)
 BOOLEAN
-SensorAreConstraintsSatisfied (
+SensorAreConstraintsSatisfied(
     ULONG Temperature,
     ULONG LowerBound,
     ULONG UpperBound,
     LARGE_INTEGER DueTime
-    )
+)
 {
     LARGE_INTEGER currentTime;
 
@@ -505,10 +607,10 @@ Arguments:
 --*/
 _IRQL_requires_(PASSIVE_LEVEL)
 VOID
-SensorAddReadRequest (
+SensorAddReadRequest(
     WDFDEVICE Device,
     WDFREQUEST ReadRequest
-    )
+)
 {
     ULONG bytesReturned;
     PREAD_REQUEST_CONTEXT context;
@@ -524,17 +626,32 @@ SensorAddReadRequest (
     WDF_OBJECT_ATTRIBUTES timerAttributes;
     WDF_TIMER_CONFIG timerConfig;
     PTHERMAL_WAIT_READ thermalWaitRead;
-    volatile IMXTMU_REGISTERS *registersPtr;
+    volatile IMX8MPTMU_REGISTERS* registers8MPPtr;
+    volatile IMX8MQTMU_REGISTERS* registers8MQPtr;
 
     IMXTMU_LOG_TRACE("Enter");
 
     devExt = GetDeviceExtension(Device);
-    registersPtr = devExt->RegistersPtr;
+    
     bytesReturned = 0;
     lockHeld = FALSE;
 
-    // Disable interrupts
-    registersPtr->TIER = 0;
+    switch (devExt->PllType) {
+        case TC_IMX8MQ_FRAC_PLL:
+            registers8MQPtr = devExt->Registers8MQPtr;
+            // Disable interrupts
+            registers8MQPtr->TIER = 0;
+            break;
+        case TC_IMX8MP_FRAC_PLL:
+            registers8MPPtr = devExt->Registers8MPPtr;
+            // Disable interrupts
+            registers8MPPtr->TIER = 0;
+            break;
+    }
+
+    WDF_REQUEST_PARAMETERS drRequest;
+    WDF_REQUEST_PARAMETERS_INIT(&drRequest);
+    WdfRequestGetParameters(ReadRequest, &drRequest);
 
     status = WdfRequestRetrieveInputBuffer(ReadRequest, sizeof(THERMAL_WAIT_READ), (PVOID*)&thermalWaitRead, &length);
 
@@ -543,7 +660,11 @@ SensorAddReadRequest (
         WdfRequestCompleteWithInformation(ReadRequest, status, bytesReturned);
         goto AddReadRequestEnd;
     }
-
+    else if (thermalWaitRead->Timeout > 10000) { //this request is malformed in other way
+        thermalWaitRead->Timeout = 0;
+        thermalWaitRead->LowTemperature = 0;
+        //thermalWaitRead->HighTemperature = 0xffffffff;
+    }
 
     TIME_FIELDS timeFields;
     LARGE_INTEGER printTime;
@@ -559,7 +680,8 @@ SensorAddReadRequest (
         // Estimate the system time this request will expire at.
         KeQuerySystemTime(&expirationTime);
         expirationTime.QuadPart += thermalWaitRead->Timeout * 10000;
-    } else {
+    }
+    else {
         // Value which indicates the request never expires.
         expirationTime.QuadPart = -1LL /* INFINITE */;
     }
@@ -575,12 +697,14 @@ SensorAddReadRequest (
         if (NT_SUCCESS(status) && length == sizeof(ULONG)) {
             *requestTemperature = temperature;
             bytesReturned = sizeof(ULONG);
-        } else {
+        }
+        else {
             status = STATUS_INVALID_PARAMETER;
             IMXTMU_LOG_ERROR("WdfRequestRetrieveOutputBuffer() Failed. 0x%x", status);
         }
         WdfRequestCompleteWithInformation(ReadRequest, status, bytesReturned);
-    } else {
+    }
+    else {
         WdfSpinLockAcquire(devExt->QueueLock);
         lockHeld = TRUE;
         // Create a context to store request-specific information.
@@ -643,9 +767,9 @@ Arguments:
 --*/
 _IRQL_requires_(DISPATCH_LEVEL)
 NTSTATUS
-SensorScanPendingQueue (
+SensorScanPendingQueue(
     WDFDEVICE Device
-    )
+)
 {
     WDFREQUEST currentRequest;
     PFDO_DATA devExt;
@@ -714,13 +838,13 @@ Arguments:
 --*/
 _IRQL_requires_(DISPATCH_LEVEL)
 VOID
-SensorCheckQueuedRequest (
+SensorCheckQueuedRequest(
     WDFDEVICE Device,
     ULONG Temperature,
     PULONG LowerBound,
     PULONG UpperBound,
     WDFREQUEST Request
-    )
+)
 {
     ULONG bytesReturned;
     LARGE_INTEGER currentTime;
@@ -786,9 +910,9 @@ Arguments:
 --*/
 _Use_decl_annotations_
 VOID
-SensorExpiredRequestTimer (
+SensorExpiredRequestTimer(
     WDFTIMER Timer
-    )
+)
 {
     PFDO_DATA devExt;
     WDFDEVICE device;
@@ -819,27 +943,61 @@ SensorExpiredRequestTimer (
 --*/
 _Use_decl_annotations_
 NTSTATUS
-SensorPrepareHardware (
+SensorPrepareHardware(
     WDFDEVICE WdfDevice,
     WDFCMRESLIST FxResourcesRaw,
     WDFCMRESLIST FxResourcesTranslated
-    )
+)
 {
     ULONG resourceCount = 0;
     PCM_PARTIAL_RESOURCE_DESCRIPTOR res;
     NTSTATUS status = STATUS_SUCCESS;
-    NTSTATUS calStatus = STATUS_SUCCESS;
+    //NTSTATUS calStatus = STATUS_SUCCESS;
     PFDO_DATA devExt = NULL;
     ULONG numIntResourcesFound = 0;
     ULONG numMemResourcesFound = 0;
-    volatile IMXTMU_REGISTERS *registersPtr;
+    volatile IMX8MPTMU_REGISTERS* registers8MPPtr;
+    volatile IMX8MQTMU_REGISTERS* registers8MQPtr;
 
-    UNREFERENCED_PARAMETER(FxResourcesRaw);
     IMXTMU_LOG_TRACE("Enter");
+
+    //first, recognize SoC
+    ACPI_EVAL_OUTPUT_BUFFER UNALIGNED* dsdBufferPtr = nullptr;
+    status = AcpiQueryDsd(WdfDeviceWdmGetPhysicalDevice(WdfDevice), &dsdBufferPtr);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    const ACPI_METHOD_ARGUMENT UNALIGNED* devicePropertiesPkgPtr;
+    status = AcpiParseDsdAsDeviceProperties(dsdBufferPtr, &devicePropertiesPkgPtr);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    const ACPI_METHOD_ARGUMENT UNALIGNED* currentPairEntryPtr = nullptr;
+
+
+    status = AcpiDevicePropertiesQueryValue(devicePropertiesPkgPtr, "SocType", &currentPairEntryPtr);
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+    
 
     devExt = GetDeviceExtension(WdfDevice);
     NT_ASSERT(devExt != NULL);
 
+    char* SocTypeName = nullptr;
+    SocTypeName = (char*)currentPairEntryPtr->Data;
+    //assign type to device
+    if (!strcmp(SocTypeName, "imx8mp")) {
+        devExt->PllType = TC_IMX8MP_FRAC_PLL;
+    } else if (!strcmp(SocTypeName, "imx8mq")) {
+        devExt->PllType = TC_IMX8MQ_FRAC_PLL;
+    } else {
+        devExt->PllType = TC_UNKNOWN_PLL_TYPE;
+    }
+
+    UNREFERENCED_PARAMETER(FxResourcesRaw);
     resourceCount = WdfCmResourceListGetCount(FxResourcesTranslated);
 
     for (ULONG i = 0; i < resourceCount; i++) {
@@ -855,9 +1013,18 @@ SensorPrepareHardware (
             devExt->RegistersPhysicalAddress = res->u.Memory.Start;
             devExt->RegistersIoSize = res->u.Memory.Length;
             // Get IO space mapping
-            devExt->RegistersPtr = (IMXTMU_REGISTERS*)MmMapIoSpaceEx(devExt->RegistersPhysicalAddress,
-                                                                     devExt->RegistersIoSize,
-                                                                     PAGE_NOCACHE | PAGE_READWRITE);
+            switch (devExt->PllType) {
+                case TC_IMX8MP_FRAC_PLL:
+                    devExt->Registers8MPPtr = (IMX8MPTMU_REGISTERS*)MmMapIoSpaceEx(devExt->RegistersPhysicalAddress,
+                        devExt->RegistersIoSize,
+                        PAGE_NOCACHE | PAGE_READWRITE);
+                    break;
+                case TC_IMX8MQ_FRAC_PLL:
+                    devExt->Registers8MQPtr = (IMX8MQTMU_REGISTERS*)MmMapIoSpaceEx(devExt->RegistersPhysicalAddress,
+                        devExt->RegistersIoSize,
+                        PAGE_NOCACHE | PAGE_READWRITE);
+                    break;
+            }            
             break;
         case CmResourceTypeInterrupt:
             ++numIntResourcesFound;
@@ -883,59 +1050,80 @@ SensorPrepareHardware (
         return STATUS_DEVICE_CONFIGURATION_ERROR;
     }
 
-    ACPI_EVAL_OUTPUT_BUFFER UNALIGNED* dsdBufferPtr = nullptr;
-    status = AcpiQueryDsd(WdfDeviceWdmGetPhysicalDevice(WdfDevice), &dsdBufferPtr);
-    if (!NT_SUCCESS(status)) {
-        return status;
-    }
+    switch (devExt->PllType) {
+        case TC_IMX8MP_FRAC_PLL:
+            registers8MPPtr = devExt->Registers8MPPtr;
 
-    const ACPI_METHOD_ARGUMENT UNALIGNED* devicePropertiesPkgPtr;
-    status = AcpiParseDsdAsDeviceProperties(dsdBufferPtr, &devicePropertiesPkgPtr);
-    if (!NT_SUCCESS(status)) {
-        return status;
-    }
+            // HW sensor initialization
+            registers8MPPtr->TER = 0;
+            registers8MPPtr->TPS = 0;
+            // Disable interrupts
+            registers8MPPtr->TIER = 0;
+            // Set default value for update interval
+            //note - not done for PLUS?
+            //registers8MPPtr->TMTMIR = IMX_TMU_TMTMIR_TMI_VAL_DFLT;
 
-    const ACPI_METHOD_ARGUMENT UNALIGNED* currentPairEntryPtr = nullptr;
-    const ACPI_METHOD_ARGUMENT UNALIGNED* currentArgumentPtr = nullptr;
-
-    status = AcpiDevicePropertiesQueryValue(devicePropertiesPkgPtr, "calibration", &currentPairEntryPtr);
-    if (!NT_SUCCESS(status)) {
-        return status;
-    }
-
-    UINT32 range[4] = {0};
-    AcpiDevicePropertiesQueryIntegerArrayValue(devicePropertiesPkgPtr, "range", &range[0], 4);
-
-    registersPtr = devExt->RegistersPtr;
-
-    // HW sensor initialization
-    registersPtr->TMR = 0;
-    // Disable interrupts
-    registersPtr->TIER = 0;
-    // Set default value for update interval
-    registersPtr->TMTMIR = IMX_TMU_TMTMIR_TMI_VAL_DFLT;
-
-    // Initialize temperature range registers
-    registersPtr->TTR0CR = range[0];
-    registersPtr->TTR1CR = range[1];
-    registersPtr->TTR2CR = range[2];
-    registersPtr->TTR3CR = range[3];
-
-    while (calStatus == STATUS_SUCCESS) {
-        UINT32 calibration[2] = {0};
-        calStatus = AcpiDevicePropertiesQueryIntegerValueArray(currentPairEntryPtr, &calibration[0], 2, &currentArgumentPtr);
-        if (calStatus == STATUS_SUCCESS) {
-            registersPtr->TTCFGR = calibration[0];
-            registersPtr->TSCFGR = calibration[1];
-        } else {
+            // Clear flags
+            //TIDR is reset only, TIER controls what is indicated by TIDR.
+            //clear flags
+            // in case you want it for both sensors, uncomment this
+            //registers8MPPtr->TIDR |= IMX_TMU_TIDR_ATCTE1_MASK | IMX_TMU_TIDR_ATTE1_MASK | IMX_TMU_TIDR_ITTE1_MASK | IMX_TMU_TIDR_ATCTE0_MASK | IMX_TMU_TIDR_ATTE0_MASK | IMX_TMU_TIDR_ITTE0_MASK;
+            registers8MPPtr->TIDR |= IMX_TMU_TIDR_ATCTE1_MASK | IMX_TMU_TIDR_ATTE1_MASK | IMX_TMU_TIDR_ITTE1_MASK;
+            // Enable TMU with measurement of the processor temperature
+            //no unnecessary ALPF change in TER
+            registers8MPPtr->TER |= IMX_TMU_TER_ME_MASK;
+            registers8MPPtr->TPS |= IMX_TMU_TPS_SEL_MASK;
             break;
-        }
-    }
+        case TC_IMX8MQ_FRAC_PLL:
+            registers8MQPtr = devExt->Registers8MQPtr;
+            NTSTATUS calStatus = STATUS_SUCCESS;
+            //continue with ACPI eval - reuse the ACPI recognition from start of this routine and continue to delve deeper
+            const ACPI_METHOD_ARGUMENT UNALIGNED* currentArgumentPtr = nullptr;
 
-    // Clear flags
-    registersPtr->TIDR = IMX_TMU_TIDR_ATCTE_MASK | IMX_TMU_TIDR_ATTE_MASK | IMX_TMU_TIDR_ITTE_MASK;
-    // Enable TMU with measurement of the processor temperature
-    registersPtr->TMR = IMX_TMU_TMR_ME_MASK | IMX_TMU_TMR_ALPF_MASK | IMX_TMU_TMR_MSITE_VAL_ARM;
+            status = AcpiDevicePropertiesQueryValue(devicePropertiesPkgPtr, "calibration", &currentPairEntryPtr);
+            if (!NT_SUCCESS(status)) {
+                return status;
+            }
+
+            UINT32 range[4] = { 0 };
+            AcpiDevicePropertiesQueryIntegerArrayValue(devicePropertiesPkgPtr, "range", &range[0], 4);
+
+            registers8MQPtr = devExt->Registers8MQPtr;
+
+            // HW sensor initialization
+            registers8MQPtr->TMR = 0;
+            // Disable interrupts
+            registers8MQPtr->TIER = 0;
+            // Set default value for update interval
+            registers8MQPtr->TMTMIR = IMX_TMU_TMTMIR_TMI_VAL_DFLT;
+
+            // Initialize temperature range registers
+            registers8MQPtr->TTR0CR = range[0];
+            registers8MQPtr->TTR1CR = range[1];
+            registers8MQPtr->TTR2CR = range[2];
+            registers8MQPtr->TTR3CR = range[3];
+
+            while (calStatus == STATUS_SUCCESS) {
+                UINT32 calibration[2] = { 0 };
+                calStatus = AcpiDevicePropertiesQueryIntegerValueArray(currentPairEntryPtr, &calibration[0], 2, &currentArgumentPtr);
+                if (calStatus == STATUS_SUCCESS) {
+                    registers8MQPtr->TTCFGR = calibration[0];
+                    registers8MQPtr->TSCFGR = calibration[1];
+                }
+                else {
+                    break;
+                }
+            }
+
+            // Clear flags
+            registers8MQPtr->TIDR = IMX_TMU_TIDR_ATCTE_MASK | IMX_TMU_TIDR_ATTE_MASK | IMX_TMU_TIDR_ITTE_MASK;
+            // Enable TMU with measurement of the processor temperature
+            registers8MQPtr->TMR = IMX_TMU_TMR_ME_MASK | IMX_TMU_TMR_ALPF_MASK | IMX_TMU_TMR_MSITE_VAL_ARM;
+            break;
+    }
+    
+    
+    
 
     IMXTMU_LOG_TRACE("Exit 0x%x", status);
 
@@ -956,7 +1144,7 @@ SensorPrepareHardware (
 --*/
 _Use_decl_annotations_
 NTSTATUS
-SensorReleaseHardware (
+SensorReleaseHardware(
     WDFDEVICE WdfDevice,
     WDFCMRESLIST FxResourcesTranslated
 )
@@ -968,10 +1156,20 @@ SensorReleaseHardware (
     UNREFERENCED_PARAMETER(FxResourcesTranslated);
     IMXTMU_LOG_TRACE("Enter");
 
-    if (devExt->RegistersPtr != NULL) {
-        MmUnmapIoSpace(devExt->RegistersPtr, devExt->RegistersIoSize);
-        devExt->RegistersPtr = NULL;
-    };
+    switch (devExt->PllType) {
+        case TC_IMX8MP_FRAC_PLL:
+            if (devExt->Registers8MPPtr != NULL) {
+                MmUnmapIoSpace(devExt->Registers8MPPtr, devExt->RegistersIoSize);
+                devExt->Registers8MPPtr = NULL;
+            };
+            break;
+        case TC_IMX8MQ_FRAC_PLL:
+            if (devExt->Registers8MQPtr != NULL) {
+                MmUnmapIoSpace(devExt->Registers8MQPtr, devExt->RegistersIoSize);
+                devExt->Registers8MQPtr = NULL;
+            };
+            break;
+    }
 
     IMXTMU_LOG_TRACE("Exit 0x%x", status);
 
@@ -990,27 +1188,96 @@ Return Value:
     NTSTATUS
 --*/
 VOID
-SensorSetInterruptThresholds (
+SensorSetInterruptThresholds(
     WDFDEVICE Device,
     ULONG LowerBound,
     ULONG UpperBound
-    )
+)
 {
     PFDO_DATA devExt;
-    volatile IMXTMU_REGISTERS *registersPtr;
+    devExt = GetDeviceExtension(Device);
+    switch (devExt->PllType) {
+        case TC_IMX8MP_FRAC_PLL:
+            Sensor8MPSetInterruptThresholds(Device, LowerBound, UpperBound);
+            break;
+        case TC_IMX8MQ_FRAC_PLL:
+            Sensor8MQSetInterruptThresholds(Device, LowerBound, UpperBound);
+            break;
+    }
+    
+    return;
+}
+
+VOID Sensor8MPSetInterruptThresholds(
+    WDFDEVICE Device,
+    ULONG LowerBound,
+    ULONG UpperBound
+) 
+{
+    volatile IMX8MPTMU_REGISTERS* registers8MPPtr;
+    PFDO_DATA devExt;
 
     UNREFERENCED_PARAMETER(LowerBound);
 
     devExt = GetDeviceExtension(Device);
-    registersPtr = devExt->RegistersPtr;
+    registers8MPPtr = devExt->Registers8MPPtr;
+
+    //new - disable TMU
+    registers8MPPtr->TER |= IMX_TMU_TER_EN_DIS_MASK;
+    //new - disable the threshold
+    registers8MPPtr->TMHTITR |= IMX_TMHTITR_DISABLE;
 
     // Clear flags
-    registersPtr->TIDR = IMX_TMU_TIDR_ATCTE_MASK | IMX_TMU_TIDR_ATTE_MASK | IMX_TMU_TIDR_ITTE_MASK;
+    // uncomment for both sensors
+    //registers8MPPtr->TIDR |= IMX_TMU_TIDR_ATCTE1_MASK | IMX_TMU_TIDR_ATTE1_MASK | IMX_TMU_TIDR_ITTE1_MASK | IMX_TMU_TIDR_ATCTE0_MASK | IMX_TMU_TIDR_ATTE0_MASK | IMX_TMU_s_TIDR_ITTE0_MASK;
+    registers8MPPtr->TIDR |= IMX_TMU_TIDR_ATCTE1_MASK | IMX_TMU_TIDR_ATTE1_MASK | IMX_TMU_TIDR_ITTE1_MASK;
     // Set Interrupt threshold to occur
-    registersPtr->TMHTITR = (((UpperBound / 10) - KELVIN273) & IMX_TMU_TEMP_MASK) | IMX_TMU_TEMP_EN;
-    IMXTMU_LOG_INFORMATION("TMHTITR 0x%x, TSR 0x%x", registersPtr->TMHTITR, registersPtr->TSR);
+    registers8MPPtr->TMHTITR = (((UpperBound / 10) - KELVIN273) & IMX_TMU_TEMP1_MASK) | ((UpperBound / 10) - KELVIN273) | IMX_TMU_TEMP_EN;
+    IMXTMU_LOG_INFORMATION("TMHTITR 0x%x, TER 0x%x", registers8MPPtr->TMHTITR, registers8MPPtr->TER);
+
+    //enable TMU
+    registers8MPPtr->TER |= IMX_TMU_TER_ME_MASK;
+    //delay 5 us
+    LARGE_INTEGER delay;
+    delay.QuadPart = 50;
+    PLARGE_INTEGER pdelay = &delay;
+    NTSTATUS status = STATUS_SUCCESS;
+    status = KeDelayExecutionThread(KernelMode, FALSE, pdelay);
+    while (!NT_SUCCESS(status)) {
+        status = KeDelayExecutionThread(KernelMode, FALSE, pdelay);
+    }
+    //enable threshold
+    registers8MPPtr->TMHTITR |= IMX_TMHTITR_PR1_EN;
+
     // Enable interrupts
-    registersPtr->TIER = (IMX_TMU_TIER_ITTEIE_MASK);
+    // uncomment for both sensors
+    //registers8MPPtr->TIER |= (IMX_TMU_TIER_ITTEIE1_MASK | IMX_TMU_TIER_ITTEIE0_MASK);
+    registers8MPPtr->TIER |= IMX_TMU_TIER_ITTEIE1_MASK;
+
+    return;
+}
+
+VOID Sensor8MQSetInterruptThresholds(
+    WDFDEVICE Device,
+    ULONG LowerBound,
+    ULONG UpperBound
+)
+{
+    volatile IMX8MQTMU_REGISTERS* registers8MQPtr;
+    PFDO_DATA devExt;
+
+    UNREFERENCED_PARAMETER(LowerBound);
+
+    devExt = GetDeviceExtension(Device);
+    registers8MQPtr = devExt->Registers8MQPtr;
+
+    // Clear flags
+    registers8MQPtr->TIDR = IMX_TMU_TIDR_ATCTE_MASK | IMX_TMU_TIDR_ATTE_MASK | IMX_TMU_TIDR_ITTE_MASK;
+    // Set Interrupt threshold to occur
+    registers8MQPtr->TMHTITR = (((UpperBound / 10) - KELVIN273) & IMX_TMU_TEMP_MASK) | IMX_TMU_TEMP_EN;
+    IMXTMU_LOG_INFORMATION("TMHTITR 0x%x, TSR 0x%x", registers8MQPtr->TMHTITR, registers8MQPtr->TSR);
+    // Enable interrupts
+    registers8MQPtr->TIER = (IMX_TMU_TIER_ITTEIE_MASK);
 
     return;
 }
@@ -1025,25 +1292,53 @@ Return Value:
 --*/
 _Use_decl_annotations_
 LONG
-SensorReadTemperature (
+SensorReadTemperature(
     WDFDEVICE Device
-    )
+)
 {
+    //return only processor temp (site 1)
+    //for site 0 in MP, you need to modify this code
     PFDO_DATA devExt;
-    LONG tempInTenthsOfKelvin;
+    LONG tempInTenthsOfKelvin = 0;
     UINT32 siteTemp;
-    volatile IMXTMU_REGISTERS *registersPtr;
+    volatile IMX8MPTMU_REGISTERS* registers8MPPtr;
+    volatile IMX8MQTMU_REGISTERS* registers8MQPtr;
+    UINT32 tmp;
+    UINT32 kelvin;
+    UINT32 shift;
 
     devExt = GetDeviceExtension(Device);
-    registersPtr = devExt->RegistersPtr;
+    switch (devExt->PllType) {
+        case TC_IMX8MP_FRAC_PLL:
+            registers8MPPtr = devExt->Registers8MPPtr;
 
-    siteTemp = registersPtr->TRITSR0;
-    if (siteTemp & IMX_TMU_TEMP_VALID) {
-        tempInTenthsOfKelvin = ((siteTemp & IMX_TMU_TEMP_MASK) + KELVIN273) * 10;
-        IMXTMU_LOG_TRACE("SensorReadTemperature in tenths of Kelvin %d", tempInTenthsOfKelvin);
-    } else {
-        tempInTenthsOfKelvin = -1;
-        IMXTMU_LOG_ERROR("Error in temperature reading! (TSR value: 0x%x)", registersPtr->TSR);
+            siteTemp = registers8MPPtr->TRATSR;
+            if (siteTemp & IMX_TMU_TEMP1_VALID) {
+                tmp = siteTemp & IMX_TMU_TEMP1_MASK;
+                shift = tmp >> IMX_TMU_TEMP1_SHIFT;
+                kelvin = KELVIN273;
+                tempInTenthsOfKelvin = (((siteTemp & IMX_TMU_TEMP1_MASK) >> IMX_TMU_TEMP1_SHIFT) + KELVIN273) * 10;
+                IMXTMU_LOG_TRACE("SensorReadTemperature in tenths of Kelvin for site 1:%d", tempInTenthsOfKelvin);
+            }
+            else {
+                tempInTenthsOfKelvin = -1;
+                IMXTMU_LOG_ERROR("Error in temperature reading! (TIDR value: 0x%x)", registers8MPPtr->TIDR);
+            }
+            break;
+        case TC_IMX8MQ_FRAC_PLL:
+            registers8MQPtr = devExt->Registers8MQPtr;
+
+            siteTemp = registers8MQPtr->TRITSR0;
+            if (siteTemp & IMX_TMU_TEMP_VALID) {
+                tempInTenthsOfKelvin = ((siteTemp & IMX_TMU_TEMP_MASK) + KELVIN273) * 10;
+                IMXTMU_LOG_TRACE("SensorReadTemperature in tenths of Kelvin %d", tempInTenthsOfKelvin);
+            }
+            else {
+                tempInTenthsOfKelvin = -1;
+                IMXTMU_LOG_ERROR("Error in temperature reading! (TSR value: 0x%x)", registers8MQPtr->TSR);
+            }
+            break;
     }
+         
     return tempInTenthsOfKelvin;
 }

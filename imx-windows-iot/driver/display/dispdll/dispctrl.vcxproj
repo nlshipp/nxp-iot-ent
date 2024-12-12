@@ -99,6 +99,8 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\shared\acpi\acpiutil.cpp" />
+    <ClCompile Include="..\..\shared\acpi\dsdtutil.cpp" />
     <ClCompile Include="bridge\synopsys\dw-hdmi-gp-audio.c" />
     <ClCompile Include="bridge\synopsys\dw-hdmi.c" />
     <ClCompile Include="bridge\synopsys\dw_hdmi-imx.c" />

@@ -1,7 +1,7 @@
 /** @file
 *
 *  Copyright (c) 2018 Microsoft Corporation. All rights reserved.
-*  Copyright 2019, 2023 NXP
+*  Copyright 2019, 2023-2024 NXP
 *
 *  This program and the accompanying materials
 *  are licensed and made available under the terms and conditions of the BSD License
@@ -65,16 +65,39 @@ Device (PWM2)
     Return (0xf)
   }
 
-  Name (_CRS, ResourceTemplate () {
-    MEMORY32FIXED (ReadWrite, 0x30670000, 0x10000, )
-    Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 114 }
-  })
+    Method(_CRS, 0x0, NotSerialized)
+    {
+        Name(RBUF, ResourceTemplate()
+        {
+        MEMORY32FIXED (ReadWrite, 0x30670000, 0x10000, )
+        Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 114 }
+        PinFunction (Exclusive, PullUp, IMX_ALT2, "\\_SB.GPIO", 0, ResourceConsumer, ) { 11 }
+        })
+        Return(RBUF)
+    }
+
   Name (_DSD, Package () {
     ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
     Package () {
       Package (2) {"ClockFrequency_Hz", 25000000}, 
       Package (2) {"PinCount",          1},
       Package (2) {"Pwm-SchematicName", "PWM_2"},
+      // Specify if the PWM will be enabled after boot (1 enabled, 0 disabled) 
+      // Useful for PWM handled LCD panels for exemple
+       Package (2) {"BootOn", 1},                    
+      // Desired PWM period used after boot (if BootOn is 1). 
+      // Period is 64 bit value -> then must be splitted to two 32 bit integers at ACPI table
+      Package (2) {"BootDesiredPeriodLowPart", 2000000000},    
+      Package (2) {"BootDesiredPeriodHighPart", 0},
+      // PWM Duty cycle used after boot (if BootOn is 1). 
+      // Duty cycle is 64 bit value -> then must be splitted to two 32 bit integers at ACPI table
+      // (these values represent 50%)
+      Package (2) {"BootActiveDutyCycleLowPart", 4294967295},
+      Package (2) {"BootActiveDutyCycleHighPart", 1073741823},
+      // PWM polarity used after boot (if BootOn is 1). 
+      // 1 -> PWM_ACTIVE_HIGH
+      // 0 -> PWM_ACTIVE_LOW
+      Package (2) {"BootPolarity", 1},
     }
   })
 }

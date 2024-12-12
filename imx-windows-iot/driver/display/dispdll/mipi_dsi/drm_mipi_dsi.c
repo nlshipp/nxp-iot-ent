@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2012-2013, Samsung Electronics, Co., Ltd.
  * Andrzej Hajda <a.hajda@samsung.com>
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -296,8 +296,12 @@ static ssize_t mipi_dsi_device_transfer(struct mipi_dsi_device *dsi,
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_LPM)
 		msg->flags |= MIPI_DSI_MSG_USE_LPM;
-
-	return ops->transfer(dsi->host, msg);
+	if (dsi->irq)
+	{
+		return ops->transfer_irq(dsi->host, msg);
+	}
+	else
+	   return ops->transfer(dsi->host, msg);
 }
 
 /**

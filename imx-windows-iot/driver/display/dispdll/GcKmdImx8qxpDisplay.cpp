@@ -1,5 +1,5 @@
 /* Copyright (c) Microsoft Corporation.
- * Copyright 2022-2023 NXP
+ * Copyright 2022-2024 NXP
    Licensed under the MIT License. */
 
 #include "precomp.h"
@@ -124,6 +124,8 @@ GcKmImx8qxpDisplay::HwStart(DXGKRNL_INTERFACE* pDxgkInterface)
     // select plane attached to crtc
     m_crtc.base.state->plane_mask |= drm_plane_mask(&m_crtc.plane[m_PlaneId]->base);
 
+    InitResources(pDxgkInterface, m_di.RegistryIndex);
+
     return m_LvdsTransmitter.Start(pDxgkInterface, m_di.RegistryIndex);
 }
 
@@ -175,6 +177,9 @@ GcKmImx8qxpDisplay::HwStop(
 
     clk_deinit_imx8qxp(m_clk_tree);
     (*m_p_refCount)--;
+
+    GcKmBaseDisplay::m_BrigthnessPWM.PnpStop();
+    GcKmBaseDisplay::m_BrigthnessPWM.Close();
 
     return STATUS_SUCCESS;
 }
@@ -668,3 +673,15 @@ GcKmImx8qxpDisplay::InterruptRoutine(UINT MessageNumber)
 }
 
 GC_NONPAGED_SEGMENT_END; //=====================================================
+
+GC_PAGED_SEGMENT_BEGIN; //======================================================
+
+NTSTATUS GcKmImx8qxpDisplay::BrightnessSet(IN_UCHAR Brightness)
+{
+    PAGED_CODE();
+    NTSTATUS Status = GcKmBaseDisplay::PWMSet(Brightness);
+    return Status;
+}
+
+GC_PAGED_SEGMENT_END; //=====================================================
+

@@ -63,9 +63,9 @@ Device (GPU1)
     // DPR #1
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 83 }
     //MIPI-DSI0 - shared with I2C8
-    Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 91 }
+    Interrupt (ResourceConsumer, Level, ActiveHigh, Shared) { 91 }
     //MIPI-DSI1 - shared with I2C9
-    Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 92 }
+    Interrupt (ResourceConsumer, Level, ActiveHigh, Shared) { 92 }
     // SCFW
     I2CSerialBus(0x41, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.SCFW")
     // I2C interface for IMX-LVDS-HDMI converter (IT6263) connected to MIPI-DSI/LVDS #0
@@ -87,4 +87,18 @@ Device (GPU1)
     //I2C interface for Expander driven GPIO pin MIPI_DSI1_EN
     I2CSerialBus(0x1D, ControllerInitiated, 400000, AddressingMode7Bit, "\\_SB.I2C1") //U187 PCA9557PW
   })
+  Name (_DSD, Package ()
+    {
+        ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+        Package () {
+            //Package (2) {"BrightnessPWM_0", "\\PWM_5"}, 
+            Package (2) {"BrightnessPWM_HID_0", "NXP010E"},
+            Package (2) {"BrightnessPWM_UID_0", "5"},
+            Package (2) {"BrightnessPWM_PIN_0", "0"},
+            //Package (2) {"BrightnessPWM_1", "\\PWM_5"}, 
+            Package (2) {"BrightnessPWM_HID_1", "NXP010E"},
+            Package (2) {"BrightnessPWM_UID_1", "6"},
+            Package (2) {"BrightnessPWM_PIN_1", "0"}
+        }
+    })
 }

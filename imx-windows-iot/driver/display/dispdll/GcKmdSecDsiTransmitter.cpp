@@ -203,7 +203,7 @@ static property mn_adv_properties[] = {
 static LONG cid[3];
 static int instance = 1;
 static property mn_panel_raydium_properties[] = {
-    { "compatible", 1, "raydium,rm67191" },
+    { "compatible", 1, "raydium,rm67191" }, // for new OLEDA1 replace with { "compatible", 1, "raydium,rm67199" },
     { "instance", 1, &instance },
     /* GPIO1_IO8 - reset pin: pin name, number of params, gpio connection_id LowPart=cid[0] HighPart=cid[1] PinType=cid[2], */
     { "reset", 3, &cid },
@@ -372,4 +372,15 @@ NTSTATUS SecDsiTransmitter::GetResourceNum(DXGKRNL_INTERFACE* pDxgkInterface, UL
 
     printk_debug("SecDsi display: I2C resource found with connection id: 0x%llx\n", i2c_connection_id->QuadPart);
     return STATUS_SUCCESS;
+}
+
+NTSTATUS SecDsiTransmitter::BrightnessSet(IN_UCHAR Brightness)
+{
+    PAGED_CODE();
+    struct mipi_dsi_device* dsi = (struct mipi_dsi_device*)panel_pdev.data;
+    u16 data = ((((ULONG)Brightness) * 255) + 50) / 100;
+    if (0 == data) data = 1; // avoiding black screen
+    NTSTATUS Status = mipi_dsi_dcs_set_display_brightness(dsi, data);
+    printk_debug("SecDsi display: BrightnessSet: %d%%, Status = 0x%x, Data = %d\n", Brightness, Status, data);
+    return Status;
 }
